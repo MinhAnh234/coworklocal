@@ -1,0 +1,19 @@
+repository:
+  owner_team: cowork-team
+
+areas:
+  agent:
+    owner_team: cowork-team
+  mcp:
+    owner_team: cowork-team
+  security:
+    owner_team: cowork-team
+  workflow:
+    owner_team: cowork-team
+  model_routing:
+    owner_team: cowork-team
+
+contributors:
+  core_ai:
+    role: contributor
+    final_merge: false
