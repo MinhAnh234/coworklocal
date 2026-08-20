@@ -105,7 +105,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         # sandboxes agent-run shell commands) — reading a URL for info is safe and
         # useful, so this defaults ON. Toggle in Settings → Security.
         "allow_url_fetch": True,
-        "sandbox_pw": "quandh14",          # default password to unlock sandbox settings
+        "sandbox_pw": "",                  # set through COWORK_SANDBOX_PASSWORD
         "rulebase_path": "",               # custom RULEBASE.md — attached to every agent execution
     },
     # Legacy generic-MCP-server list. MERGED into ext_connectors["other"] as of
@@ -173,7 +173,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # Microsoft. Real Outlook/Teams/OneDrive/SharePoint access still requires a
     # proper OAuth sign-in (not implemented yet) using tenant_id/client_id below.
     "ms365": {
-        "unlock_code": "quandh14",
+        "unlock_code": "",                # set through COWORK_MS365_UNLOCK_CODE
         "unlocked": False,           # runtime-only — never persisted as True, see save()
         # Auto-connect MS365/OneDrive/SharePoint: the built-in MS365 MCP server
         # launches automatically once the user is signed in (OAuth tenant/client
@@ -294,6 +294,10 @@ def _apply_env_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
         data["active_provider"] = os.environ["COWORK_ACTIVE_PROVIDER"]
     if os.getenv("COWORK_CA_BUNDLE"):
         data["tls_ca_bundle"] = os.environ["COWORK_CA_BUNDLE"]
+    if os.getenv("COWORK_SANDBOX_PASSWORD"):
+        data["agent_security"]["sandbox_pw"] = os.environ["COWORK_SANDBOX_PASSWORD"]
+    if os.getenv("COWORK_MS365_UNLOCK_CODE"):
+        data["ms365"]["unlock_code"] = os.environ["COWORK_MS365_UNLOCK_CODE"]
     return data
 
 
