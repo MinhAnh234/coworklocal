@@ -21,7 +21,12 @@ from PySide6.QtGui import QBrush, QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget
 
-_COLOR = "#8b8d98"  # neutral grey, visible on both light and dark buttons
+def _default_color() -> str:
+    """The default icon tint: the theme's muted text colour, so glyphs sit at
+    the same weight as the labels beside them. Resolved per call — icons are
+    painted bitmaps, so a theme switch must repaint them, not restyle them."""
+    from ..theme import current_palette
+    return current_palette().text_muted
 
 
 def _hidpi_pixmap(size: int) -> QPixmap:
@@ -230,10 +235,11 @@ def icon_picker_combo(current: str = "") -> QComboBox:
     return combo
 
 
-def icon(name: str, size: int = 16, color: str = _COLOR) -> QIcon:
+def icon(name: str, size: int = 16, color: str | None = None) -> QIcon:
     """A flat thin-line icon for ``name`` (see ``_PATHS`` for the full list),
     tinted ``color`` — rendered from local SVG data, no image files/network.
     Stroke width 1.7 matches the Nova Platform web app's shared icon set."""
+    color = color or _default_color()
     # A user-added custom icon (full SVG under ~/.cowork_local/icons) is rendered
     # as-is (keeps its own colours). Then built-in glyphs; then a neutral fallback.
     if name not in _PATHS:
@@ -264,9 +270,10 @@ def icon(name: str, size: int = 16, color: str = _COLOR) -> QIcon:
     return QIcon(pm)
 
 
-def _panel_icon(fill_left: bool, size: int = 16, color: str = _COLOR) -> QIcon:
+def _panel_icon(fill_left: bool, size: int = 16, color: str | None = None) -> QIcon:
     """A rounded panel split by a divider, with one narrow side filled solid
     (the 'sidebar' toggle look)."""
+    color = color or _default_color()
     pm = _hidpi_pixmap(size)
     p = QPainter(pm)
     p.setRenderHint(QPainter.Antialiasing)
@@ -302,19 +309,24 @@ def collapse_right_icon() -> QIcon:
     return _panel_icon(fill_left=False)
 
 
-def pixmap(name: str, size: int = 16, color: str = _COLOR) -> QPixmap:
+def pixmap(name: str, size: int = 16, color: str | None = None) -> QPixmap:
     """The line-icon ``name`` as a QPixmap (for QLabel.setPixmap — QLabel has no
     setIcon). Same glyph/renderer as ``icon()``."""
     return icon(name, size, color).pixmap(size, size)
 
 
-# Status-LED colors — a filled dot, the one place a solid glyph (not a line
+# Status-LED colours — a filled dot, the one place a solid glyph (not a line
 # icon) is the right metaphor for an on/off/running indicator.
-DOT_GREEN = "#22c55e"
-DOT_RED = "#ef4444"
-DOT_AMBER = "#f59e0b"
-DOT_BLUE = "#3b82f6"
-DOT_GREY = "#9ca3af"
+#
+# Deliberately the SAME in light and dark. An LED means one thing regardless of
+# theme, and these mid-saturation hues clear 3:1 against both #0B0B0C and
+# #FFFFFF, so a status dot never has to be re-learned. Everything else in the
+# UI goes through theme.palette(); this is the documented exception.
+DOT_GREEN = "#2EA043"
+DOT_RED = "#E5484D"
+DOT_AMBER = "#B7791F"
+DOT_BLUE = "#4C7BE8"
+DOT_GREY = "#8B8B94"
 
 
 def dot_icon(color: str = DOT_GREY, size: int = 12) -> QIcon:
@@ -338,7 +350,7 @@ class IconLabel(QWidget):
     status labels (lock/unlock, …) keep working."""
 
     def __init__(self, name: str, text: str = "", *, size: int = 16,
-                 color: str = _COLOR, gap: int = 6, parent=None):
+                 color: str | None = None, gap: int = 6, parent=None):
         super().__init__(parent)
         self._size = size
         lay = QHBoxLayout(self)
@@ -357,7 +369,7 @@ class IconLabel(QWidget):
     def setText(self, text: str) -> None:  # noqa: N802 — QLabel-compatible alias
         self._text.setText(text)
 
-    def set_icon(self, name: str, color: str = _COLOR) -> None:
+    def set_icon(self, name: str, color: str | None = None) -> None:
         self._icon.setPixmap(pixmap(name, self._size, color))
 
     def text_label(self) -> QLabel:

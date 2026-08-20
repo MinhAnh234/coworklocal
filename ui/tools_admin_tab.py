@@ -2,8 +2,9 @@
 
 Two sub-tabs:
   * "Tool"      — built-in agent tools (read/write/edit files, run commands,
-                  install packages, fetch URLs); toggling one OFF removes it
-                  from the agent's toolset (persisted in ``config.tools_disabled``).
+                  install packages, fetch URLs) as a left-aligned card grid;
+                  toggling one OFF removes it from the agent's toolset
+                  (persisted in ``config.tools_disabled``).
   * "Connector" — the full Connectors (MCP / REST API) setup, moved here from
                   Settings: add/edit/delete CAD/CAE/MS365/Other connectors and
                   enable/disable each (``ConnectorsPanel``).
@@ -11,9 +12,10 @@ Two sub-tabs:
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QCheckBox, QHBoxLayout, QHeaderView, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
+    QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QTabWidget,
+    QVBoxLayout, QWidget,
 )
 
 from ..core.tools import TOOL_SPECS
@@ -22,18 +24,46 @@ from ..i18n import on_language_changed, tr
 from ..state import AppContext
 from .connectors_panel import ConnectorsPanel
 from .icons import icon
+from .widgets import FlowLayout, ToggleSwitch, enable_height_for_width, style_card
+
+# Identity colour + icon per built-in tool — same "fixed colour regardless of
+# theme" convention as monitoring_tab.py's agent avatars / agents_admin_tab.py's
+# kind avatars, grouped by what the tool actually touches (file i/o, shell,
+# packages, network, Jira).
+_TOOL_COLOUR = {
+    "read_file": "#0078D4", "list_dir": "#0078D4", "write_file": "#0078D4",
+    "edit_file": "#0078D4", "run_command": "#107C10", "install_package": "#8764B8",
+    "fetch_url": "#FFB900", "jira_search": "#8764B8", "jira_get_issue": "#8764B8",
+}
+_TOOL_ICON_NAME = {
+    "read_file": "document", "list_dir": "folder", "write_file": "new",
+    "edit_file": "edit", "run_command": "terminal", "install_package": "download",
+    "fetch_url": "globe", "jira_search": "search", "jira_get_issue": "link",
+}
 
 
-def _center_checkbox(checked: bool, on_toggle) -> QWidget:
-    box = QWidget()
-    lay = QHBoxLayout(box)
-    lay.setContentsMargins(0, 0, 0, 0)
-    lay.setAlignment(Qt.AlignCenter)
-    chk = QCheckBox()
-    chk.setChecked(checked)
-    chk.toggled.connect(on_toggle)
-    lay.addWidget(chk)
-    return box
+def _tool_icon_pixmap(name: str, size: int = 28) -> QPixmap:
+    pm = QPixmap(size, size)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(_TOOL_COLOUR.get(name, "#0078D4")))
+    r = size * 0.28
+    p.drawRoundedRect(0, 0, size, size, r, r)
+    inner = int(size * 0.58)
+    glyph = icon(_TOOL_ICON_NAME.get(name, "puzzle"), size=inner, color="#FFFFFF").pixmap(inner, inner)
+    p.drawPixmap((size - inner) // 2, (size - inner) // 2, glyph)
+    p.end()
+    return pm
+
+
+def _clear_flow(flow: FlowLayout) -> None:
+    while flow.count():
+        item = flow.takeAt(0)
+        w = item.widget()
+        if w is not None:
+            w.deleteLater()
 
 
 class ToolsAdminTab(QWidget):
@@ -54,21 +84,20 @@ class ToolsAdminTab(QWidget):
         self._hint.setWordWrap(True)
         tl.addWidget(self._hint)
 
-        self.table = QTableWidget(0, 3)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.verticalHeader().setVisible(False)
-        # Description is the long column — IT stretches to fill remaining
-        # width (was Name, leaving Description squeezed into whatever was
-        # left over); Name/Enabled size to their own content.
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.table.setWordWrap(True)
-        tl.addWidget(self.table, 1)
+        # A left-aligned, wrapping card grid — one card per built-in tool
+        # (colour-coded icon + name + toggle switch + description), replacing
+        # the old flat Name/Description/Enabled table.
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        cards_host = QWidget()
+        self._tool_flow = FlowLayout(cards_host, margin=0, h_spacing=10, v_spacing=10)
+        scroll.setWidget(cards_host)
+        tl.addWidget(scroll, 1)
 
-        # "Test Internet" self-test lives INSIDE the fetch_url tool row now (see
-        # refresh) instead of a separate boxed section — persistent widgets so
-        # they survive table rebuilds.
+        # "Test Internet" self-test lives INSIDE the fetch_url tool's card now
+        # (see refresh) instead of a separate boxed section — persistent
+        # widgets so they survive card rebuilds.
         self.test_internet_btn = QPushButton(tr("settings.test_internet"))
         self.test_internet_btn.setIcon(icon("globe"))
         self.test_internet_btn.setToolTip(tr("settings.test_internet_tooltip"))
@@ -94,51 +123,71 @@ class ToolsAdminTab(QWidget):
         self.connectors_panel = ConnectorsPanel(ctx)
         self.subtabs.addTab(self.connectors_panel, "")
 
+        # on_language_changed() already invokes _retranslate() once immediately
+        # (see i18n.py) — a second explicit call here double-populates the
+        # card grid back-to-back with no event-loop turn in between, so the
+        # first pass's cards are only queued for deleteLater() (not yet gone)
+        # when the second pass adds new ones on top (see connectors_panel.py's
+        # ConnectorsPanel, which hit the exact same bug this same way).
         on_language_changed(self._retranslate)
-        self._retranslate()
 
-    # ---- built-in tools table -------------------------------------------------
+    # ---- built-in tools card grid ---------------------------------------------
     def refresh(self) -> None:
         disabled = set(self.ctx.config.tools_disabled)
-        specs = list(TOOL_SPECS)
-        self.table.setRowCount(len(specs))
-        for r, spec in enumerate(specs):
-            self.table.setItem(r, 0, QTableWidgetItem(spec.name))
-            # Full description (was truncated to 80 chars, hiding the rest) —
-            # word-wraps inside the stretched column; resizeRowToContents
-            # below grows the row to fit however many lines that takes.
-            if spec.name == "fetch_url":
-                # This tool's row carries the live "Test Internet" self-test
-                # right below its description — no separate boxed section.
-                self.table.setItem(r, 1, None)
-                self.table.setCellWidget(r, 1, self._fetch_url_desc_cell(spec))
-            else:
-                desc_item = QTableWidgetItem(spec.description)
-                desc_item.setToolTip(spec.description)
-                self.table.setItem(r, 1, desc_item)
-            self.table.setCellWidget(
-                r, 2, _center_checkbox(spec.name not in disabled,
-                                       lambda on, n=spec.name: self._toggle_builtin(n, on)))
-        # Once ALL rows/columns are populated (so the stretched Description
-        # column has its real width), grow each row to fit its wrapped text.
-        self.table.resizeRowsToContents()
+        _clear_flow(self._tool_flow)
+        for spec in TOOL_SPECS:
+            self._tool_flow.addWidget(self._tool_card(spec, spec.name not in disabled))
 
-    def _fetch_url_desc_cell(self, spec) -> QWidget:
-        cell = QWidget()
-        cl = QVBoxLayout(cell)
-        cl.setContentsMargins(6, 4, 6, 4)
-        cl.setSpacing(4)
+    def _tool_card(self, spec, enabled: bool) -> QWidget:
+        card = QFrame()
+        card.setFrameShape(QFrame.NoFrame)
+        style_card(card)
+        card.setFixedWidth(220)
+        # The description below wraps to a variable number of lines at this
+        # fixed width, so the card's own height depends on its width — without
+        # this, the outer FlowLayout's QWidgetItem queries card.sizePolicy()
+        # (not the description label's), gets a too-short sizeHint, and
+        # squeezes the card into less height than its QVBoxLayout needs,
+        # which is what overlapped the header onto the description text.
+        enable_height_for_width(card)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(10, 8, 10, 8)
+        lay.setSpacing(4)
+
+        hdr = QHBoxLayout()
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(_tool_icon_pixmap(spec.name))
+        icon_lbl.setStyleSheet("border: none;")
+        hdr.addWidget(icon_lbl)
+        name_lbl = QLabel(spec.name)
+        name_lbl.setStyleSheet("font-weight:700; border: none;")
+        hdr.addWidget(name_lbl)
+        hdr.addStretch(1)
+        sw = ToggleSwitch()
+        sw.setChecked(enabled)
+        sw.toggled.connect(lambda on, n=spec.name: self._toggle_builtin(n, on))
+        hdr.addWidget(sw)
+        lay.addLayout(hdr)
+
         desc = QLabel(spec.description)
         desc.setWordWrap(True)
         desc.setToolTip(spec.description)
-        cl.addWidget(desc)
-        net = QWidget()
-        nl = QHBoxLayout(net)
-        nl.setContentsMargins(0, 0, 0, 0)
-        nl.addWidget(self.test_internet_btn)
-        nl.addWidget(self.test_internet_status, 1)
-        cl.addWidget(net)
-        return cell
+        desc.setObjectName("hint")
+        desc.setStyleSheet("border: none;")
+        lay.addWidget(desc)
+
+        if spec.name == "fetch_url":
+            # The live "Test Internet" self-test lives inside fetch_url's own
+            # card — it tests THIS capability, not the tab as a whole.
+            net = QWidget()
+            net.setStyleSheet("border: none;")
+            nl = QHBoxLayout(net)
+            nl.setContentsMargins(0, 2, 0, 0)
+            nl.addWidget(self.test_internet_btn)
+            nl.addWidget(self.test_internet_status, 1)
+            lay.addWidget(net)
+
+        return card
 
     def _toggle_builtin(self, name: str, enabled: bool) -> None:
         self.ctx.config.set_tool_enabled(name, enabled)
@@ -192,9 +241,5 @@ class ToolsAdminTab(QWidget):
         self.test_internet_btn.setText(tr("settings.test_internet"))
         self.test_internet_btn.setToolTip(tr("settings.test_internet_tooltip"))
         self.refresh_btn.setText(tr("tools_admin.refresh"))
-        self.table.setHorizontalHeaderLabels([
-            tr("tools_admin.col_name"), tr("tools_admin.col_desc"),
-            tr("tools_admin.col_enabled"),
-        ])
         self.jira_note.setText(tr("tools_admin.jira_note"))
         self.refresh()

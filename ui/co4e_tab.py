@@ -34,6 +34,7 @@ from ..core.co4e_builtins import BUILTIN_AGENTS
 from ..core.co4e_run_manager import Co4ERunManager
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
+from ..theme import current_palette
 from .chat_view import ChatView
 from .co4e_canvas import CO4E_MIME, Co4ECanvas
 from .co4e_config_panel import StepConfigPanel
@@ -260,7 +261,7 @@ class Co4ETab(QWidget):
         root.addWidget(self._split)
 
         sidebar = self._build_sidebar()
-        sidebar.setMinimumWidth(210)
+        sidebar.setMinimumWidth(180)      # 210 pushed the whole tab past 1214px min
         self._split.addWidget(sidebar)
         self._split.addWidget(self._build_center())
         self.config = StepConfigPanel(ctx)
@@ -272,6 +273,19 @@ class Co4ETab(QWidget):
         self._config_collapsed = False
         self._config_expanded_w = 360
         self._split.addWidget(self._wrap_config())
+        from PySide6.QtCore import QTimer
+
+        from .widgets import narrow_guard
+        self._narrow_guard = narrow_guard(self, self._NARROW, self._apply_narrow_layout)
+        # Deferred one tick: the parent chain (and therefore window()) only
+        # exists after whoever is building this has finished adding it.
+        QTimer.singleShot(0, self._narrow_guard.attach)
+        # Start the sidebar wider than its 180px floor — at the floor the
+        # "Chạy nền" button and the flow names are cut off.
+        self._split.setSizes([230, 720, 360])
+        self._split.setStretchFactor(0, 0)
+        self._split.setStretchFactor(1, 1)
+        self._split.setStretchFactor(2, 0)
         self._split.setStretchFactor(0, 0)
         self._split.setStretchFactor(1, 1)
         self._split.setStretchFactor(2, 0)
@@ -306,6 +320,11 @@ class Co4ETab(QWidget):
                     self.flow_bar.setCurrentIndex(bar_idx)
                 self._reflect_active_run(wf.id)
                 return
+        # Without the strip there is nowhere to switch between open flows, so
+        # opening one REPLACES the one on the canvas (saved first, as the tab
+        # switch used to do). Runs already in progress are unaffected — they are
+        # tracked per flow id and keep going in the background.
+        self._close_other_flows()
         self._flows.append(wf)
         self.flow_bar.blockSignals(True)
         bar_idx = self.flow_bar.addTab(icon("flow"), wf.name or tr("co4e.untitled"))
@@ -317,13 +336,43 @@ class Co4ETab(QWidget):
             self.flow_bar.setCurrentIndex(bar_idx)
         self._reflect_active_run(wf.id)
 
+    def _close_other_flows(self) -> None:
+        """Leave the canvas empty of flows, saving whatever was on it.
+
+        Called before opening a flow, because the tab strip that used to hold
+        several at once is gone. Tab 0 (Runs) is never touched.
+        """
+        if not self._flows:
+            return
+        if 0 <= self._active_flow_idx < len(self._flows):
+            self._sync_wf_from_canvas()
+        self.flow_bar.blockSignals(True)
+        for idx in range(self.flow_bar.count() - 1, 0, -1):
+            self.flow_bar.removeTab(idx)
+        self.flow_bar.blockSignals(False)
+        self._flows.clear()
+        self._active_flow_idx = -1
+
+    def _show_runs(self, on: bool) -> None:
+        """Swap the centre between the flow editor and the Runs table.
+
+        This is where the pinned "Runs" tab went when the strip was removed —
+        same page, same table, reached from a toggle in the flow toolbar.
+        """
+        target = 0 if on else min(1, self.flow_bar.count() - 1)
+        if self.flow_bar.currentIndex() == target:
+            self._on_flow_tab_changed(target)          # already there → re-apply
+        else:
+            self.flow_bar.setCurrentIndex(target)
+
     def _on_flow_tab_changed(self, idx: int) -> None:
         # save the outgoing flow (active_flow_idx is a FLOWS-list index) first
         if 0 <= self._active_flow_idx < len(self._flows) and (self._active_flow_idx + 1) != idx:
             self._sync_wf_from_canvas()
-        if idx <= 0:                                   # the pinned Runs tab
+        if idx <= 0:                                   # the Runs page
             self._active_flow_idx = -1
             self.center_stack.setCurrentIndex(0)
+            self._sync_runs_toggle(True)
             self._refresh_runs()
             return
         flow_idx = idx - 1
@@ -331,7 +380,17 @@ class Co4ETab(QWidget):
             return
         self._active_flow_idx = flow_idx
         self.center_stack.setCurrentIndex(1)
+        self._sync_runs_toggle(False)
         self._apply_workflow(self._flows[flow_idx])
+
+    def _sync_runs_toggle(self, on: bool) -> None:
+        """Keep the Runs toggle showing which page is up, however it got there
+        (a double-click in the runs table also switches pages)."""
+        btn = getattr(self, "runs_btn", None)
+        if btn is not None and btn.isChecked() != on:
+            blocked = btn.blockSignals(True)
+            btn.setChecked(on)
+            btn.blockSignals(blocked)
 
     def _add_tab_close_button(self, idx: int) -> None:
         """Give a flow tab its own close button — a small ✕ placed by QTabBar on
@@ -423,22 +482,47 @@ class Co4ETab(QWidget):
 
     # ---- sidebar ----------------------------------------------------------
     def _build_sidebar(self) -> QWidget:
-        self.sidebar = QTabWidget()
-        # Icon-only tabs share the full sidebar width equally (line up with the
-        # list below) via an equal-width tab bar — no left/right scroll. Colours
-        # come from theme.py (QTabBar#co4eSideTabs — transparent tabs + a subtle
-        # translucent selection with the theme text colour, like the app's lists).
-        self.sidebar.setTabBar(_EqualTabBar())
-        _tb = self.sidebar.tabBar()
-        _tb.setObjectName("co4eSideTabs")
-        _tb.setUsesScrollButtons(False)
-        _tb.setElideMode(Qt.ElideNone)
-        # Workflows
-        wf_page = QWidget(); wl = QVBoxLayout(wf_page)
-        wl.setContentsMargins(6, 6, 6, 6)
+        # ONE COLUMN, four named sections — no icon tabs. Every list is on screen
+        # at once, so "what can I drag onto the canvas" is answered by looking
+        # rather than by clicking through three unlabeled tabs.
+        # A vertical splitter, not a fixed stack: on a short window four stacked
+        # lists otherwise squeeze down to one visible row each. The splitter
+        # hands out the available height by weight and lets the user re-balance
+        # it by dragging; each list keeps a small minimum so none disappears.
+        self._sections: dict = {}
+        self.sidebar = QWidget()
+        outer_col = QVBoxLayout(self.sidebar)
+        outer_col.setContentsMargins(6, 6, 6, 6)
+        outer_col.setSpacing(0)
+        self.side_split = QSplitter(Qt.Vertical)
+        self.side_split.setChildrenCollapsible(False)
+        self.side_split.setHandleWidth(8)
+        outer_col.addWidget(self.side_split, 1)
+
+        class _Col:
+            """Adapter so the section builders below read the same as before."""
+
+            def __init__(self, split):
+                self._split = split
+
+            def addWidget(self, w, stretch=1):
+                self._split.addWidget(w)
+                self._split.setStretchFactor(self._split.count() - 1, stretch)
+
+        col = _Col(self.side_split)
+
+        # --- WORKFLOWS ---------------------------------------------------
+        self.wf_new_btn = QPushButton(tr("co4e.new"))
+        self.wf_new_btn.setIcon(icon("plus"))
+        self.wf_new_btn.setToolTip(tr("co4e.tt_new_wf"))
+        self.wf_new_btn.setObjectName("co4eSectionAction")
+        self.wf_new_btn.setFlat(True)
+        self.wf_new_btn.setCursor(Qt.PointingHandCursor)
+        self.wf_new_btn.clicked.connect(self._new_workflow)
+        wf_body = QWidget(); wl = QVBoxLayout(wf_body)
+        wl.setContentsMargins(0, 0, 0, 0); wl.setSpacing(4)
         # Draggable: drag a flow onto the canvas to merge it in (Nova-style);
-        # double-click loads it into an empty canvas. (The old always-on hint
-        # label was removed to give the flow list more room; it's a tooltip now.)
+        # double-click loads it onto the canvas.
         self.wf_list = _PaletteList(payload_role=Qt.UserRole + 2)
         self.wf_list.setToolTip(tr("co4e.drag_hint"))
         self.wf_list.itemDoubleClicked.connect(self._load_selected_workflow)
@@ -446,56 +530,156 @@ class Co4ETab(QWidget):
         self.wf_list.customContextMenuRequested.connect(self._wf_context_menu)
         wl.addWidget(self.wf_list, 1)
         wf_btns = QHBoxLayout(); wf_btns.setSpacing(4)
-        # "New flow" moved to the "+" button on the flow tab strip (browser-style).
-        # "Load selected flow to canvas" button removed — double-click a flow in
-        # the list (or drag it onto the canvas) to open it; the explicit button
-        # was redundant.
         self.wf_edit_btn = self._icon_btn("edit", "co4e.tt_edit_wf", self._edit_selected_workflow)
         self.wf_dup_btn = self._icon_btn("branch", "co4e.tt_dup_wf", self._duplicate_selected_workflow)
         self.wf_del_btn = self._icon_btn("trash", "co4e.tt_del_wf", self._delete_selected_workflow)
         for b in (self.wf_edit_btn, self.wf_dup_btn, self.wf_del_btn):
             wf_btns.addWidget(b)
+        wf_btns.addStretch(1)
+        wl.addLayout(wf_btns)
+        # Its own row: sharing one line with the three icon buttons cut "Chạy
+        # nền" down to "Chạ" as soon as the sidebar hit its narrow width.
         self.wf_runbg_btn = QPushButton(tr("co4e.run_bg")); self.wf_runbg_btn.setIcon(icon("play"))
         self.wf_runbg_btn.setToolTip(tr("co4e.tt_run_bg"))
         self.wf_runbg_btn.clicked.connect(self._run_selected_in_background)
-        wf_btns.addWidget(self.wf_runbg_btn, 1)
-        wl.addLayout(wf_btns)
-        # (The "Running flows" list moved out of the sidebar into the pinned
-        #  "Runs" tab at the front of the flow tabs — see _build_runs_page.)
-        # Icon-only tabs keep the sidebar narrow; the name is a tooltip.
-        self.sidebar.addTab(wf_page, icon("flow"), "")
-        self.sidebar.setTabToolTip(0, tr("co4e.tab_workflows"))
+        wl.addWidget(self.wf_runbg_btn)
+        col.addWidget(self._section("co4e.tab_workflows", wf_body, self.wf_new_btn), 3)
 
-        # Agents (drag onto canvas; CRUD custom)
-        ag_page = QWidget(); al = QVBoxLayout(ag_page)
-        al.setContentsMargins(6, 6, 6, 6)
+        # --- AGENTS ------------------------------------------------------
+        self.ag_new_btn = QPushButton(tr("co4e.new")); self.ag_new_btn.setIcon(icon("plus"))
+        self.ag_new_btn.setToolTip(tr("co4e.tt_new_agent"))
+        self.ag_new_btn.setObjectName("co4eSectionAction")
+        self.ag_new_btn.setFlat(True)
+        self.ag_new_btn.setCursor(Qt.PointingHandCursor)
+        self.ag_new_btn.clicked.connect(self._new_agent)
+        ag_body = QWidget(); al = QVBoxLayout(ag_body)
+        al.setContentsMargins(0, 0, 0, 0); al.setSpacing(4)
         self.agent_list = _PaletteList()
         al.addWidget(self.agent_list, 1)
         ag_btns = QHBoxLayout(); ag_btns.setSpacing(4)
-        self.ag_new_btn = QPushButton(tr("co4e.new")); self.ag_new_btn.setIcon(icon("plus"))
-        self.ag_new_btn.setToolTip(tr("co4e.tt_new_agent"))
-        self.ag_new_btn.clicked.connect(self._new_agent)
+        # Edit/delete act on the selected row, so they stay with the list.
         self.ag_edit_btn = self._icon_btn("edit", "co4e.tt_edit_agent", self._edit_agent)
         self.ag_del_btn = self._icon_btn("trash", "co4e.tt_del_agent", self._delete_agent)
-        ag_btns.addWidget(self.ag_new_btn, 1)
         ag_btns.addWidget(self.ag_edit_btn)
         ag_btns.addWidget(self.ag_del_btn)
+        ag_btns.addStretch(1)
         al.addLayout(ag_btns)
-        self.sidebar.addTab(ag_page, icon("robot"), "")
-        self.sidebar.setTabToolTip(1, tr("co4e.tab_agents"))
+        col.addWidget(self._section("co4e.tab_agents", ag_body, self.ag_new_btn), 3)
 
-        # Skills (drag onto canvas; manage via existing Skills manager button)
-        sk_page = QWidget(); sl = QVBoxLayout(sk_page)
-        sl.setContentsMargins(6, 6, 6, 6)
-        self.skill_list = _PaletteList()
-        sl.addWidget(self.skill_list, 1)
+        # --- SKILLS ------------------------------------------------------
         self.sk_manage_btn = QPushButton(tr("co4e.manage_skills"))
         self.sk_manage_btn.setToolTip(tr("co4e.tt_manage_skills"))
+        self.sk_manage_btn.setObjectName("co4eSectionAction")
+        self.sk_manage_btn.setFlat(True)
+        self.sk_manage_btn.setCursor(Qt.PointingHandCursor)
         self.sk_manage_btn.clicked.connect(self._manage_skills)
-        sl.addWidget(self.sk_manage_btn)
-        self.sidebar.addTab(sk_page, icon("sparkle"), "")
-        self.sidebar.setTabToolTip(2, tr("co4e.tab_skills"))
+        sk_body = QWidget(); sl = QVBoxLayout(sk_body)
+        sl.setContentsMargins(0, 0, 0, 0); sl.setSpacing(4)
+        self.skill_list = _PaletteList()
+        sl.addWidget(self.skill_list, 1)
+        col.addWidget(self._section("co4e.tab_skills", sk_body, self.sk_manage_btn), 2)
+
+        # --- RUNS --------------------------------------------------------
+        # A short, always-visible view of the same runs the Flow Status page
+        # tables in full. Clicking one opens that page with the run selected.
+        # Icon only: the heading beside it already reads FLOW STATUS, and the
+        # label was long enough to be cut in half in a narrow sidebar.
+        self.runs_more_btn = QPushButton()
+        self.runs_more_btn.setIcon(icon("chevron-right"))
+        self.runs_more_btn.setFixedWidth(30)
+        self.runs_more_btn.setFlat(True)
+        self.runs_more_btn.setToolTip(tr("co4e.tt_runs_tab"))
+        self.runs_more_btn.clicked.connect(lambda: self._show_runs(True))
+        runs_body = QWidget(); rl = QVBoxLayout(runs_body)
+        rl.setContentsMargins(0, 0, 0, 0); rl.setSpacing(4)
+        self.runs_side_list = QListWidget()
+        self.runs_side_list.setToolTip(tr("co4e.tt_runs_tab"))
+        self.runs_side_list.itemClicked.connect(self._on_side_run_clicked)
+        rl.addWidget(self.runs_side_list, 1)
+        col.addWidget(self._section("co4e.runs_tab", runs_body, self.runs_more_btn), 2)
+        # Small enough that all four still fit on a laptop screen, large enough
+        # that each shows more than a single row.
+        for lst in (self.wf_list, self.agent_list, self.skill_list, self.runs_side_list):
+            lst.setMinimumHeight(56)
         return self.sidebar
+
+    _SIDE_RUNS = 6
+
+    def _refresh_side_runs(self) -> None:
+        """Mirror the newest runs into the sidebar's short list."""
+        lst = getattr(self, "runs_side_list", None)
+        if lst is None:
+            return
+        dots = {"running": "▶", "done": "✓", "error": "✕", "stopped": "■"}
+        lst.clear()
+        for h in list(reversed(self.manager.runs()))[:self._SIDE_RUNS]:
+            it = QListWidgetItem(f"{dots.get(h.status, '•')} {h.name}"
+                                 f"   {h.progress_text()}")
+            it.setData(Qt.UserRole, h.id)
+            it.setToolTip(f"{h.name} · {tr('co4e.status.' + h.status)} · {h.created_at or '-'}")
+            lst.addItem(it)
+
+    def _on_side_run_clicked(self, item) -> None:
+        """Open the full Flow Status page with this run selected."""
+        run_id = item.data(Qt.UserRole)
+        self._show_runs(True)
+        for r in range(self.runs_table.rowCount()):
+            cell = self.runs_table.item(r, 0)
+            if cell is not None and cell.data(Qt.UserRole) == run_id:
+                self.runs_table.setCurrentCell(r, 0)
+                break
+
+    def _section(self, key: str, body: QWidget, action: QPushButton | None = None,
+                 stretch: int = 1) -> QWidget:
+        """One named, foldable section of the sidebar column.
+
+        Replaces the three icon-only tabs: all the lists are visible at once
+        (WORKFLOWS · AGENTS · SKILLS · runs), each under its own heading with the
+        action that belongs to it. Clicking the heading folds the section, so a
+        narrow window can still get to everything.
+        """
+        box = QWidget()
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(2)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
+        head = QPushButton()
+        head.setObjectName("co4eSectionHdr")
+        head.setCheckable(True)
+        head.setChecked(True)
+        head.setCursor(Qt.PointingHandCursor)
+        head.setFlat(True)
+        head.toggled.connect(lambda on, w=body, b=box: self._fold_section(key, w, b, on))
+        row.addWidget(head, 1)
+        if action is not None:
+            row.addWidget(action, 0)
+        v.addLayout(row)
+        v.addWidget(body, 1)
+
+        self._sections[key] = (head, body, stretch)
+        self._sync_section_arrow(key)
+        return box
+
+    def _fold_section(self, key: str, body: QWidget, box: QWidget, on: bool) -> None:
+        """Fold/unfold a section AND give its height back to the others.
+
+        Inside a splitter, hiding the body is not enough — the pane keeps its
+        share of the height, so folding would free nothing. Clamping the whole
+        section to its header height makes the splitter re-deal the space.
+        """
+        body.setVisible(on)
+        if on:
+            box.setMaximumHeight(16777215)
+        else:
+            box.setMaximumHeight(box.layout().itemAt(0).sizeHint().height() + 4)
+        self._sync_section_arrow(key)
+
+    def _sync_section_arrow(self, key: str) -> None:
+        head, _body, _s = self._sections[key]
+        head.setText(("▾ " if head.isChecked() else "▸ ") + tr(key).upper())
 
     def _icon_btn(self, icon_name: str, tip_key: str, slot) -> QPushButton:
         b = QPushButton(); b.setIcon(icon(icon_name)); b.setToolTip(tr(tip_key))
@@ -564,13 +748,14 @@ class Co4ETab(QWidget):
         # Tab colours + layout live in theme.py (QTabBar#flowTabs — theme-aware,
         # flush, centred). Here we only style the per-tab close (✕) button, which
         # QTabBar places centred on the tab's right (see _add_tab_close_button).
+        _fp = current_palette()
         self.flow_bar.setStyleSheet(
             "QPushButton#flowTabClose {"
-            " border: none; background: transparent; color: #8FB2D4;"
+            f" border: none; background: transparent; color: {_fp.text_muted};"
             " font-size: 13px; font-weight: bold; padding: 0; margin: 0;"
-            " border-radius: 8px; }"
+            f" border-radius: {_fp.radius_sm}px; }}"
             "QPushButton#flowTabClose:hover {"
-            " background: rgba(229,72,77,0.18); color: #E5484D; }")
+            f" background: {_fp.danger_soft}; color: {_fp.danger}; }}")
         runs_idx = self.flow_bar.addTab(icon("monitoring"), tr("co4e.runs_tab"))  # 0 = Runs
         self.flow_bar.setTabButton(runs_idx, QTabBar.RightSide, None)             # pinned
         self.flow_bar.currentChanged.connect(self._on_flow_tab_changed)
@@ -606,15 +791,16 @@ class Co4ETab(QWidget):
             "QScrollArea#flowTabScroll { background: transparent; border: none; }"
             "QScrollArea#flowTabScroll QScrollBar:horizontal { height: 8px; background: transparent; margin: 0; }"
             "QScrollArea#flowTabScroll QScrollBar::handle:horizontal {"
-            " background: rgba(143,178,212,0.45); border-radius: 4px; min-width: 30px; }"
+            f" background: {current_palette().scroll_handle}; border-radius: 4px; min-width: 30px; }}"
             "QScrollArea#flowTabScroll QScrollBar::add-line:horizontal,"
             "QScrollArea#flowTabScroll QScrollBar::sub-line:horizontal { width: 0; height: 0; }")
-        flow_row = QHBoxLayout()
-        flow_row.setContentsMargins(0, 0, 0, 0)
-        flow_row.setSpacing(3)          # same gap as between tabs → looks like one strip
-        flow_row.addWidget(self.flow_scroll, 1)
-        flow_row.addWidget(self.flow_add_btn, 0, Qt.AlignVCenter)
-        lay.addLayout(flow_row)
+        # The strip itself is NOT shown any more (see class docstring): flows are
+        # picked from the WORKFLOWS list on the left, one open at a time. The
+        # QTabBar stays alive off-screen as the index that maps flow ↔ canvas —
+        # every open/close/rename path already goes through it — but the user
+        # never sees or drives it.
+        self.flow_scroll.setVisible(False)
+        self.flow_add_btn.setVisible(False)
 
         # Content switches between the Runs table (tab 0) and the flow editor.
         self.center_stack = QStackedWidget()
@@ -650,6 +836,14 @@ class Co4ETab(QWidget):
         self.run_btn.setToolTip(tr("co4e.tt_run"))
         self.run_btn.clicked.connect(self._on_run_clicked)
 
+        # The pinned "Runs" tab lost its strip, so it becomes a toggle here —
+        # one click to the run table and one click back, from either page.
+        self.runs_btn = QPushButton(tr("co4e.runs_tab"))
+        self.runs_btn.setIcon(icon("monitoring"))
+        self.runs_btn.setCheckable(True)
+        self.runs_btn.setToolTip(tr("co4e.tt_runs_tab"))
+        self.runs_btn.toggled.connect(self._show_runs)
+
         bar.addWidget(QLabel(tr("co4e.flow_name")))
         bar.addWidget(self.name_edit, 1)
         bar.addWidget(self.add_step_btn)
@@ -657,6 +851,7 @@ class Co4ETab(QWidget):
         bar.addWidget(self.save_tpl_btn)
         bar.addWidget(self.mode_combo)
         bar.addWidget(self.run_btn)
+        bar.addWidget(self.runs_btn)
         lay.addLayout(bar)
 
         self.canvas = Co4ECanvas()
@@ -683,6 +878,13 @@ class Co4ETab(QWidget):
         w = QWidget()
         v = QVBoxLayout(w)
         hdr = QHBoxLayout()
+        # The Runs page covers the flow toolbar, so it carries its own way back —
+        # otherwise the toggle that opened it is off screen.
+        self.runs_back_btn = QPushButton(tr("co4e.back_to_flow"))
+        self.runs_back_btn.setIcon(icon("chevron-left"))
+        self.runs_back_btn.setToolTip(tr("co4e.tt_back_to_flow"))
+        self.runs_back_btn.clicked.connect(lambda: self._show_runs(False))
+        hdr.addWidget(self.runs_back_btn)
         self.runs_title = QLabel(tr("co4e.running_flows"))
         self.runs_title.setObjectName("hint")
         hdr.addWidget(self.runs_title)
@@ -762,6 +964,29 @@ class Co4ETab(QWidget):
         self.config_container = container
         return container
 
+    # Below this window width the three panes (rail + 180 sidebar + canvas +
+    # 300 config) leave the canvas too little to draw a flow in, and the config
+    # fields start clipping instead of shrinking. Measured with
+    # tools/check_responsive.py — Co4E gets the full content area (no project or
+    # history pane beside it), so the threshold is about its own screen only.
+    _NARROW = 1300
+
+    def showEvent(self, e):  # noqa: N802 - Qt override
+        super().showEvent(e)
+        self._narrow_guard.attach()
+
+    def _apply_narrow_layout(self, narrow: bool) -> None:  # noqa: D401
+        """Fold the step-config panel on a narrow window, restore it when there
+        is room again.
+
+        Attached from __init__ rather than only on show: this page sits inside a
+        QTabWidget, whose minimum width is the MAXIMUM over all its pages —
+        including hidden ones. While Co4E sat unfolded in the background it was
+        forcing Project and Cowork to be ~1180px wide too.
+        """
+        if narrow != self._config_collapsed:
+            self._toggle_config()
+
     def _toggle_config(self) -> None:
         self._config_collapsed = not self._config_collapsed
         v = self._cfg_vlayout
@@ -785,6 +1010,11 @@ class Co4ETab(QWidget):
                 sizes[2] = 34
                 sizes[1] = max(200, sizes[1] + freed)
                 self._split.setSizes(sizes)
+            # Without this the splitter keeps reporting the OLD minimum width,
+            # and since a QTabWidget's minimum is the maximum over all its pages
+            # — hidden ones included — Co4E would go on forcing Project and
+            # Cowork to be 1180px wide even while folded here.
+            self._refresh_min_width()
         else:
             v.removeItem(self._cfg_top_spacer)
             v.removeItem(self._cfg_bot_spacer)
@@ -800,6 +1030,14 @@ class Co4ETab(QWidget):
                 sizes[2] = want
                 sizes[1] = max(200, sizes[1] - delta)
                 self._split.setSizes(sizes)
+            self._refresh_min_width()
+
+    def _refresh_min_width(self) -> None:
+        """Make the splitter (and everything above it) re-read its minimum."""
+        self.config_container.updateGeometry()
+        self._split.refresh()
+        self._split.updateGeometry()
+        self.updateGeometry()
 
     def _build_canvas_overlay(self) -> None:
         """Zoom +/− and Fit as a small floating control at the canvas's
@@ -861,7 +1099,8 @@ class Co4ETab(QWidget):
         # $cost) at the bottom, exactly like Cowork's conversation total.
         self._usage_total_lbl = QLabel("")
         self._usage_total_lbl.setObjectName("hint")
-        self._usage_total_lbl.setStyleSheet("color: rgba(140,146,152,0.9); font-size: 11px;")
+        self._usage_total_lbl.setStyleSheet(
+            f"color: {current_palette().text_faint}; font-size: 11px;")
         crow.addWidget(self._usage_total_lbl)
         _inp = QWidget(); row = QHBoxLayout(_inp); row.setContentsMargins(0, 0, 0, 0)
         self.chat_input = _ChatInput()
@@ -969,7 +1208,14 @@ class Co4ETab(QWidget):
         self._refresh_usage_total()              # show THIS flow's token/cost total
 
     def _new_workflow(self) -> None:
-        self._open_flow(co4e.new_workflow(tr("co4e.untitled")))   # opens a new tab
+        self._open_flow(co4e.new_workflow(tr("co4e.untitled")))
+        # Pressing this while the canvas already holds an empty untitled flow
+        # produced an identical empty untitled flow — correct, and completely
+        # invisible, so the button read as broken. Say what happened and put the
+        # cursor where the next thing to do is: naming it.
+        self.name_edit.setFocus()
+        self.name_edit.selectAll()
+        self.status_message.emit(tr("co4e.new_flow_ready"))
 
     def _selected_wf(self) -> Optional[co4e.Workflow]:
         """Materialise the selected saved-flow row into a Workflow."""
@@ -1331,8 +1577,9 @@ class Co4ETab(QWidget):
         # Rebuild the always-fresh Runs table from the manager (single source of truth).
         if not hasattr(self, "runs_table"):
             return
-        color = {"running": "#48CAE4", "done": "#48D9A0", "error": "#E5484D",
-                 "stopped": "#8FB2D4"}
+        p = current_palette()
+        color = {"running": p.accent, "done": p.success, "error": p.danger,
+                 "stopped": p.text_muted}
         dots = {"running": "▶", "done": "✓", "error": "✕", "stopped": "■"}
         # Most-recent run at the TOP, oldest at the bottom (manager keeps runs in
         # chronological insertion order, so reverse it for display).
@@ -1352,16 +1599,22 @@ class Co4ETab(QWidget):
                 if c == 0:
                     it.setData(Qt.UserRole, h.id)
                 if c == 1:
-                    it.setForeground(_qcolor(color.get(h.status, "#E0F0FF")))
+                    it.setForeground(_qcolor(color.get(h.status, p.text)))
                 t.setItem(r, c, it)
             if h.id == sel_id:
                 sel_row = r
         if sel_row >= 0:
             t.setCurrentCell(sel_row, 0)
-        # reflect the active run count in the pinned Runs tab title
+        # The sidebar's short run list is the same data — refresh it together.
+        self._refresh_side_runs()
+        # Active-run count, on the sidebar heading now that the tab strip is gone.
+        n = self.manager.active_count()
+        label = tr("co4e.runs_tab_n", n=n) if n else tr("co4e.runs_tab")
         if hasattr(self, "flow_bar"):
-            n = self.manager.active_count()
-            self.flow_bar.setTabText(0, tr("co4e.runs_tab_n", n=n) if n else tr("co4e.runs_tab"))
+            self.flow_bar.setTabText(0, label)
+        head = (self._sections.get("co4e.runs_tab") or (None,))[0]
+        if head is not None:
+            head.setText(("▾ " if head.isChecked() else "▸ ") + label.upper())
 
     def _stop_selected_run(self) -> None:
         row = self.runs_table.currentRow()
@@ -1502,7 +1755,9 @@ class Co4ETab(QWidget):
             return
         self.manager.start(wf, skill_map=self._skill_map(),
                            plan_mode=(self._current_mode() == "plan"))
-        self.sidebar.setCurrentIndex(0)
+        # Used to jump the sidebar back to the Workflows tab; with one column
+        # there is nothing to jump to — show the run that just started instead.
+        self._refresh_side_runs()
         self.status_message.emit(tr("co4e.bg_started", name=wf.name))
 
     def _wf_by_id(self, wf_id: str) -> Optional[co4e.Workflow]:
@@ -1803,9 +2058,15 @@ class Co4ETab(QWidget):
 
     # ---- i18n -------------------------------------------------------------
     def _retranslate(self) -> None:
-        self.sidebar.setTabToolTip(0, tr("co4e.tab_workflows"))
-        self.sidebar.setTabToolTip(1, tr("co4e.tab_agents"))
-        self.sidebar.setTabToolTip(2, tr("co4e.tab_skills"))
+        for key in self._sections:
+            self._sync_section_arrow(key)
+        self.runs_more_btn.setToolTip(tr("co4e.tt_runs_tab"))
+        self.wf_new_btn.setText(tr("co4e.new"))
+        self.wf_new_btn.setToolTip(tr("co4e.tt_new_wf"))
+        self.runs_btn.setText(tr("co4e.runs_tab"))
+        self.runs_btn.setToolTip(tr("co4e.tt_runs_tab"))
+        self.runs_back_btn.setText(tr("co4e.back_to_flow"))
+        self.runs_back_btn.setToolTip(tr("co4e.tt_back_to_flow"))
         self.runs_title.setText(tr("co4e.running_flows"))
         self.run_stop_btn.setText(tr("co4e.stop"))
         self.run_rename_btn.setText(tr("co4e.rename_run"))

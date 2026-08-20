@@ -28,7 +28,7 @@ from ..core import usage_tracker as ut
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
-from .icons import icon
+from .icons import DOT_AMBER, icon
 from .widgets import fmt_tokens
 
 _PERIODS = ("day", "week", "month", "year")
@@ -367,7 +367,7 @@ class AccountsTab(QWidget):
         label = f"{acc.display_name or acc.username} ({acc.username}) — {tr(f'accounts.role.{acc.role}')}"
         item = QTreeWidgetItem([label])
         if is_subadmin:   # subadmin badge → star icon instead of a ★ glyph
-            item.setIcon(0, icon("star", color="#f59e0b"))
+            item.setIcon(0, icon("star", color=DOT_AMBER))
         item.setData(0, Qt.UserRole, ("account", acc.username))
         if acc.email:
             item.setToolTip(0, acc.email)

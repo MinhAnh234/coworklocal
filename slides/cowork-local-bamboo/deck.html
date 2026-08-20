@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cowork-Local BamBOO</title>
+<style>
+:root{
+  --bg:#f8faff;--surface:#fff;--surface-2:rgba(255,255,255,0.95);
+  --text:#1a202c;--muted:#6b7280;
+  --accent:#003087;--accent2:#0072CE;--accent3:#FF6B00;
+  --border:#e2e8f0;--border-strong:#cbd5e1;
+  --gradient1:linear-gradient(135deg,#003087 0%,#0072CE 100%);
+  --gradient-hero:linear-gradient(160deg,#001a4d 0%,#003087 45%,#0072CE 100%);
+  --shadow:0 2px 12px rgba(0,0,0,.07);
+}
+[data-theme="dark"]{
+  --bg:#0a0e1a;--surface:#111827;--surface-2:rgba(17,24,39,0.92);
+  --text:#e2e8f0;--muted:#9ca3af;
+  --border:#374151;--border-strong:#4b5563;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  font-family:"Meiryo UI","Yu Gothic","Meiryo","Hiragino Sans","Noto Sans CJK JP",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--text);
+  font-size:20px;line-height:1.55;
+  transition:background .3s,color .3s;
+}
+.deck{display:flex;flex-direction:column;align-items:center}
+
+/* Scaled wrapper so .slide (1920×1080) fits viewport */
+.slide-wrap{width:var(--scaled-w,1920px);height:var(--scaled-h,1080px);position:relative;overflow:hidden;border-bottom:1px solid var(--border)}
+.slide-wrap > .slide{transform:scale(var(--scale,1));transform-origin:top left;border-bottom:0}
+
+.slide{
+  position:relative;
+  width:1920px;height:1080px;min-height:1080px;max-height:1080px;
+  padding:72px 96px 92px;
+  display:flex;flex-direction:column;
+  background:var(--bg);overflow:hidden;
+}
+.slide.cover{align-items:center;justify-content:center;text-align:center;background:var(--gradient-hero);color:white;padding:96px}
+.slide.section-divider{align-items:center;justify-content:center;text-align:center;background:var(--gradient1);color:white}
+
+h1,h2,h3{font-weight:700;line-height:1.2}
+.slide h1{font-size:3.2em;margin-bottom:.3em}
+.slide h2{font-size:2.2em;color:var(--accent);margin-bottom:.4em}
+.slide h3{font-size:1.2em;color:var(--accent2);margin-bottom:.3em}
+.slide.section-divider h2{color:white!important;font-size:2.8em}
+.slide.section-divider p{color:rgba(255,255,255,.88);font-size:1.2em;margin-top:.6em}
+.slide.cover h1{color:white;font-size:3.4em}
+.slide p{font-size:1.1em;color:var(--muted);margin-bottom:1rem}
+.slide ul{padding-left:1.4em;margin-top:.4rem}
+.slide ul li{font-size:clamp(1.1em,1.5vw,1.3em);margin:.5em 0;line-height:1.45}
+
+.card-grid{display:grid;gap:1.2rem;margin-top:.6rem}
+.grid2{grid-template-columns:1fr 1fr}
+.grid3{grid-template-columns:1fr 1fr 1fr}
+.grid4{grid-template-columns:1fr 1fr 1fr 1fr}
+.card{background:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:1.5rem 1.8rem;box-shadow:var(--shadow);overflow-wrap:break-word;word-break:break-word}
+.card-title{font-weight:700;font-size:1.35em;color:var(--accent);margin-bottom:.5em}
+
+.badge{display:inline-block;padding:6px 16px;border-radius:20px;font-size:.9em;font-weight:600;margin-bottom:.6rem}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-orange{background:#fed7aa;color:#c2410c}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-purple{background:#ede9fe;color:#5b21b6}
+.badge-red{background:#fee2e2;color:#991b1b}
+
+.flow-row{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;margin:.6em 0}
+.flow-node{background:var(--surface-2);border:2px solid var(--accent2);border-radius:12px;padding:.8rem 1.4rem;text-align:center;font-size:clamp(.9em,1.3vw,1.1em);font-weight:600;color:var(--text);min-width:140px;box-shadow:var(--shadow)}
+.flow-node.accent{background:var(--gradient1);color:white;border-color:var(--accent)}
+.flow-node.warm{background:linear-gradient(135deg,#FF6B00,#FF8F3A);color:white;border-color:#FF6B00}
+.flow-node.orange{background:linear-gradient(135deg,#ff6b00,#ff9500);color:white;border-color:#ff6b00}
+.flow-node.green{background:#065f46;color:white;border-color:#065f46}
+.flow-arrow{font-size:1.6em;color:var(--accent2);font-weight:700}
+.flow-label{font-size:1em;color:var(--muted);text-align:center;margin:.3em 0;font-weight:600}
+.arrow{font-size:1.3em;color:var(--accent2);font-weight:700}
+
+.gantt-wrap{overflow-x:auto;width:100%;margin-top:.6rem;display:grid;grid-template-columns:max-content 1fr;column-gap:.6rem;row-gap:.22rem;align-items:center;font-size:clamp(.85em,1.2vw,1em)}
+.gantt-row{display:contents}
+.gantt-label{min-width:0;width:auto;color:var(--text);font-weight:500}
+.gantt-track{background:var(--border);border-radius:4px;height:22px;position:relative;min-width:240px}
+.gantt-bar{position:absolute;height:100%;border-radius:4px}
+.gantt-row.gantt-sep > .gantt-label,.gantt-row.gantt-sep > .gantt-track{margin-top:.4rem}
+
+.highlight-box{background:linear-gradient(135deg,#e5eaf4,#e5f1fa);border-left:4px solid var(--accent2);border-radius:10px;padding:1.3rem 1.8rem;margin-top:1.5rem;font-size:1.1em}
+.accent-box{background:linear-gradient(135deg,#ffe2cc,#fff4ea);border-left:4px solid var(--accent3);border-radius:10px;padding:1.3rem 1.8rem;margin-top:1rem;font-size:1.1em}
+
+table{width:100%;border-collapse:collapse;font-size:clamp(.9em,1.3vw,1.05em);margin-top:.6rem}
+th{background:var(--gradient1);color:white;padding:12px 16px;text-align:left;font-weight:600}
+td{padding:10px 16px;border-bottom:1px solid var(--border)}
+tr:nth-child(even) td{background:#f1f4fa}
+
+.big-number{font-size:clamp(3em,6vw,5em);font-weight:900;color:var(--accent2);line-height:1}
+.big-label{font-size:1.1em;color:var(--muted);margin-top:.3em}
+
+/* ── Sparse-slide modifiers (2026-05-03) ───────────────────────────────
+ * The base font-sizes assume a content-dense slide (close to the per-slide
+ * cap). Slides with little content (1 short table, 1 small flow-row,
+ * ≤6 bullets, etc.) end up using only ~50% of the 1920×1080 canvas with
+ * tiny text. These two modifier classes bump the in-slide typography so
+ * the visible content fills more of the frame. The min font-sizes stay
+ * intact for content-dense slides — only sparse slides opt in.
+ *
+ * Heuristic for the agent (see "Slide Density Sizing" in the prompt):
+ *   slide--sparse       — ~1.3× bump : ≤8 short bullets, OR 1 small table
+ *                         (≤6 rows), OR 1 flow-row + ≤6 bullets, OR ≤2
+ *                         cards in card-grid.
+ *   slide--very-sparse  — ~1.5× bump : ≤4 short bullets, OR a single
+ *                         small table (≤4 rows), OR 1 flow-row only, OR
+ *                         a single highlight-box/accent-box, OR a single
+ *                         big-number metric.
+ * Header/footer chrome (slide-number, attribution, badge) intentionally
+ * unchanged so the visual baseline of the deck stays consistent.
+ */
+.slide.slide--sparse h2{font-size:2.6em}
+.slide.slide--sparse h3{font-size:1.5em}
+.slide.slide--sparse p{font-size:1.35em}
+.slide.slide--sparse ul li{font-size:1.5em;margin:.7em 0}
+.slide.slide--sparse table{font-size:1.2em}
+.slide.slide--sparse th,.slide.slide--sparse td{padding:14px 18px}
+.slide.slide--sparse .flow-node{font-size:1.3em;padding:1rem 1.6rem;min-width:170px}
+.slide.slide--sparse .flow-arrow{font-size:1.9em}
+.slide.slide--sparse .card-title{font-size:1.55em}
+.slide.slide--sparse .card{padding:1.7rem 2rem}
+.slide.slide--sparse .highlight-box,.slide.slide--sparse .accent-box{font-size:1.3em;padding:1.5rem 2rem}
+.slide.slide--sparse .gantt-wrap{font-size:1.15em}
+
+.slide.slide--very-sparse h2{font-size:3em}
+.slide.slide--very-sparse h3{font-size:1.7em}
+.slide.slide--very-sparse p{font-size:1.55em}
+.slide.slide--very-sparse ul li{font-size:1.7em;margin:.85em 0}
+.slide.slide--very-sparse table{font-size:1.4em}
+.slide.slide--very-sparse th,.slide.slide--very-sparse td{padding:16px 22px}
+.slide.slide--very-sparse .flow-node{font-size:1.55em;padding:1.2rem 1.9rem;min-width:200px}
+.slide.slide--very-sparse .flow-arrow{font-size:2.2em}
+.slide.slide--very-sparse .card-title{font-size:1.8em}
+.slide.slide--very-sparse .card{padding:1.9rem 2.3rem}
+.slide.slide--very-sparse .highlight-box,.slide.slide--very-sparse .accent-box{font-size:1.55em;padding:1.8rem 2.4rem}
+.slide.slide--very-sparse .gantt-wrap{font-size:1.3em}
+
+/* ── Dense-doc modifier (文字多め / Japanese document-style) ──────────────
+ * The OPPOSITE of slide--sparse. For "read-as-document" decks (提案書・
+ * 報告書 / RFP where slides double as standalone reading material) you want
+ * MORE text per slide, not bigger text. This modifier keeps fonts AT the
+ * floor (never below — critical rule #2 still holds) but tightens
+ * line-height / margins / gaps and enables 2-column body prose so a slide
+ * holds full sentences + many bullets without overflowing 1080px. Used by
+ * "dense-doc" mode ONLY — never auto-applied, and the sparse-bump heuristic
+ * does NOT run in this mode (see §Slide Density Sizing dense-doc note).
+ */
+.slide.slide--dense{padding:56px 80px 80px}
+.slide.slide--dense .lead{font-size:1.5em;font-weight:700;color:var(--accent);line-height:1.35;margin-bottom:.5em;border-left:6px solid var(--accent2);padding-left:.55em;padding-right:120px}/* padding-right clears the top-right brand-mark (right:32px+96px wide) so the lead's first line never runs under the logo */
+.slide.slide--dense h2{font-size:1.9em;margin-bottom:.25em}
+.slide.slide--dense h3{font-size:1.15em;margin:.45em 0 .2em}
+.slide.slide--dense p{font-size:1.05em;line-height:1.5;margin-bottom:.55rem;color:var(--text)}
+.slide.slide--dense ul{margin-top:.2rem}
+.slide.slide--dense ul li{font-size:1.1em;margin:.28em 0;line-height:1.45}
+.slide.slide--dense .body-2col{column-count:2;column-gap:2.4rem}
+.slide.slide--dense .body-2col li{break-inside:avoid}
+.slide.slide--dense .card-grid{gap:.8rem;margin-top:.4rem}
+.slide.slide--dense .card{padding:1rem 1.2rem;border-radius:12px}
+.slide.slide--dense .card-title{font-size:1.15em;margin-bottom:.3em}
+.slide.slide--dense table{font-size:.95em;margin-top:.4rem}
+.slide.slide--dense th,.slide.slide--dense td{padding:7px 12px}
+.slide.slide--dense .highlight-box,.slide.slide--dense .accent-box{padding:.9rem 1.3rem;margin-top:.7rem;font-size:1.05em}
+.slide.slide--dense .footnote{font-size:.8em;color:var(--muted);margin-top:.6rem;line-height:1.4}
+
+.attribution{position:absolute;bottom:14px;left:24px;font-size:12px;color:var(--muted);opacity:.6;pointer-events:none}
+.slide.cover .attribution,.slide.section-divider .attribution{color:rgba(255,255,255,.55)}
+.slide-number{position:absolute;bottom:14px;right:24px;font-size:14px;color:var(--muted);opacity:.7}
+.slide.cover .slide-number,.slide.section-divider .slide-number{color:rgba(255,255,255,.7)}
+
+.brand-mark{position:absolute;top:22px;right:32px;width:96px;height:auto;pointer-events:none;z-index:5}
+
+#slide-nav{position:fixed;top:0;left:0;right:0;background:rgba(0,48,135,.97);color:white;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;z-index:1000;gap:1rem;font-size:.95em}
+#slide-nav button{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:6px 14px;cursor:pointer;font-size:1em}
+.theme-toggle{position:fixed;top:64px;right:20px;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:1.1em;box-shadow:var(--shadow)}
+body{padding-top:54px}
+
+.thumb-nav{position:fixed;left:0;top:54px;bottom:0;width:220px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:12px 10px;z-index:998;display:none}
+.thumb-nav.open{display:block}
+body.thumbs-open{padding-left:220px}
+body.thumbs-open .theme-toggle{left:240px;right:auto}
+.thumb{width:200px;height:112px;margin-bottom:10px;border:2px solid var(--border);border-radius:4px;overflow:hidden;cursor:pointer;position:relative;background:#fff}
+.thumb:hover{border-color:var(--accent2)}
+.thumb.active{border-color:var(--accent3);box-shadow:0 0 0 2px rgba(255,107,0,.3)}
+.thumb-inner{width:1920px;height:1080px;transform:scale(0.1042);transform-origin:top left;pointer-events:none}
+.thumb-num{position:absolute;top:3px;left:4px;font-size:10px;font-weight:600;background:rgba(0,0,0,.65);color:#fff;padding:1px 5px;border-radius:3px;z-index:2}
+.thumb-toggle{position:fixed;top:64px;left:20px;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:1.1em;box-shadow:var(--shadow)}
+
+/* ── Architecture diagram patterns (redraw source Mermaid into these; NEVER
+ *    embed Mermaid/SVG — dom-to-pptx rasterises it → not editable). See
+ *    /usr/local/share/vibeflow/skills/slide-craft/patterns/arch-diagrams.html for ready HTML.
+ *    Shared node colours are used by arch-node / .proj / .tnode. ───────────── */
+/* shared coloured box */
+.arch-node,.proj,.tnode{border:1px solid var(--border-strong);border-radius:8px;padding:.45rem .6rem;font-weight:600;font-size:.88em;line-height:1.25;background:#fff;color:var(--text)}
+.arch-node small,.proj small,.tnode small{display:block;font-weight:500;color:var(--muted);font-size:.82em}
+.arch-node.blue,.proj.blue,.tnode.blue{background:#dbeafe;border-color:#93c5fd;color:#1e40af}
+.arch-node.green,.proj.green,.tnode.green{background:#d1fae5;border-color:#6ee7b7;color:#065f46}
+.arch-node.orange,.proj.orange,.tnode.orange{background:#fed7aa;border-color:#fdba74;color:#c2410c}
+.arch-node.purple,.proj.purple,.tnode.purple{background:#ede9fe;border-color:#c4b5fd;color:#5b21b6}
+.arch-node.red,.proj.red,.tnode.red{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+.arch-node.cyan,.proj.cyan,.tnode.cyan{background:#cffafe;border-color:#67e8f9;color:#0e7490}
+.proj.muted,.tnode.muted{background:#f1f5f9;border-style:dashed;color:var(--muted)}
+/* (1) LAYERED — tiers as columns with titles (Mermaid flowchart LR/TB with parallel layers) */
+.arch-wrap{display:grid;gap:.5rem;margin-top:.6rem;align-items:start}
+.arch-layer{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:.8rem;text-align:center}
+.arch-layer-title{font-weight:700;font-size:.95em;color:var(--accent);margin-bottom:.4rem;border-bottom:2px solid var(--accent2);padding-bottom:.3rem}
+.arch-layer .arch-node{margin:.25rem 0}
+/* (2) GROUPED CLUSTER — bordered groups + nested sub-clusters + ⇄ connectors
+ *     (Mermaid subgraph / nested topology: VPC, multi-cloud) */
+.cloud-flow{display:flex;align-items:stretch;justify-content:center;gap:.55rem;margin-top:.7rem}
+.cloud-flow .flow-arrow{align-self:center;flex:0 0 auto}
+.zone-col{display:flex;flex-direction:column;gap:.55rem}
+.arch-group{border:2px solid var(--border-strong);border-radius:12px;padding:.6rem .7rem;background:var(--surface-2);display:flex;flex-direction:column}
+.arch-group-title{font-weight:700;font-size:.88em;color:var(--accent);text-align:center;margin-bottom:.45rem;padding-bottom:.3rem;border-bottom:2px solid var(--accent2)}
+.arch-group>.arch-node{margin:.2rem 0}
+.arch-sub{border:1px dashed var(--border-strong);border-radius:8px;padding:.4rem;margin-top:.4rem}
+.arch-sub-title{font-size:.74em;font-weight:700;color:var(--muted);text-align:center;margin-bottom:.3rem}
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.ngrid.three{grid-template-columns:1fr 1fr 1fr}
+/* (3) HIERARCHY via nested containment — Org wraps Folders wrap Projects
+ *     (Mermaid tree / org-chart). Containment shows parent→child, no fragile lines. */
+.org{border:2.5px solid var(--accent);border-radius:16px;margin-top:1rem;padding:0 1.2rem 1.2rem}
+.org-title{display:inline-block;transform:translateY(-50%);background:var(--gradient1);color:#fff;font-weight:700;padding:.5rem 1.4rem;border-radius:10px;font-size:1.05em}
+.org-title small{font-weight:500;opacity:.85;margin-left:.5rem;color:#fff}
+.folder-row{display:flex;gap:1rem;align-items:flex-start;margin-top:-.4rem}
+.folder{flex:1;border:2px solid var(--border-strong);border-radius:12px;padding:0 .8rem .9rem;background:var(--surface-2)}
+.folder-title{display:inline-block;transform:translateY(-50%);font-weight:700;padding:.35rem 1rem;border-radius:8px;font-size:.92em;background:#dbeafe;color:#1e40af}
+.folder .proj{margin:.4rem 0;display:flex;justify-content:space-between;align-items:center}
+.folder .proj small{display:inline}
+</style>
+</head>
+<body>
+<div id="slide-nav">
+  <div><strong>Cowork-Local BamBOO</strong></div>
+  <div><button onclick="prevSlide()">◀</button> <span id="nav-pos">1 / N</span> <button onclick="nextSlide()">▶</button></div>
+</div>
+<button class="thumb-toggle" onclick="toggleThumbs()" title="Slides">☰</button>
+<button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+<aside class="thumb-nav" id="thumb-nav"></aside>
+<div class="deck">
+<section class="slide cover" id="s1">
+  <svg width="188" height="116" viewBox="0 0 34 21" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 1.8rem;filter:drop-shadow(0 2px 8px rgba(0,0,0,.25))">
+    <path d="M6.68439 3.50089C4.75756 3.50089 3.12259 4.75793 2.55021 6.5013C2.53888 6.54111 2.52471 6.58093 2.51338 6.6179L2.41703 6.99331L0 17.499H6.08934C7.90849 17.499 9.45845 16.3415 10.0478 14.7204L10.2774 13.7193L12.6292 3.49805H6.68439V3.50089Z" fill="#08509F"/>
+    <path d="M18.1691 0C16.18 0 14.5025 1.34236 13.984 3.17389C13.9443 3.3104 13.9131 3.44976 13.8876 3.59196L9.88379 21H15.8286C17.866 21 19.5746 19.5951 20.0506 17.6981H20.0535L24.1196 0H18.1691Z" fill="#F27123"/>
+    <path d="M28.0555 3.50098C26.1967 3.50098 24.6099 4.6727 23.9865 6.31937C23.9553 6.40469 23.8448 6.75165 23.8448 6.75165L21.3711 17.5019H27.3159C29.3589 17.5019 31.0732 16.0885 31.5408 14.183L33.9975 3.50382H28.0555V3.50098Z" fill="#51B748"/>
+    <path d="M4.03217 7.37699C3.69781 7.6557 3.48246 7.99413 3.41728 8.26431L2.15918 13.9637H2.23002C2.62105 13.9637 2.98942 13.8243 3.32378 13.5484C3.66097 13.2726 3.87349 12.9341 3.95566 12.5445L4.27869 11.0969H6.97908C7.37011 11.0969 7.74131 10.9576 8.07851 10.6817C8.4157 10.4058 8.63105 10.0646 8.71606 9.67208L8.73023 9.60098H4.61305L4.86524 8.46055H8.76706C9.1581 8.46055 9.52646 8.32119 9.86366 8.04817C10.198 7.7723 10.4049 7.42818 10.4955 7.03855L10.5125 6.96745H5.12593C4.73489 6.96176 4.36653 7.10112 4.03217 7.37699Z" fill="white"/>
+    <path d="M31.52 7.30069C31.3047 7.08455 31.0213 6.97363 30.6813 6.97363H25.2975L25.289 7.02198C25.2691 7.12721 25.2578 7.22675 25.2578 7.3206C25.2578 7.6505 25.3683 7.92637 25.5837 8.14535C25.8019 8.3615 26.0824 8.47241 26.4252 8.47241H27.587L26.4196 13.9642H26.4932C26.8843 13.9642 27.2498 13.8248 27.5842 13.5518C27.9185 13.2759 28.1254 12.9375 28.2076 12.545L29.0718 8.46957H31.809L31.8175 8.42122C31.8374 8.32168 31.8487 8.21645 31.8487 8.11407C31.8459 7.78986 31.7354 7.51683 31.52 7.30069Z" fill="white"/>
+    <path d="M19.7101 6.96223H16.0718L16.0747 6.95654H14.5785L13.0938 13.9641H13.1646C13.5556 13.9641 13.924 13.8248 14.2555 13.5489C14.587 13.273 14.7967 12.9346 14.8789 12.545L15.1821 11.1059H18.8544C19.2454 11.1059 19.611 10.9666 19.9453 10.6935C20.2768 10.4205 20.4894 10.0792 20.5772 9.68108L20.8521 8.41551C20.8719 8.31597 20.8832 8.21359 20.8832 8.10836C20.8832 7.78414 20.7727 7.51112 20.5517 7.29213C20.3364 7.07315 20.0502 6.96223 19.7101 6.96223ZM15.7488 8.46101H19.3531L19.1038 9.60714H15.4995L15.7488 8.46101Z" fill="white"/>
+  </svg>
+  <h1 style="font-size:3.2em;margin-bottom:0.4em">Cowork-Local BamBOO</h1>
+  <p style="font-size:1.6em;opacity:.85">Enterprise AI Business Assistant</p>
+  <span class="slide-number">Slide 1 / 11</span>
+</section><section class="slide slide--very-sparse" id="s2">
+  <h2>Mục đích ứng dụng</h2>
+  <div class="card-grid grid2">
+    <div class="card">
+      <div class="card-title">Vấn đề</div>
+      <ul>
+        <li>Nhân viên văn phòng cần AI hỗ trợ tác vụ hàng ngày: tổng hợp báo cáo, phân tích dữ liệu, tạo tài liệu.</li>
+        <li>Giải pháp hiện tại quá đơn giản (chat thuần túy) hoặc quá phức tạp (cần kiến thức lập trình).</li>
+        <li>Thiếu công cụ AI <strong>doanh nghiệp</strong>: bảo mật, quản lý tài khoản, tích hợp hệ thống văn phòng.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Giải pháp — Cowork-Local BamBOO</div>
+      <ul>
+        <li>Ứng dụng desktop AI đa năng cho doanh nghiệp.</li>
+        <li>Hỗ trợ 3 ngôn ngữ: Việt, Anh, Nhật.</li>
+        <li>Tích hợp Microsoft 365 (OneDrive, SharePoint).</li>
+        <li>Quản lý tài khoản (Admin/Sub-admin/User), phân quyền, giám sát chi phí.</li>
+        <li><strong>Không cần kiến thức lập trình</strong> — dùng như chat, kết quả là file thực tế.</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">Slide 2 / 13</span>
+</section><section class="slide slide--very-sparse" id="s3">
+  <h2>Kiến trúc tổng quan</h2>
+  <div class="arch-wrap" style="grid-template-columns:repeat(4,1fr)">
+    <div class="arch-layer">
+      <div class="arch-layer-title">UI Layer (PySide6/Qt)</div>
+      <div class="arch-node blue">Dashboard<small>thống kê chi phí</small></div>
+      <div class="arch-node blue">Schedule<small>Kanban board</small></div>
+      <div class="arch-node blue">Workspace<small>5 sub-tabs</small></div>
+      <div class="arch-node blue">Monitoring<small>Security · MCP · Logs</small></div>
+      <div class="arch-node blue">Settings · Login · Help</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-title">Core Business Logic</div>
+      <div class="arch-node green">Chat Agent<small>Cowork</small></div>
+      <div class="arch-node green">Code Agent</div>
+      <div class="arch-node green">Co4E Workflow<small>DAG multi-agent</small></div>
+      <div class="arch-node green">Schedule Task<small>cron + chaining</small></div>
+      <div class="arch-node green">Projects · Accounts · Skills</div>
+      <div class="arch-node green">Doc Extract · PPTX · XLSX</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-title">Routing &amp; Providers</div>
+      <div class="arch-node purple">Auto Model Routing<small>classify → score → select</small></div>
+      <div class="arch-node purple">OpenAI Compatible</div>
+      <div class="arch-node purple">Anthropic · Ollama</div>
+      <div class="arch-node purple">Copilot · Codex</div>
+      <div class="arch-node purple">Model Pricing · Benchmark</div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-layer-title">Security &amp; Integration</div>
+      <div class="arch-node orange">Agent Security<small>3 lớp bảo mật</small></div>
+      <div class="arch-node orange">Sandbox Manager<small>risk-based</small></div>
+      <div class="arch-node orange">MCP Client + Servers</div>
+      <div class="arch-node orange">MS365 · Jira · Ext</div>
+      <div class="arch-node orange">Audit Log · Usage Tracker</div>
+      <div class="arch-node orange">Doc Extract · Image Gen</div>
+    </div>
+  </div>
+  <div class="highlight-box"><strong>Bảo mật xuyên suốt:</strong> Risk Classifier → Backend Selector → Execution (Direct / Integrity Job / AppContainer / Win Sandbox).</div>
+  <div class="footnote">Kiến trúc 4 lớp: UI → Core → Routing/Providers → Security/Integration. Mỗi layer có thể mở rộng độc lập. Tổng cộng 50+ module trong core/, 30+ UI components. Hỗ trợ Windows, macOS, Linux. I18n: Tiếng Việt, English, 日本語. Dark/Light theme tích hợp sẵn.</div>
+  <div class="accent-box" style="margin-top:0.6rem"><strong>Thiết kế modular:</strong> mỗi layer giao tiếp qua interface rõ ràng, dễ dàng thay thế hoặc mở rộng thành phần.</div>
+  <span class="slide-number">Slide 3 / 13</span>
+</section><section class="slide slide--very-sparse" id="s4">
+  <h2>Luồng xử lý chính: Chat Cowork</h2>
+  <div class="flow-row">
+    <div class="flow-node">User Input + file</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node accent">Chat Agent<small>apply skills · rules · project ctx</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node">Auto Model Routing<small>classify → rank → switch</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node">Agent Security L1<small>prompt validate</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">Provider Chat Loop<small>streaming response</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node accent">Tool Calling<small>file / command / MCP / MS365</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node">Security L2+L3<small>attachment + command check</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node green">Output Files<small>.xlsx · .pptx · .docx · .md</small></div>
+  </div>
+  <div class="highlight-box"><strong>Kết quả là file thực tế</strong> — không chỉ là câu trả lời chat, AI tạo ra tài liệu/báo cáo có thể dùng ngay.</div>
+  <div class="footnote">Tool calling hỗ trợ: file I/O, command execution, MCP connectors, MS365 Graph API, Jira, và external connectors framework.</div>
+  <div class="accent-box" style="margin-top:1rem"><strong>Đa provider:</strong> OpenAI, Anthropic, Ollama, GitHub Copilot, Codex — tự động chọn model phù hợp.</div>
+  <span class="slide-number">Slide 4 / 13</span>
+</section>
+
+<section class="slide slide--very-sparse" id="s5">
+  <h2>Luồng xử lý: Co4E Workflow</h2>
+  <div class="flow-row">
+    <div class="flow-node">Wave 0<small>Step A</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node accent">Wave 1 (parallel)<small>Sub 1 + Sub 2 chạy đồng thời</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node">Wave 2 (join)<small>Coordinator tổng hợp</small></div>
+  </div>
+  <div class="card-grid grid3">
+    <div class="card">
+      <div class="card-title">Mỗi step</div>
+      <ul>
+        <li>Agent persona (built-in / custom)</li>
+        <li>Model riêng</li>
+        <li>Permission preset</li>
+        <li>Self-verify (quality gate)</li>
+        <li>Skills đính kèm</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Run modes</div>
+      <ul>
+        <li><strong>Auto</strong> — AI tự thực hiện</li>
+        <li><strong>Plan</strong> — read-only</li>
+        <li><strong>Manual</strong> — step-by-step</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Lưu ý</div>
+      <ul>
+        <li>Workflow là DAG — không có retry/loop/condition/branch tự động.</li>
+        <li>Parallel node chạy sub-agent đồng thời + join stage.</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">Slide 5 / 13</span>
+</section>
+
+<section class="slide slide--very-sparse" id="s6">
+  <h2>Luồng xử lý: Schedule Task</h2>
+  <div class="flow-row">
+    <div class="flow-node">Backlog</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node accent">Scheduled</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node">Running</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-node green">Done</div>
+  </div>
+  <div class="card-grid grid3">
+    <div class="card">
+      <div class="card-title">Trạng thái phụ</div>
+      <ul>
+        <li>Paused</li>
+        <li>Failed</li>
+        <li>Waiting Input</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Lập lịch</div>
+      <ul>
+        <li>One-shot · Daily · Weekly · Monthly · Cron</li>
+        <li>Skip: working days + holiday calendar</li>
+        <li>Task chaining (fan-in depends_on)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Kiểm soát</div>
+      <ul>
+        <li>Retry: max_retry</li>
+        <li>Timeout: per-task (600s)</li>
+        <li>Notify: Teams webhook / Outlook desktop</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footnote">Hỗ trợ import task từ CSV/Excel, tự động chain theo thứ tự, và lịch nghỉ lễ (VN/JP/US/KR…).</div>
+  <span class="slide-number">Slide 6 / 13</span>
+</section><section class="slide" id="s7">
+  <h2>Chức năng hiện tại (1/4)</h2>
+  <h3>Chat &amp; Agent</h3>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Cowork Chat</strong></td><td>Chat với AI, đính kèm file, nhận output file thực tế</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Code Agent</strong></td><td>Agent chuyên biệt cho task phát triển phần mềm</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>AI Edit</strong></td><td>Chỉnh sửa file bằng AI, hỗ trợ tạo ảnh minh họa</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Help Agent</strong></td><td>Trợ lý hỗ trợ sử dụng app, luôn sẵn sàng</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Multi-provider</strong></td><td>OpenAI, Anthropic, Ollama, GitHub Copilot, Codex</td><td>✅ Hoàn chỉnh</td></tr>
+    </tbody>
+  </table>
+  <h3>Workspace &amp; Project</h3>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Projects</strong></td><td>Mỗi project có instructions + sandbox riêng</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Structure Graph</strong></td><td>Đồ thị cấu trúc từ code/tài liệu (AST-based)</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Folder Viewer</strong></td><td>Xem &amp; chỉnh sửa file (PDF/DOCX/XLSX)</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Terminal</strong></td><td>Terminal tích hợp trong app</td><td>✅ Hoàn chỉnh</td></tr>
+    </tbody>
+  </table>
+  <div class="footnote">Tổng cộng 9 tính năng trong nhóm Chat & Agent và Workspace & Project, tất cả đã hoàn chỉnh và sẵn sàng sử dụng. Multi-provider hỗ trợ OpenAI, Anthropic, Ollama, GitHub Copilot, Codex.</div>
+  <span class="slide-number">Slide 7 / 13</span>
+</section>
+
+<section class="slide slide--sparse" id="s8">
+  <h2>Chức năng hiện tại (2/4) — Automation · Integration</h2>
+  <h3>Automation</h3>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Co4E Workflow</strong></td><td>DAG workflow đa bước, multi-agent, chạy song song</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Schedule Task</strong></td><td>Lên lịch task tự động, Kanban board, cron, chaining</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Skills</strong></td><td>Thư viện skill tích hợp sẵn (5 skills), Skill Manager</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Plan Checklist</strong></td><td>Agent tự động tạo &amp; theo dõi checklist công việc</td><td>✅ Hoàn chỉnh</td></tr>
+    </tbody>
+  </table>
+  <h3>Integration</h3>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Microsoft 365</strong></td><td>OneDrive (đọc/ghi), SharePoint (đọc) — auto-connect</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>MCP Connectors</strong></td><td>Kết nối external tools qua Model Context Protocol</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Jira</strong></td><td>Read-only: search issues, get issue details</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Ext Connectors</strong></td><td>Framework CAD/CAE/MS365/Other</td><td>✅ Hoàn chỉnh</td></tr>
+    </tbody>
+  </table>
+  <span class="slide-number">Slide 8 / 13</span>
+</section>
+
+<section class="slide slide--very-sparse" id="s9">
+  <h2>Chức năng hiện tại (3/4) — Administration</h2>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Tài khoản &amp; RBAC</strong></td><td>Admin / Sub-admin / User, import/export Excel</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Groups</strong></td><td>Nhóm tài khoản để phân quyền theo nhóm</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Dashboard</strong></td><td>Thống kê token usage &amp; chi phí, biểu đồ spline</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Auto Model Routing</strong></td><td>Benchmark model, tự động định tuyến (Auto/Manual/Off)</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Agent Security</strong></td><td>3 lớp bảo mật: prompt, attachment, command</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Sandbox</strong></td><td>Risk-based: Direct/Integrity/AppContainer/Win Sandbox</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Monitoring</strong></td><td>Overview, Security, MCP, Logs, Agent Status</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Audit Log</strong></td><td>tool_call, permission, security_block, mcp_call</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Model Pricing</strong></td><td>Bảng giá model, tùy chỉnh USD/token</td><td>✅ Hoàn chỉnh</td></tr>
+    </tbody>
+  </table>
+  <span class="slide-number">Slide 9 / 13</span>
+</section>
+
+<section class="slide slide--very-sparse" id="s10">
+  <h2>Chức năng hiện tại (4/4) — Document &amp; File</h2>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Doc Extract</strong></td><td>Trích xuất text từ PDF/DOCX/XLSX/PPTX/images</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>PPTX Edit</strong></td><td>Tạo và chỉnh sửa PowerPoint files</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>XLSX Write</strong></td><td>Tạo Excel files với styling</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Image Gen</strong></td><td>Tạo ảnh bằng AI</td><td>✅ Hoàn chỉnh</td></tr>
+      <tr><td><strong>Link Fetch</strong></td><td>Fetch URL preview cho task attachments</td><td>✅ Hoàn chỉnh</td></tr>
+    </tbody>
+  </table>
+  <div class="highlight-box"><strong>Tổng cộng:</strong> 30+ tính năng đã hoàn chỉnh, sẵn sàng dùng trong doanh nghiệp.</div>
+  <div class="footnote">Doc Extract hỗ trợ PDF, DOCX, XLSX, PPTX, images. PPTX Edit tạo và chỉnh sửa slide với font/styling. XLSX Write tạo Excel có màu sắc, border.</div>
+  <div class="accent-box" style="margin-top:1rem"><strong>AI tạo file trực tiếp</strong> — từ câu lệnh chat, AI sinh ra tài liệu/báo cáo/ảnh dùng ngay được.</div>
+  <span class="slide-number">Slide 10 / 13</span>
+</section><section class="slide slide--sparse" id="s11">
+  <h2>Hướng dẫn build &amp; chạy ứng dụng</h2>
+  <div class="card-grid grid2">
+    <div class="card">
+      <div class="card-title">Yêu cầu hệ thống</div>
+      <ul>
+        <li>Python 3.10+ (khuyến nghị 3.11/3.12)</li>
+        <li>OS: Windows 10/11, macOS, Linux</li>
+        <li>Network: cần internet để cài dependencies &amp; gọi API AI</li>
+      </ul>
+      <div class="card-title" style="margin-top:1rem">Cài &amp; chạy</div>
+      <ul>
+        <li><code>pip install -r requirements.txt</code></li>
+        <li><code>python -m cowork_local</code> hoặc <code>python __main__.py</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Cấu hình API key</div>
+      <ul>
+        <li>Settings (⚙) → chọn provider → nhập API key &amp; base URL.</li>
+        <li>Hoặc đặt qua environment variables: <code>OPENAI_API_KEY</code>, <code>OPENAI_BASE_URL</code>…</li>
+      </ul>
+      <div class="card-title" style="margin-top:1rem">Lưu ý</div>
+      <ul>
+        <li>Cấu hình lưu tại <code>~/.cowork_local/config.json</code></li>
+        <li>Một số package (như <code>opendataloader-pdf</code>) tự cài khi cần lần đầu.</li>
+        <li>Lỗi <code>No module named cowork_local</code> → chạy <code>python __main__.py</code>.</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">Slide 11 / 13</span>
+</section>
+
+<section class="slide slide--sparse" id="s12">
+  <h2>Kịch bản Demo</h2>
+  <div class="card-grid grid3">
+    <div class="card">
+      <div class="card-title">Demo 1 — File → AI → Báo cáo + OneDrive</div>
+      <ul>
+        <li>Mở Cowork Chat, đính kèm file báo cáo doanh thu (.xlsx/.pdf).</li>
+        <li>Gõ: phân tích số liệu, tạo báo cáo .xlsx có màu + viết .md lên OneDrive.</li>
+        <li>AI: đọc → phân tích → tạo Excel → upload text lên OneDrive → trả link.</li>
+      </ul>
+      <div class="footnote">Demo 1: OneDrive write chỉ hỗ trợ text files (.md, .txt). Demo 2: Teams webhook + Outlook desktop notification. Demo 3: Auto mode chạy toàn bộ workflow tự động.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Demo 2 — Schedule Task tự động</div>
+      <ul>
+        <li>Vào Schedule → tạo task, đặt lịch "8h sáng thứ 2 hàng tuần".</li>
+        <li>Nội dung: đọc file doanh thu, phân tích, tạo báo cáo .xlsx.</li>
+        <li>Bật <code>working_days_only</code> + <code>skip_holidays</code>.</li>
+        <li>Task tự chạy, kết quả lưu trong task artifacts.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Demo 3 — Co4E Workflow phân tích dự án</div>
+      <ul>
+        <li>Step 1 (Research): đọc code, phân tích kiến trúc.</li>
+        <li>Step 2 (Implement - parallel): 2 sub-agent cùng chạy (unit test + docs).</li>
+        <li>Step 3 (Join + Review): tổng hợp, kiểm tra chất lượng.</li>
+        <li>Chạy Auto mode → AI tự thực hiện từng bước.</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">Slide 12 / 13</span>
+</section>
+
+<section class="slide slide--very-sparse" id="s13">
+  <h2>Tóm tắt</h2>
+  <div class="card-grid grid3">
+    <div class="card">
+      <div class="card-title">Dễ dùng &amp; Đa năng</div>
+      <ul>
+        <li>Giao diện chat, không cần code.</li>
+        <li>Chat, workflow, schedule, code, Structure Graph, skills.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Bảo mật &amp; Tiết kiệm</div>
+      <ul>
+        <li>3 lớp Agent Security + Sandbox risk-based.</li>
+        <li>Auto Model Routing, theo dõi chi phí.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Tích hợp &amp; Quản trị</div>
+      <ul>
+        <li>MS365 (OneDrive/SharePoint), MCP, Jira.</li>
+        <li>RBAC, Dashboard, Audit Log, Groups.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="highlight-box"><strong>Cowork-Local BamBOO</strong> — công cụ AI doanh nghiệp toàn diện: dễ dùng, bảo mật, tiết kiệm, tích hợp, quản trị, đa năng.</div>
+  <div class="accent-box" style="margin-top:1rem"><strong>30+ tính năng đã hoàn chỉnh</strong> — sẵn sàng triển khai trong doanh nghiệp ngay hôm nay.</div>
+  <span class="slide-number">Slide 13 / 13</span>
+</section></div>
+<script>
+function toggleTheme(){
+  const h=document.documentElement,b=document.querySelector('.theme-toggle'),d=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme',d?'light':'dark');b.textContent=d?'🌙':'☀️';
+}
+if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){
+  document.documentElement.setAttribute('data-theme','dark');
+  document.querySelector('.theme-toggle').textContent='☀️';
+}
+
+// Inject FPT brand mark (default) into every slide — see "Brand Logo" section for SVG constant
+const BRAND_SVG='<svg class="brand-mark" viewBox="0 0 34 21" xmlns="http://www.w3.org/2000/svg"><path d="M6.68439 3.50089C4.75756 3.50089 3.12259 4.75793 2.55021 6.5013C2.53888 6.54111 2.52471 6.58093 2.51338 6.6179L2.41703 6.99331L0 17.499H6.08934C7.90849 17.499 9.45845 16.3415 10.0478 14.7204L10.2774 13.7193L12.6292 3.49805H6.68439V3.50089Z" fill="#08509F"/><path d="M18.1691 0C16.18 0 14.5025 1.34236 13.984 3.17389C13.9443 3.3104 13.9131 3.44976 13.8876 3.59196L9.88379 21H15.8286C17.866 21 19.5746 19.5951 20.0506 17.6981H20.0535L24.1196 0H18.1691Z" fill="#F27123"/><path d="M28.0555 3.50098C26.1967 3.50098 24.6099 4.6727 23.9865 6.31937C23.9553 6.40469 23.8448 6.75165 23.8448 6.75165L21.3711 17.5019H27.3159C29.3589 17.5019 31.0732 16.0885 31.5408 14.183L33.9975 3.50382H28.0555V3.50098Z" fill="#51B748"/><path d="M4.03217 7.37699C3.69781 7.6557 3.48246 7.99413 3.41728 8.26431L2.15918 13.9637H2.23002C2.62105 13.9637 2.98942 13.8243 3.32378 13.5484C3.66097 13.2726 3.87349 12.9341 3.95566 12.5445L4.27869 11.0969H6.97908C7.37011 11.0969 7.74131 10.9576 8.07851 10.6817C8.4157 10.4058 8.63105 10.0646 8.71606 9.67208L8.73023 9.60098H4.61305L4.86524 8.46055H8.76706C9.1581 8.46055 9.52646 8.32119 9.86366 8.04817C10.198 7.7723 10.4049 7.42818 10.4955 7.03855L10.5125 6.96745H5.12593C4.73489 6.96176 4.36653 7.10112 4.03217 7.37699Z" fill="white"/><path d="M31.52 7.30069C31.3047 7.08455 31.0213 6.97363 30.6813 6.97363H25.2975L25.289 7.02198C25.2691 7.12721 25.2578 7.22675 25.2578 7.3206C25.2578 7.6505 25.3683 7.92637 25.5837 8.14535C25.8019 8.3615 26.0824 8.47241 26.4252 8.47241H27.587L26.4196 13.9642H26.4932C26.8843 13.9642 27.2498 13.8248 27.5842 13.5518C27.9185 13.2759 28.1254 12.9375 28.2076 12.545L29.0718 8.46957H31.809L31.8175 8.42122C31.8374 8.32168 31.8487 8.21645 31.8487 8.11407C31.8459 7.78986 31.7354 7.51683 31.52 7.30069Z" fill="white"/><path d="M19.7101 6.96223H16.0718L16.0747 6.95654H14.5785L13.0938 13.9641H13.1646C13.5556 13.9641 13.924 13.8248 14.2555 13.5489C14.587 13.273 14.7967 12.9346 14.8789 12.545L15.1821 11.1059H18.8544C19.2454 11.1059 19.611 10.9666 19.9453 10.6935C20.2768 10.4205 20.4894 10.0792 20.5772 9.68108L20.8521 8.41551C20.8719 8.31597 20.8832 8.21359 20.8832 8.10836C20.8832 7.78414 20.7727 7.51112 20.5517 7.29213C20.3364 7.07315 20.0502 6.96223 19.7101 6.96223ZM15.7488 8.46101H19.3531L19.1038 9.60714H15.4995L15.7488 8.46101Z" fill="white"/></svg>';
+document.querySelectorAll('.slide').forEach(s=>{if(!s.querySelector('.brand-mark'))s.insertAdjacentHTML('beforeend',BRAND_SVG);});
+
+// Wrap each slide for viewport scaling
+document.querySelectorAll('.slide').forEach(s=>{
+  const w=document.createElement('div');w.className='slide-wrap';
+  s.parentNode.insertBefore(w,s);w.appendChild(s);
+});
+
+// Build thumbnail sidebar (cloned slides at 0.1x)
+const thumbNav=document.getElementById('thumb-nav');
+const slides=document.querySelectorAll('.slide');
+slides.forEach((s,i)=>{
+  const t=document.createElement('div');t.className='thumb';t.dataset.idx=i;
+  t.innerHTML='<span class="thumb-num">'+(i+1)+'</span>';
+  const inner=document.createElement('div');inner.className='thumb-inner';
+  inner.appendChild(s.cloneNode(true));
+  t.appendChild(inner);
+  t.onclick=()=>slides[i].scrollIntoView({behavior:'smooth',block:'start'});
+  thumbNav.appendChild(t);
+});
+const thumbs=thumbNav.querySelectorAll('.thumb');
+function toggleThumbs(){document.body.classList.toggle('thumbs-open');thumbNav.classList.toggle('open');setTimeout(applyScale,0);}
+function highlightThumb(){
+  const i=currentIndex();thumbs.forEach((t,j)=>t.classList.toggle('active',j===i));
+  const a=thumbs[i];if(a&&thumbNav.classList.contains('open')){
+    const r=a.getBoundingClientRect(),nr=thumbNav.getBoundingClientRect();
+    if(r.top<nr.top||r.bottom>nr.bottom)a.scrollIntoView({block:'nearest'});
+  }
+}
+
+function applyScale(){
+  const navH=54,sideW=document.body.classList.contains('thumbs-open')?220:0;
+  const vw=window.innerWidth-sideW,vh=window.innerHeight-navH;
+  const scale=Math.min(vw/1920,vh/1080,1);
+  document.documentElement.style.setProperty('--scale',scale);
+  document.documentElement.style.setProperty('--scaled-w',(1920*scale)+'px');
+  document.documentElement.style.setProperty('--scaled-h',(1080*scale)+'px');
+}
+applyScale();window.addEventListener('resize',applyScale);
+
+function currentIndex(){
+  const y=window.scrollY+window.innerHeight/2;
+  for(let i=0;i<slides.length;i++){
+    const r=slides[i].getBoundingClientRect();
+    if(r.top+window.scrollY<=y&&r.bottom+window.scrollY>=y)return i;
+  }
+  return 0;
+}
+function updateNav(){const p=document.getElementById('nav-pos');if(p)p.textContent=(currentIndex()+1)+' / '+slides.length;highlightThumb();}
+function prevSlide(){const i=currentIndex();if(i>0)slides[i-1].scrollIntoView({behavior:'smooth'});}
+function nextSlide(){const i=currentIndex();if(i<slides.length-1)slides[i+1].scrollIntoView({behavior:'smooth'});}
+window.addEventListener('scroll',updateNav);
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowDown')nextSlide();if(e.key==='ArrowLeft'||e.key==='ArrowUp')prevSlide();});
+updateNav();
+</script>
+</body>
+</html>

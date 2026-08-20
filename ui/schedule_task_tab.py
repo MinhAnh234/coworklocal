@@ -16,8 +16,8 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox,
-    QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QStackedWidget,
+    QTabBar, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..core import tasks as taskrepo
@@ -26,6 +26,7 @@ from ..core.tasks import STATUSES, chain_error, duplicate_task, new_task
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
+from ..theme import current_palette
 from .calendar_view import CalendarView
 from .icons import icon
 from .osutil import open_path
@@ -52,7 +53,18 @@ class _KanbanColumn(QListWidget):
         # → "Delete N selected" to bulk-remove tasks instead of one at a time.
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setWordWrap(True)
-        self.setMinimumWidth(190)
+        # Cards wrap, so there is never anything to reach by scrolling sideways
+        # — but QListWidget's own column hint runs 1-6px past the viewport, and
+        # a lane sprouted a horizontal scrollbar at 36 of 38 window widths I
+        # measured. Which lanes grew one changed with the width, which is why it
+        # looked like it depended on the screen.
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setResizeMode(QListWidget.Adjust)   # re-wrap on every resize
+        # No pixel floor here. A fixed one is always wrong on some screen:
+        # 190 lost the seventh lane, 150 still wanted 1242px where a 1280
+        # window leaves 1091 — so the 1280 monitor scrolled sideways and the
+        # 1920 one did not, same app, same build. The board divides whatever
+        # width it has by seven instead; see _fit_lanes().
 
     def dropEvent(self, event):  # noqa: N802
         source = event.source()
@@ -84,6 +96,13 @@ class ScheduleTaskTab(QWidget):
         self._title.setStyleSheet("font-weight:700; font-size:15px;")
         self.counts_lbl = QLabel("")
         self.counts_lbl.setObjectName("hint")
+        # A one-line summary of every lane's count. Left to size itself it
+        # reported a sizeHint wide enough to set the MINIMUM width of the whole
+        # screen — 1285px at 150% scaling, which then became the window's
+        # minimum and stopped the app fitting a 1280px laptop. It is a summary,
+        # and the same numbers are on each lane header, so it gives way first.
+        self.counts_lbl.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.counts_lbl.setMinimumWidth(0)
         self.add_btn = QPushButton()
         self.add_btn.setIcon(icon("plus"))
         self.add_btn.setObjectName("primary")
@@ -91,13 +110,18 @@ class ScheduleTaskTab(QWidget):
         self.ai_btn = QPushButton()
         self.ai_btn.setIcon(icon("sparkle"))
         self.ai_btn.clicked.connect(self._ai_create)
-        self.view_combo = QComboBox()
-        for v in _VIEWS:
-            self.view_combo.addItem("", v)
-        self.view_combo.currentIndexChanged.connect(self._on_view_changed)
+        # Two views of the same tasks, so they read as a pair of tabs rather
+        # than a drop-list you have to open to discover the Calendar exists.
+        self.view_tabs = QTabBar()
+        self.view_tabs.setObjectName("viewTabs")
+        self.view_tabs.setDrawBase(False)
+        self.view_tabs.setExpanding(False)
+        for _v in _VIEWS:
+            self.view_tabs.addTab("")
+        self.view_tabs.currentChanged.connect(self._on_view_changed)
         header.addWidget(self._title)
         header.addWidget(self.counts_lbl, 1)
-        header.addWidget(self.view_combo)
+        header.addWidget(self.view_tabs)
         header.addWidget(self.add_btn)
         header.addWidget(self.ai_btn)
         root.addLayout(header)
@@ -109,14 +133,25 @@ class ScheduleTaskTab(QWidget):
         board = QWidget()
         scroll.setWidget(board)
         cols = QHBoxLayout(board)
-        cols.setSpacing(8)
+        # Gutters wide enough to read as a break between lanes without eating
+        # too much of the seven-way split — they still share the board equally
+        # (see _fit_lanes below), so a wider gutter narrows every lane by the
+        # same share automatically; nothing else to compute here.
+        cols.setSpacing(2)
         self.columns: Dict[str, _KanbanColumn] = {}
         self.column_headers: Dict[str, QLabel] = {}
         for status in STATUSES:
             box = QVBoxLayout()
+            # The per-lane holder's own margins were the style's default
+            # (~9px a side) on top of the inter-column gap — with seven lanes
+            # that outweighs the gap itself. Zero it out and let the lane's
+            # header/list fill the width _fit_lanes() hands them.
+            box.setContentsMargins(0, 0, 0, 0)
+            box.setSpacing(2)
             head = QLabel()
             head.setStyleSheet("font-weight:600;")
             col = _KanbanColumn(status)
+            col.setObjectName("kanbanLane")
             col.task_dropped.connect(self._on_task_dropped)
             col.itemDoubleClicked.connect(self._on_double_click)
             col.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -129,6 +164,9 @@ class ScheduleTaskTab(QWidget):
             cols.addWidget(holder)
             self.columns[status] = col
             self.column_headers[status] = head
+        self._board_scroll = scroll
+        self._board_gap = cols.spacing()
+        scroll.viewport().installEventFilter(self)
         self._view_stack.addWidget(scroll)
         self.calendar = CalendarView()
         self.calendar.edit_task.connect(self._edit_task)
@@ -161,14 +199,14 @@ class ScheduleTaskTab(QWidget):
         self.ai_btn.setText(tr("schedtask.ai_btn"))
         self.ai_btn.setToolTip(tr("schedtask.ai_tooltip"))
         for i, v in enumerate(_VIEWS):
-            self.view_combo.setItemText(i, tr(f"schedtask.view.{v}"))
+            self.view_tabs.setTabText(i, tr(f"schedtask.view.{v}"))
         for status, col in self.columns.items():
             col.setToolTip(tr(f"schedtask.col_tip.{status}"))
         self.refresh()
 
     # ---- Kanban / Calendar view switch --------------------------------
     def _on_view_changed(self) -> None:
-        self._view_stack.setCurrentIndex(self.view_combo.currentIndex())
+        self._view_stack.setCurrentIndex(self.view_tabs.currentIndex())
 
     def _add_task_on_date(self, date_str: str) -> None:
         """Create a task pre-filled with the clicked calendar date (default
@@ -180,6 +218,30 @@ class ScheduleTaskTab(QWidget):
         if dlg.exec() and dlg.edited_task:
             self._save_and_refresh(dlg.edited_task)
             self.status_message.emit(tr("schedtask.msg_created"))
+
+    # ---- lane widths ------------------------------------------------------
+    #
+    # The seven lanes share the board equally — that is the layout's stretch
+    # doing the work, so the split is a proportion of whatever width there is,
+    # on any monitor. The only pixel question left is how narrow a lane may get
+    # before scrolling sideways beats squeezing, and that is a question about
+    # TEXT: roughly eight characters of a task title plus its padding. Reading
+    # it off the font keeps it right at 125%/150% scaling and at a user's own
+    # font size, where a constant would not be.
+    _LANE_FLOOR_CH = 8
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        from PySide6.QtCore import QEvent
+
+        if obj is self._board_scroll.viewport() and event.type() == QEvent.Resize:
+            self._fit_lanes()
+        return super().eventFilter(obj, event)
+
+    def _fit_lanes(self) -> None:
+        floor = self.fontMetrics().averageCharWidth() * self._LANE_FLOOR_CH + 24
+        for col in self.columns.values():
+            if col.minimumWidth() != floor:
+                col.setMinimumWidth(floor)
 
     # ---- board rendering ---------------------------------------------------
     def _card_text(self, t: dict) -> str:
@@ -212,15 +274,29 @@ class ScheduleTaskTab(QWidget):
             item = QListWidgetItem(self._card_text(t))
             item.setData(Qt.UserRole, t["task_id"])
             self.columns[status].addItem(item)
+        pal = current_palette()
         for status, col in self.columns.items():
             self.column_headers[status].setText(
                 f"{tr(f'schedtask.status.{status}')} ({counts[status]})")
+            # Dropping a card into Running STARTS the task for real, so that
+            # lane is outlined while it holds anything — the one column here
+            # with a side effect should not look like the other six.
+            if status == "running" and counts[status]:
+                col.setStyleSheet(
+                    f"border: 1px solid {pal.warning}; border-radius: {pal.radius}px;")
+                self.column_headers[status].setStyleSheet(
+                    f"font-weight:600; color: {pal.warning};")
+            else:
+                col.setStyleSheet("")
+                self.column_headers[status].setStyleSheet("font-weight:600;")
             if col.count() == 0:
                 empty = QListWidgetItem(tr("schedtask.no_tasks"))
                 empty.setFlags(Qt.NoItemFlags)
                 col.addItem(empty)
-        self.counts_lbl.setText("   ".join(
-            f"{tr(f'schedtask.status.{s}')}: {counts[s]}" for s in STATUSES if counts[s]))
+        summary = "   ".join(
+            f"{tr(f'schedtask.status.{s}')}: {counts[s]}" for s in STATUSES if counts[s])
+        self.counts_lbl.setText(summary)
+        self.counts_lbl.setToolTip(summary)   # full text stays reachable if clipped
         self.calendar.set_tasks(all_tasks)
 
     # ---- actions --------------------------------------------------------
@@ -481,9 +557,11 @@ class _DropZone(QLabel):
         super().__init__()
         self.setAlignment(Qt.AlignCenter)
         self.setMinimumHeight(70)
+        _p = current_palette()
         self.setStyleSheet(
-            "QLabel { border: 2px dashed rgba(140,146,152,0.6); border-radius: 10px;"
-            " color: #8c9298; padding: 10px; }")
+            f"QLabel {{ border: 1px dashed {_p.border_strong};"
+            f" border-radius: {_p.radius_lg}px;"
+            f" color: {_p.text_muted}; padding: 10px; }}")
         self.setAcceptDrops(True)
 
     def dragEnterEvent(self, event):  # noqa: N802

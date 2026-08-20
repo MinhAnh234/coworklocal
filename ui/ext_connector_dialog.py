@@ -16,8 +16,13 @@ from PySide6.QtWidgets import (
     QLineEdit, QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from ..core.ext_connectors import PRESETS
+from ..core.ext_connectors import CATEGORIES, PRESETS
 from ..i18n import tr
+
+# ms365 has no user-created entries here (see ConnectorsPanel) — it auto-connects
+# via its own built-in OneDrive/SharePoint toggles, so it's left off this picker.
+_PICKABLE_CATEGORIES = tuple(c for c in CATEGORIES if c != "ms365")
+_CATEGORY_LABEL = {"cad": "CAD", "cae": "CAE", "other": "Other"}
 
 
 class ExtConnectorEditDialog(QDialog):
@@ -32,10 +37,20 @@ class ExtConnectorEditDialog(QDialog):
         lay = QVBoxLayout(self)
 
         form = QFormLayout()
+        # Category picker — the single "+ Thêm connector…" button (Monitoring ▸
+        # Công cụ ▸ Connector) has no tree selection to infer this from anymore,
+        # so the dialog itself asks. Fixed once created, same as the preset.
+        self.category_combo = QComboBox()
+        for cat in _PICKABLE_CATEGORIES:
+            self.category_combo.addItem(_CATEGORY_LABEL.get(cat, cat), cat)
+        idx = self.category_combo.findData(self.category)
+        self.category_combo.setCurrentIndex(max(0, idx))
+        self.category_combo.setEnabled(not editing)
+        self.category_combo.currentIndexChanged.connect(self._on_category_changed)
+        form.addRow(tr("ext.category_label"), self.category_combo)
+
         self.preset_combo = QComboBox()
-        self.preset_combo.addItem(tr("ext.preset_custom"), "")
-        for p in PRESETS.get(self.category, []):
-            self.preset_combo.addItem(p["name"], p["id"])
+        self._reload_presets()
         if editing:
             self.preset_combo.setEnabled(False)  # identity fixed once created
         form.addRow(tr("ext.preset_label"), self.preset_combo)
@@ -104,6 +119,18 @@ class ExtConnectorEditDialog(QDialog):
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         lay.addWidget(buttons)
+
+    def _reload_presets(self) -> None:
+        self.preset_combo.blockSignals(True)
+        self.preset_combo.clear()
+        self.preset_combo.addItem(tr("ext.preset_custom"), "")
+        for p in PRESETS.get(self.category, []):
+            self.preset_combo.addItem(p["name"], p["id"])
+        self.preset_combo.blockSignals(False)
+
+    def _on_category_changed(self) -> None:
+        self.category = self.category_combo.currentData() or self.category
+        self._reload_presets()
 
     def _apply_preset(self) -> None:
         preset_id = self.preset_combo.currentData()

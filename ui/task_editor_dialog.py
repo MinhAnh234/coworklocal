@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDateTimeEdit, QDialog, QDialogButtonBox, QFileDialog,
     QFormLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMessageBox, QPlainTextEdit, QPushButton,
-    QScrollArea, QSpinBox, QVBoxLayout, QWidget,
+    QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from ..config import PROVIDER_LABELS
@@ -70,28 +70,36 @@ class TaskEditorDialog(QDialog):
         self.edited_task: Optional[dict] = None
         self.setWindowTitle(tr("schedtask.editor_title_edit" if task else "schedtask.editor_title_new"))
         self.resize(560, 680)
-        # Flat inputs: every field (text, list, combo, spin, date) is transparent
-        # so it shows the page background (the app theme otherwise fills inputs
-        # with a lighter box) — just a light outline, consistent with the rest of
-        # the app. The combo drop-down popup keeps a solid dark background so its
-        # items stay readable.
-        self.setStyleSheet(
-            "QLineEdit, QPlainTextEdit, QListWidget, QComboBox, QAbstractSpinBox {"
-            " background: transparent; border: 1px solid rgba(140,146,152,0.45);"
-            " border-radius: 6px; }"
-            "QListWidget::item { background: transparent; }"
-            "QComboBox QAbstractItemView { background: #111D32; color: #E0F0FF; }")
+        # Only the files/links/depends-on lists go flat (transparent, no boxed
+        # panel) — they sit right next to their own +/trash buttons, which is
+        # enough affordance without a filled background. Title/Description/
+        # Prompt/combos etc. keep the app's normal raised-surface + border
+        # look (theme.py's default for these widget types): a transparent
+        # single/multi-line box with only a 1px border was tried here and
+        # turned out too faint against the group's own background to read as
+        # an editable field at all ("không thể nhận ra ô textbox của prompt").
+        # Scoped to #flatList, not bare QListWidget — that would also blank
+        # out the sectionIndex sidebar's :selected highlight (set by the app
+        # theme), since a stylesheet set directly on this dialog overrides the
+        # app-wide one for every descendant it matches, regardless of the
+        # theme rule's own selector specificity.
+        self.setStyleSheet("QListWidget#flatList, QListWidget#flatList::item { background: transparent; }")
 
         outer = QVBoxLayout(self)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)   # down only
         content = QWidget()
         scroll.setWidget(content)
         outer.addWidget(scroll, 1)
         root = QVBoxLayout(content)
 
         # ---- basics ----------------------------------------------------
-        form = QFormLayout()
+        # A QGroupBox like the other four step pages (Schedule/Input/
+        # Dependency/Execution), so this one isn't the odd one out once it's
+        # moved into its own step page below (bare background, no title).
+        self._basic_box = QGroupBox(tr("schedtask.g_basic"))
+        form = QFormLayout(self._basic_box)
         self.title_edit = QLineEdit(self.task.get("title", ""))
         # Description is the source of truth. Its ✨ button GENERATES the Prompt
         # (Input) FROM the description — the title is just the task's label and
@@ -204,7 +212,7 @@ class TaskEditorDialog(QDialog):
         form.addRow(tr("schedtask.f_skill"), self.skill_combo)
         form.addRow(tr("schedtask.f_priority"), self.priority_combo)
         form.addRow(tr("schedtask.f_status"), self.status_combo)
-        root.addLayout(form)
+        root.addWidget(self._basic_box)
         self._main_form = form
         self._model_box = model_box
         self._on_run_kind_changed()   # apply agent/flow row visibility
@@ -316,6 +324,7 @@ class TaskEditorDialog(QDialog):
         # multi-select file dialog and APPENDS (never wipes what's already
         # there), the trash button removes just the selected row(s).
         self.files_list = QListWidget()
+        self.files_list.setObjectName("flatList")
         self.files_list.setMaximumHeight(90)
         self.files_list.setSelectionMode(QListWidget.ExtendedSelection)
         for p in inp.get("file_paths", []) or []:
@@ -341,6 +350,7 @@ class TaskEditorDialog(QDialog):
         # Links — same "+"-list pattern; "+" prompts for one URL at a time
         # (fetched best-effort and inlined as context, same as file attachments).
         self.links_list = QListWidget()
+        self.links_list.setObjectName("flatList")
         self.links_list.setMaximumHeight(90)
         self.links_list.setSelectionMode(QListWidget.ExtendedSelection)
         for u in inp.get("links", []) or []:
@@ -390,6 +400,7 @@ class TaskEditorDialog(QDialog):
         # Fan-in: tick every task this one must WAIT for — it won't run until
         # ALL of them are Done (parallel predecessors feeding one successor).
         self.depends_list = QListWidget()
+        self.depends_list.setObjectName("flatList")
         self.depends_list.setMaximumHeight(96)
         current_deps = set(dep.get("depends_on") or [])
         for t in self.all_tasks:
@@ -426,6 +437,44 @@ class TaskEditorDialog(QDialog):
         eform.addRow("", self.approval_chk)
         root.addWidget(eg)
 
+        # Three steps, as tabs: Nội dung → Lịch chạy → Liên kết. The five group
+        # boxes are re-parented into three pages — none is dropped, they are
+        # grouped by the question being answered rather than stacked in one
+        # scroll where the later ones are out of sight.
+        # Left list + right panel, navigated exactly like Settings — five rows
+        # matching the five real group boxes, so you always see which group you
+        # are in and how many are left. (Not tabs: the audit page asks for this
+        # shape specifically, for consistency with Settings.)
+        from .widgets import section_panels
+
+        self._step_keys = ["schedtask.g_basic", "schedtask.g_schedule",
+                           "schedtask.g_input", "schedtask.g_dependency",
+                           "schedtask.g_execution"]
+        pages = []
+        for key, group in zip(self._step_keys, [self._basic_box, sg, ig, dg, eg]):
+            page = QWidget()
+            pv = QVBoxLayout(page)
+            pv.setContentsMargins(4, 4, 4, 4)
+            root.removeWidget(group)
+            pv.addWidget(group)
+            pv.addStretch(1)
+            wrap = QScrollArea()
+            wrap.setWidgetResizable(True)
+            wrap.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            wrap.setWidget(page)
+            pages.append((tr(key), wrap))
+        self.section_list, self.section_stack = section_panels(pages)
+        outer.removeWidget(scroll)
+        scroll.setParent(None)
+        body = QHBoxLayout()
+        body.setSpacing(10)
+        body.addWidget(self.section_list)
+        body.addWidget(self.section_stack, 1)
+        outer.insertLayout(0, body, 1)
+        # Floor the width at what the widest page needs, at the font in use.
+        widest = max(w.widget().sizeHint().width() for _lab, w in pages)
+        self.setMinimumWidth(self.section_list.width() + widest + 60)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Save).setIcon(icon("save"))
         buttons.button(QDialogButtonBox.Cancel).setIcon(icon("close"))
@@ -437,6 +486,11 @@ class TaskEditorDialog(QDialog):
         # happens to hover — values only change after clicking into a field.
         from .widgets import guard_wheel
         guard_wheel(self)
+
+    def _retranslate_steps(self) -> None:
+        """Re-label the five section rows for the current language."""
+        for i, key in enumerate(self._step_keys):
+            self.section_list.item(i).setText(tr(key))
 
     def _apply_hints(self) -> None:
         """Tooltip hints on every non-obvious control, so each option explains

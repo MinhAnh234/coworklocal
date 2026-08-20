@@ -1,39 +1,122 @@
-# Python bytecode and test/tool caches
+# =============================================================================
+# Dependencies
+# =============================================================================
+node_modules/
+.pnpm-store/
 __pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
-# Local environments and packaging output
+*.pyc
+*.pyo
+*.pyd
 .venv/
 venv/
 env/
-build/
-dist/
+.env.venv/
+pip-wheel-metadata/
 *.egg-info/
+*.egg
+.eggs/
+bower_components/
 
-# Local configuration, credentials, and runtime data
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
 .env
-.env.*
-!.env.example
-.cowork_local/
-ms365_token_cache.bin
-*.log
-*.sqlite
-*.sqlite3
-*.db
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.preview
 *.pem
 *.key
-*.p12
-*.pfx
+secrets/
+credentials.json
+.npmrc
+.yarnrc
 
-# Editors and operating systems
-.DS_Store
+# =============================================================================
+# Build & Distribution
+# =============================================================================
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+
+# =============================================================================
+# IDE & Editor
+# =============================================================================
 .idea/
 .vscode/
 *.swp
+*.swo
 *~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# OS Files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# Logs & Debug
+# =============================================================================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+coverage/
+*.cover
+*.py,cover
+.hypothesis/
+.nyc_output/
+test-results/
+playwright-report/
+
+# =============================================================================
+# AI & Agent Workspace
+# =============================================================================
+vibeflow.json
+.claude/
+.cursor/
+.aider/
+.continue/
+.copilot/
+
+# =============================================================================
+# Temporary & Cache
+# =============================================================================
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+.turbo/
+*.tsbuildinfo
+
+# Runtime data the app writes next to itself when it is run from the repo.
+# A chat transcript got committed and pushed this way.
+.cowork_history/
+.cowork_local/

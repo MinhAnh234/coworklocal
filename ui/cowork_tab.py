@@ -81,8 +81,21 @@ class CoworkTab(ChatPanel):
         # succeeds (see _cleanup_turn) — never intermediate files or a folder name.
         on_language_changed(self._retranslate)
 
+    def refresh_title(self) -> None:
+        """Head the screen with the thread you are in, as the drawing does.
+
+        It said "Cowork" on every conversation — the screen's own name, which
+        the rail already shows. The thread's title is the thing that changes and
+        the thing that tells you where you are; a thread with no title yet (a
+        new chat, before its first turn) falls back to the screen name.
+        """
+        lbl = getattr(self, "_title_lbl", None)
+        if lbl is None:
+            return          # ChatPanel.__init__ sets self.title before we exist
+        lbl.setText(getattr(self, "title", "") or tr("cowork.title"))
+
     def _retranslate(self) -> None:
-        self._title_lbl.setText(tr("cowork.title"))
+        self.refresh_title()
         self.skills_btn.setText(tr("cowork.skills_btn"))
         self.skills_btn.setToolTip(tr("cowork.skills_tooltip"))
         self._new_btn.setText(tr("cowork.new_chat"))

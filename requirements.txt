@@ -1,0 +1,24 @@
+# Cowork-Local BamBOO — dependencies
+# Install: pip install -r requirements.txt
+
+# --- Core UI framework ---
+PySide6>=6.6.0
+
+# --- HTTP client ---
+requests>=2.31.0
+
+# --- Process & resource monitoring ---
+psutil>=5.9.0
+
+# --- Document handling ---
+openpyxl>=3.1.0          # Excel (.xlsx) creation & reading
+python-pptx>=0.6.0       # PowerPoint (.pptx) editing
+pypdf>=4.0.0             # PDF text extraction (preferred)
+# PyPDF2>=3.0.0          # PDF fallback (optional, pypdf preferred)
+
+# --- Microsoft 365 integration ---
+msal>=1.24.0             # OAuth device-code flow for MS365
+keyring>=24.0.0          # OS credential store (token cache)
+
+# --- MCP (Model Context Protocol) ---
+mcp>=1.0.0               # MCP client SDK (stdio transport)

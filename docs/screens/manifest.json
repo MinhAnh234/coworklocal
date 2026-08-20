@@ -1,0 +1,542 @@
+[
+  {
+    "slug": "dashboard",
+    "title": "Dashboard",
+    "theme": "dark",
+    "note": "ui/dashboard_tab.py:35",
+    "file": "screens/dashboard-dark.png",
+    "error": "",
+    "nav": "Dashboard",
+    "nav_expected": "Dashboard"
+  },
+  {
+    "slug": "schedule-kanban",
+    "title": "Schedule Task — Kanban",
+    "theme": "dark",
+    "note": "ui/schedule_task_tab.py:70",
+    "file": "screens/schedule-kanban-dark.png",
+    "error": "",
+    "nav": "Schedule Task",
+    "nav_expected": "Schedule Task"
+  },
+  {
+    "slug": "schedule-calendar",
+    "title": "Schedule Task — Calendar",
+    "theme": "dark",
+    "note": "ui/calendar_view.py:88",
+    "file": "screens/schedule-calendar-dark.png",
+    "error": "",
+    "nav": "Schedule Task",
+    "nav_expected": "Schedule Task"
+  },
+  {
+    "slug": "workspace-project",
+    "title": "Workspace ▸ Project",
+    "theme": "dark",
+    "note": "ui/workspace_tab.py:188",
+    "file": "screens/workspace-project-dark.png",
+    "error": "",
+    "nav": "Workspace",
+    "nav_expected": "Workspace"
+  },
+  {
+    "slug": "workspace-cowork",
+    "title": "Workspace ▸ Cowork",
+    "theme": "dark",
+    "note": "ui/cowork_tab.py:21",
+    "file": "screens/workspace-cowork-dark.png",
+    "error": "",
+    "nav": "Cowork",
+    "nav_expected": "Cowork"
+  },
+  {
+    "slug": "workspace-co4e",
+    "title": "Workspace ▸ Co4E",
+    "theme": "dark",
+    "note": "ui/co4e_tab.py:228",
+    "file": "screens/workspace-co4e-dark.png",
+    "error": "",
+    "nav": "Co4E",
+    "nav_expected": "Co4E"
+  },
+  {
+    "slug": "workspace-folder",
+    "title": "Workspace ▸ Folder",
+    "theme": "dark",
+    "note": "ui/folder_tab.py:238",
+    "file": "screens/workspace-folder-dark.png",
+    "error": "",
+    "nav": "Thư mục",
+    "nav_expected": "Thư mục"
+  },
+  {
+    "slug": "workspace-graphrag",
+    "title": "Workspace ▸ GraphRAG",
+    "theme": "dark",
+    "note": "ui/structure_graph_view.py:188",
+    "file": "screens/workspace-graphrag-dark.png",
+    "error": "",
+    "nav": "GraphRAG",
+    "nav_expected": "GraphRAG"
+  },
+  {
+    "slug": "monitoring-tổng-quan",
+    "title": "Monitoring ▸ Tổng quan",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-tổng-quan-dark.png",
+    "error": "",
+    "nav": "Tổng quan",
+    "nav_expected": "Tổng quan"
+  },
+  {
+    "slug": "monitoring-sự-kiện-bảo-mật",
+    "title": "Monitoring ▸ Sự kiện bảo mật",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-sự-kiện-bảo-mật-dark.png",
+    "error": "",
+    "nav": "Sự kiện bảo mật",
+    "nav_expected": "Sự kiện bảo mật"
+  },
+  {
+    "slug": "monitoring-lịch-sử-gọi-mcp",
+    "title": "Monitoring ▸ Lịch sử gọi MCP",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-lịch-sử-gọi-mcp-dark.png",
+    "error": "",
+    "nav": "Lịch sử gọi MCP",
+    "nav_expected": "Lịch sử gọi MCP"
+  },
+  {
+    "slug": "monitoring-nhật-ký-hành-động",
+    "title": "Monitoring ▸ Nhật ký hành động",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-nhật-ký-hành-động-dark.png",
+    "error": "",
+    "nav": "Nhật ký hành động",
+    "nav_expected": "Nhật ký hành động"
+  },
+  {
+    "slug": "monitoring-trạng-thái-agent",
+    "title": "Monitoring ▸ Trạng thái Agent",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-trạng-thái-agent-dark.png",
+    "error": "",
+    "nav": "Trạng thái Agent",
+    "nav_expected": "Trạng thái Agent"
+  },
+  {
+    "slug": "monitoring-agents-admin",
+    "title": "Monitoring ▸ Agents Admin",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-agents-admin-dark.png",
+    "error": "",
+    "nav": "Agents Admin",
+    "nav_expected": "Agents Admin"
+  },
+  {
+    "slug": "monitoring-công-cụ",
+    "title": "Monitoring ▸ Công cụ",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-công-cụ-dark.png",
+    "error": "",
+    "nav": "Công cụ",
+    "nav_expected": "Công cụ"
+  },
+  {
+    "slug": "monitoring-icon",
+    "title": "Monitoring ▸ Icon",
+    "theme": "dark",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-icon-dark.png",
+    "error": "",
+    "nav": "Icon",
+    "nav_expected": "Icon"
+  },
+  {
+    "slug": "dialog-settings",
+    "title": "Settings",
+    "theme": "dark",
+    "note": "ui/settings_dialog.py:26",
+    "file": "screens/dialog-settings-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-task-editor",
+    "title": "Task Editor",
+    "theme": "dark",
+    "note": "ui/task_editor_dialog.py:55",
+    "file": "screens/dialog-task-editor-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-skills",
+    "title": "Skills manager",
+    "theme": "dark",
+    "note": "ui/skills_dialog.py:108",
+    "file": "screens/dialog-skills-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-skill-edit",
+    "title": "Skill editor",
+    "theme": "dark",
+    "note": "ui/skills_dialog.py:23",
+    "file": "screens/dialog-skill-edit-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-file-edit",
+    "title": "File view & AI edit",
+    "theme": "dark",
+    "note": "ui/file_edit_dialog.py:50",
+    "file": "screens/dialog-file-edit-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-co4e-agent",
+    "title": "Co4E agent editor",
+    "theme": "dark",
+    "note": "ui/co4e_agent_dialog.py:23",
+    "file": "screens/dialog-co4e-agent-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-ext-connector",
+    "title": "External connector",
+    "theme": "dark",
+    "note": "ui/ext_connector_dialog.py:23",
+    "file": "screens/dialog-ext-connector-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-permission",
+    "title": "Permission request",
+    "theme": "dark",
+    "note": "ui/permission_dialog.py:13",
+    "file": "screens/dialog-permission-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-agent-edit",
+    "title": "Admin agent editor",
+    "theme": "dark",
+    "note": "ui/agents_admin_tab.py:35",
+    "file": "screens/dialog-agent-edit-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-login",
+    "title": "Login (dead screen — not wired)",
+    "theme": "dark",
+    "note": "ui/login_dialog.py:57",
+    "file": "screens/dialog-login-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "overlay-help-panel",
+    "title": "Help dock — expanded panel",
+    "theme": "dark",
+    "note": "ui/help_agent_widget.py:79",
+    "file": "screens/overlay-help-panel-dark.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dashboard",
+    "title": "Dashboard",
+    "theme": "light",
+    "note": "ui/dashboard_tab.py:35",
+    "file": "screens/dashboard-light.png",
+    "error": "",
+    "nav": "Dashboard",
+    "nav_expected": "Dashboard"
+  },
+  {
+    "slug": "schedule-kanban",
+    "title": "Schedule Task — Kanban",
+    "theme": "light",
+    "note": "ui/schedule_task_tab.py:70",
+    "file": "screens/schedule-kanban-light.png",
+    "error": "",
+    "nav": "Schedule Task",
+    "nav_expected": "Schedule Task"
+  },
+  {
+    "slug": "schedule-calendar",
+    "title": "Schedule Task — Calendar",
+    "theme": "light",
+    "note": "ui/calendar_view.py:88",
+    "file": "screens/schedule-calendar-light.png",
+    "error": "",
+    "nav": "Schedule Task",
+    "nav_expected": "Schedule Task"
+  },
+  {
+    "slug": "workspace-project",
+    "title": "Workspace ▸ Project",
+    "theme": "light",
+    "note": "ui/workspace_tab.py:188",
+    "file": "screens/workspace-project-light.png",
+    "error": "",
+    "nav": "Workspace",
+    "nav_expected": "Workspace"
+  },
+  {
+    "slug": "workspace-cowork",
+    "title": "Workspace ▸ Cowork",
+    "theme": "light",
+    "note": "ui/cowork_tab.py:21",
+    "file": "screens/workspace-cowork-light.png",
+    "error": "",
+    "nav": "Cowork",
+    "nav_expected": "Cowork"
+  },
+  {
+    "slug": "workspace-co4e",
+    "title": "Workspace ▸ Co4E",
+    "theme": "light",
+    "note": "ui/co4e_tab.py:228",
+    "file": "screens/workspace-co4e-light.png",
+    "error": "",
+    "nav": "Co4E",
+    "nav_expected": "Co4E"
+  },
+  {
+    "slug": "workspace-folder",
+    "title": "Workspace ▸ Folder",
+    "theme": "light",
+    "note": "ui/folder_tab.py:238",
+    "file": "screens/workspace-folder-light.png",
+    "error": "",
+    "nav": "Thư mục",
+    "nav_expected": "Thư mục"
+  },
+  {
+    "slug": "workspace-graphrag",
+    "title": "Workspace ▸ GraphRAG",
+    "theme": "light",
+    "note": "ui/structure_graph_view.py:188",
+    "file": "screens/workspace-graphrag-light.png",
+    "error": "",
+    "nav": "GraphRAG",
+    "nav_expected": "GraphRAG"
+  },
+  {
+    "slug": "monitoring-tổng-quan",
+    "title": "Monitoring ▸ Tổng quan",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-tổng-quan-light.png",
+    "error": "",
+    "nav": "Tổng quan",
+    "nav_expected": "Tổng quan"
+  },
+  {
+    "slug": "monitoring-sự-kiện-bảo-mật",
+    "title": "Monitoring ▸ Sự kiện bảo mật",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-sự-kiện-bảo-mật-light.png",
+    "error": "",
+    "nav": "Sự kiện bảo mật",
+    "nav_expected": "Sự kiện bảo mật"
+  },
+  {
+    "slug": "monitoring-lịch-sử-gọi-mcp",
+    "title": "Monitoring ▸ Lịch sử gọi MCP",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-lịch-sử-gọi-mcp-light.png",
+    "error": "",
+    "nav": "Lịch sử gọi MCP",
+    "nav_expected": "Lịch sử gọi MCP"
+  },
+  {
+    "slug": "monitoring-nhật-ký-hành-động",
+    "title": "Monitoring ▸ Nhật ký hành động",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-nhật-ký-hành-động-light.png",
+    "error": "",
+    "nav": "Nhật ký hành động",
+    "nav_expected": "Nhật ký hành động"
+  },
+  {
+    "slug": "monitoring-trạng-thái-agent",
+    "title": "Monitoring ▸ Trạng thái Agent",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-trạng-thái-agent-light.png",
+    "error": "",
+    "nav": "Trạng thái Agent",
+    "nav_expected": "Trạng thái Agent"
+  },
+  {
+    "slug": "monitoring-agents-admin",
+    "title": "Monitoring ▸ Agents Admin",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-agents-admin-light.png",
+    "error": "",
+    "nav": "Agents Admin",
+    "nav_expected": "Agents Admin"
+  },
+  {
+    "slug": "monitoring-công-cụ",
+    "title": "Monitoring ▸ Công cụ",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-công-cụ-light.png",
+    "error": "",
+    "nav": "Công cụ",
+    "nav_expected": "Công cụ"
+  },
+  {
+    "slug": "monitoring-icon",
+    "title": "Monitoring ▸ Icon",
+    "theme": "light",
+    "note": "ui/monitoring_tab.py:132",
+    "file": "screens/monitoring-icon-light.png",
+    "error": "",
+    "nav": "Icon",
+    "nav_expected": "Icon"
+  },
+  {
+    "slug": "dialog-settings",
+    "title": "Settings",
+    "theme": "light",
+    "note": "ui/settings_dialog.py:26",
+    "file": "screens/dialog-settings-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-task-editor",
+    "title": "Task Editor",
+    "theme": "light",
+    "note": "ui/task_editor_dialog.py:55",
+    "file": "screens/dialog-task-editor-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-skills",
+    "title": "Skills manager",
+    "theme": "light",
+    "note": "ui/skills_dialog.py:108",
+    "file": "screens/dialog-skills-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-skill-edit",
+    "title": "Skill editor",
+    "theme": "light",
+    "note": "ui/skills_dialog.py:23",
+    "file": "screens/dialog-skill-edit-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-file-edit",
+    "title": "File view & AI edit",
+    "theme": "light",
+    "note": "ui/file_edit_dialog.py:50",
+    "file": "screens/dialog-file-edit-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-co4e-agent",
+    "title": "Co4E agent editor",
+    "theme": "light",
+    "note": "ui/co4e_agent_dialog.py:23",
+    "file": "screens/dialog-co4e-agent-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-ext-connector",
+    "title": "External connector",
+    "theme": "light",
+    "note": "ui/ext_connector_dialog.py:23",
+    "file": "screens/dialog-ext-connector-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-permission",
+    "title": "Permission request",
+    "theme": "light",
+    "note": "ui/permission_dialog.py:13",
+    "file": "screens/dialog-permission-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-agent-edit",
+    "title": "Admin agent editor",
+    "theme": "light",
+    "note": "ui/agents_admin_tab.py:35",
+    "file": "screens/dialog-agent-edit-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "dialog-login",
+    "title": "Login (dead screen — not wired)",
+    "theme": "light",
+    "note": "ui/login_dialog.py:57",
+    "file": "screens/dialog-login-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  },
+  {
+    "slug": "overlay-help-panel",
+    "title": "Help dock — expanded panel",
+    "theme": "light",
+    "note": "ui/help_agent_widget.py:79",
+    "file": "screens/overlay-help-panel-light.png",
+    "error": "",
+    "nav": "",
+    "nav_expected": ""
+  }
+]

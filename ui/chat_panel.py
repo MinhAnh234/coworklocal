@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
+from ..theme import current_palette
 from .chat_view import ChatView, ThinkingIndicator
 from .composer import Composer
 from .icons import collapse_right_icon, icon as app_icon
@@ -83,6 +84,7 @@ class ChatPanel(QWidget):
         self.session_name = session_name
         self.session_id = new_session_id()
         self.title = ""
+        self._notify_title()
         # Which project (workspace) this conversation belongs to — every new
         # thread inherits the currently selected project (Claude-Projects style).
         self.project_id = "default"
@@ -140,8 +142,8 @@ class ChatPanel(QWidget):
         # updated after each turn; cost uses the Monitoring model-price table.
         self._usage_total_lbl = QLabel("")
         self._usage_total_lbl.setObjectName("hint")
-        self._usage_total_lbl.setStyleSheet("color: rgba(140,146,152,0.9);")
-        self.composer.add_bottom_left(self._usage_total_lbl)
+        self._usage_total_lbl.setStyleSheet(f"color: {current_palette().text_faint};")
+
 
         # Per-tab "Agent" = which MODEL this tab uses (e.g. deepseek / gemma /
         # qwen for the local provider). Cowork and Code pick independently and
@@ -165,13 +167,19 @@ class ChatPanel(QWidget):
         self.agent_combo.setMinimumWidth(150)
         self.agent_combo.setToolTip(tr("chatpanel.agent_tooltip"))
         self.agent_combo.currentIndexChanged.connect(self._on_agent_changed)
-        self.composer.add_bottom_right(self._agent_lbl)
-        self.composer.add_bottom_right(self.agent_combo)
+        self.composer.add_bottom_left(self._agent_lbl)
+        self.composer.add_bottom_left(self.agent_combo)
         # Off/Auto/Manual routing toggle — lets the router pick the best-fit
         # model per message (see core/routing + _apply_routing).
         from .routing_toggle import RoutingToggle
         self.routing_toggle = RoutingToggle(ctx, self.kind)
-        self.composer.add_bottom_right(self.routing_toggle)
+        # The drawing reads the strip left to right as
+        #   Agent: … · Định tuyến: … · ↓in ↑out · $cost · 📁 folder
+        # so these sit together on the left, with the folder box the Cowork tab
+        # appends landing after them. Nén and Tự chạy stay on the right, where
+        # the control inventory marks them "giữ nguyên tại chỗ".
+        self.composer.add_bottom_left(self.routing_toggle)
+        self.composer.add_bottom_left(self._usage_total_lbl)
         # Manual "compress conversation" — trim old history to cut tokens.
         self.compress_btn = QPushButton(tr("chatpanel.compress_btn"))
         self.compress_btn.setIcon(app_icon("compress"))
@@ -188,20 +196,29 @@ class ChatPanel(QWidget):
         cc.addWidget(self.chat_view, 1)
         self.thinking = ThinkingIndicator()   # animated "working…" line while we wait
         cc.addWidget(self.thinking)
-        composer_wrap = QWidget()
-        cwl = QVBoxLayout(composer_wrap)
-        cwl.setContentsMargins(8, 4, 8, 8)
-        cwl.addWidget(self.composer)
-        cc.addWidget(composer_wrap)
-
         self.center_split = QSplitter(Qt.Horizontal)
         self.center_split.addWidget(chat_col)
         root.addWidget(self.center_split, 1)
 
+        # The composer spans the whole screen, under BOTH columns — that is how
+        # the drawing lays it out, and it is the reason the files panel can sit
+        # beside the transcript without narrowing what you type into. Inside the
+        # chat column it stopped at the panel's edge and the input shrank
+        # whenever files appeared.
+        composer_wrap = QWidget()
+        cwl = QVBoxLayout(composer_wrap)
+        cwl.setContentsMargins(8, 4, 8, 8)
+        cwl.addWidget(self.composer)
+        root.addWidget(composer_wrap)
+
         # Right sidebar: Output files only (see below — Input is tracked but
         # not shown).
         self.input_section = CollapsibleSection(tr("widgets.input_files"))
-        self.output_section = CollapsibleSection(tr("widgets.output_files"))
+        # No cap: this section owns the whole right panel (its header is
+        # hoisted into io_hdr below), so the list should fill the space down
+        # to the composer instead of stopping at a fixed height with empty
+        # panel below it.
+        self.output_section = CollapsibleSection(tr("widgets.output_files").upper(), max_height=None)
         # Input files are NOT shown in Cowork's UI anymore — but they're still
         # fully tracked (add/remove/paths()) exactly as before, since that list
         # is what gets written into the conversation's own "inputs" field on
@@ -241,8 +258,15 @@ class ChatPanel(QWidget):
         self._io_collapse_btn.clicked.connect(lambda: self._set_io_collapsed(True))
         self._files_header = QLabel()
         self._files_header.setStyleSheet("font-weight:600;")
+        # The drawing gives this panel ONE heading — "TỆP ĐẦU RA (3) ›" — and
+        # the section already draws exactly that, count included. A separate
+        # "Files" label above it was the same thing said twice, so the section's
+        # own header moves onto this row and the collapse chevron sits at its
+        # right, where the drawing puts it. _files_header stays for the tabs
+        # that still label their panel, just not in this layout.
+        self._files_header.setVisible(False)
+        io_hdr.addWidget(self.output_section.header, 1)
         io_hdr.addWidget(self._io_collapse_btn)
-        io_hdr.addWidget(self._files_header, 1)
         # The plan now shows INLINE in the conversation (an expandable block whose
         # steps tick off as they complete), not in this right panel — so it's kept
         # out of the layout here. The object stays (its set_steps/clear calls are
@@ -253,8 +277,7 @@ class ChatPanel(QWidget):
         bl = QVBoxLayout(bl_host)
         bl.setContentsMargins(0, 0, 0, 0)
         bl.setSpacing(4)
-        bl.addWidget(self.output_section)   # Output only — Input is tracked but hidden
-        bl.addStretch(1)
+        bl.addWidget(self.output_section, 1)   # Output only — Input is tracked but hidden; fills down to the composer
         iol.addWidget(bl_host, 1)
 
         # Collapsing shrinks the panel to a thin clickable line (not hidden).
@@ -284,7 +307,7 @@ class ChatPanel(QWidget):
         self.compress_btn.setText(tr("chatpanel.compress_btn"))
         self.compress_btn.setToolTip(tr("chatpanel.compress_tooltip"))
         self.input_section.set_title(tr("widgets.input_files"))
-        self.output_section.set_title(tr("widgets.output_files"))
+        self.output_section.set_title(tr("widgets.output_files").upper())
         self.plan_section.set_title(tr("widgets.plan_title"))
         self._io_collapse_btn.setToolTip(tr("chatpanel.collapse_files_tooltip"))
         self._files_header.setText(tr("chatpanel.files_header"))
@@ -1023,6 +1046,7 @@ class ChatPanel(QWidget):
         if not self.title:
             base = text or (Path(attachments[0]).name if attachments else "(attachment)")
             self.title = (base[:60] + "…") if len(base) > 60 else base
+            self._notify_title()
 
         # Reset the Plan panel so each message starts from a clean checklist (the
         # previous message's plan never lingers/flickers into this one).
@@ -1398,6 +1422,26 @@ class ChatPanel(QWidget):
         return [e for e in ut.load_events()
                 if e.get("source") == self.kind and e.get("label") == label]
 
+    def refresh_usage(self) -> None:
+        """Show what this conversation has already cost.
+
+        The label was written only at the end of a turn, so opening a thread
+        from History left the strip blank however much it had spent.
+        """
+        from ..core import model_pricing as mp
+        from ..core import usage_tracker as ut
+
+        cur = self._usage_snapshot()
+        if not (cur["in"] or cur["out"] or cur["cache"]):
+            self._usage_total_lbl.setText("")
+            return
+        # same source _show_usage reads, so the two never disagree
+        pricing = {**ut.DEFAULT_PRICING, **(self.ctx.config.data.get("usage") or {})}
+        self._usage_total_lbl.setText(
+            f"↓{mp.format_tokens(cur['in'])} ↑{mp.format_tokens(cur['out'])} "
+            f"▤{mp.format_tokens(cur['in'] + cur['out'] + cur['cache'])} "
+            f"{ut.format_cost(self._session_cost_usd(), pricing)}")
+
     def _usage_snapshot(self) -> Dict[str, int]:
         """Cumulative in/out/cache tokens for THIS conversation so far."""
         snap = {"in": 0, "out": 0, "cache": 0}
@@ -1668,6 +1712,18 @@ class ChatPanel(QWidget):
         self._sync_indicators()
         self.history_changed.emit()   # current view changed → refresh History highlight
 
+    def _notify_title(self) -> None:
+        """Let a screen that heads itself with the thread title follow along.
+
+        The thread also decides what the usage strip should read, so refresh
+        that here rather than at each of the three places the title changes.
+        """
+        hook = getattr(self, "refresh_title", None)
+        if callable(hook):
+            hook()
+        if getattr(self, "_usage_total_lbl", None) is not None:
+            self.refresh_usage()
+
     def load_conversation(self, conv: Dict[str, Any]) -> None:
         """Switch the view to a stored conversation. Allowed while work is running —
         the current turns keep going in the background."""
@@ -1679,6 +1735,7 @@ class ChatPanel(QWidget):
         self._detach_live_turns()
         self.session_id = sid
         self.title = conv.get("title", "")
+        self._notify_title()
         self.project_id = conv.get("project_id", "") or "default"
         # If this conversation still has a turn running in the background, attach to
         # its LIVE message list (not a stale disk copy) so the two never race on save.

@@ -1,18 +1,20 @@
 """Connectors (MCP / REST API) management — the setup UI.
 
-Lives in Monitoring → Tools → "Connector" sub-tab (moved out of Settings). A
-tree of the four categories (CAD / CAE / MS365 / Other); each connector has an
-Enabled checkbox and can be added / edited / deleted (MCP-stdio or REST-API,
-via ExtConnectorEditDialog). Built-in connectors (MS365 OneDrive / SharePoint,
-and Jira under "Other") appear as rows in the tree with their checkbox bound to
-config; double-clicking one opens its setup — nothing spills outside the tree.
+Lives in Monitoring → Tools → "Connector" sub-tab (moved out of Settings).
+Grouped by the four real categories (CAD / CAE / MS365 / Other): each is a
+header (icon + name + the software it covers) above a left-aligned row of
+cards, one per real connector, each with its own on/off switch — user-added
+connectors (MCP-stdio or REST-API, via ExtConnectorEditDialog) also get
+✎ Sửa/🗑 Xóa; the built-in ones (MS365 OneDrive/SharePoint, Jira under
+"Other") only get what they actually support (Jira: ✎ Sửa only, opens its own
+setup dialog; OneDrive/SharePoint: neither, they only toggle).
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
+    QDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from ..core.ext_connectors import CATEGORIES as EXT_CATEGORIES
@@ -21,6 +23,7 @@ from ..i18n import on_language_changed, tr
 from ..state import AppContext
 from .ext_connector_dialog import ExtConnectorEditDialog
 from .icons import icon
+from .widgets import FlowLayout, ToggleSwitch, enable_height_for_width, style_card
 
 
 class JiraConnectDialog(QDialog):
@@ -130,174 +133,219 @@ class ConnectorsPanel(QWidget):
         # Master switch: connect to external connectors at all (default ON).
         # Off = the agent connects to NO external connector/MCP (see
         # AppContext.build_mcp_tools), regardless of the per-connector checks below.
-        self.connect_external_chk = QCheckBox(tr("connectors.connect_external"))
-        self.connect_external_chk.setChecked(self.ctx.config.connect_external)
-        self.connect_external_chk.setToolTip(tr("connectors.connect_external_tooltip"))
-        self.connect_external_chk.toggled.connect(self._on_connect_external_toggled)
-        lay.addWidget(self.connect_external_chk)
+        self.connect_external_sw = ToggleSwitch(tr("connectors.connect_external"))
+        self.connect_external_sw.setChecked(self.ctx.config.connect_external)
+        self.connect_external_sw.setToolTip(tr("connectors.connect_external_tooltip"))
+        self.connect_external_sw.toggled.connect(self._on_connect_external_toggled)
+        lay.addWidget(self.connect_external_sw)
 
         hint = QLabel(tr("settings.ext_hint"))
         hint.setObjectName("hint")
         hint.setWordWrap(True)
         lay.addWidget(hint)
 
-        self.ext_tree = QTreeWidget()
-        self.ext_tree.setHeaderHidden(True)
-        self.ext_tree.itemChanged.connect(self._on_ext_check)
-        self.ext_tree.itemDoubleClicked.connect(lambda *_: self._ext_edit())
-        lay.addWidget(self.ext_tree, 1)
+        # Each category (CAD/CAE/MS365/Other) is a header + a left-aligned,
+        # wrapping row of cards — one per real connector — instead of a tree
+        # the admin had to expand to see what was inside.
+        self._cat_scroll = QScrollArea()
+        self._cat_scroll.setWidgetResizable(True)
+        self._cat_scroll.setFrameShape(QScrollArea.NoFrame)
+        cat_host = QWidget()
+        enable_height_for_width(cat_host)  # holds several height-for-width sections — see FlowLayout
+        self._cat_lay = QVBoxLayout(cat_host)
+        self._cat_lay.setContentsMargins(0, 4, 0, 4)
+        self._cat_lay.setSpacing(10)
+        self._cat_scroll.setWidget(cat_host)
+        lay.addWidget(self._cat_scroll, 1)
 
-        self.dbl_hint = QLabel(tr("connectors.dbl_configure"))
-        self.dbl_hint.setObjectName("hint")
-        lay.addWidget(self.dbl_hint)
-
-        row = QHBoxLayout()
         self.add_btn = QPushButton(tr("settings.ext_add_btn"))
         self.add_btn.setIcon(icon("plus"))
         self.add_btn.setObjectName("primary")
+        self.add_btn.setCursor(Qt.PointingHandCursor)
         self.add_btn.clicked.connect(self._ext_add)
-        self.edit_btn = QPushButton(tr("settings.ext_edit_btn"))
-        self.edit_btn.setIcon(icon("edit"))
-        self.edit_btn.clicked.connect(self._ext_edit)
-        self.del_btn = QPushButton(tr("settings.ext_delete_btn"))
-        self.del_btn.setIcon(icon("trash"))
-        self.del_btn.clicked.connect(self._ext_delete)
-        row.addWidget(self.add_btn)
-        row.addWidget(self.edit_btn)
-        row.addWidget(self.del_btn)
-        row.addStretch(1)
-        lay.addLayout(row)
+        add_row = QHBoxLayout()
+        add_row.addWidget(self.add_btn)
+        add_row.addStretch(1)
+        lay.addLayout(add_row)
 
         self.ms365_local_status = QLabel()
         self.ms365_local_status.setObjectName("hint")
         self.ms365_local_status.setWordWrap(True)
         lay.addWidget(self.ms365_local_status)
 
+        # on_language_changed() below already invokes _retranslate() once
+        # immediately (see i18n.py), which itself calls _reload_connectors() —
+        # calling it again here would rebuild the category cards twice
+        # back-to-back with no event-loop turn in between, so the first pass's
+        # widgets are only QUEUED for deleteLater() (not yet gone) when the
+        # second pass adds new ones on top: the two rows visually overlap
+        # (the exact bug agents_admin_tab.py hit the same way).
         self._refresh_ms365_local_status()
-        self._reload_ext_tree()
         on_language_changed(self._retranslate)
 
     # ---- rendering ------------------------------------------------------------
-    def _reload_ext_tree(self) -> None:
-        self.ext_tree.blockSignals(True)
-        self.ext_tree.clear()
-        ext = self.ctx.config.ext_connectors
+    def _clear_categories(self) -> None:
+        while self._cat_lay.count():
+            item = self._cat_lay.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+
+    def _reload_connectors(self) -> None:
+        self._clear_categories()
         for cat in EXT_CATEGORIES:
-            cat_item = QTreeWidgetItem([self._EXT_CATEGORY_LABELS.get(cat, cat)])
-            cat_item.setIcon(0, icon(self._EXT_CATEGORY_ICONS.get(cat, "plug")))
-            cat_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-            cat_item.setData(0, Qt.UserRole, ("category", cat))
-            self.ext_tree.addTopLevelItem(cat_item)
-            if cat == "ms365":
-                conns = self.ctx.config.ms365.get("connectors", {})
-                for key, label in self._MS365_BUILTIN_LABELS.items():
-                    b = QTreeWidgetItem([f"{label} — {tr('ext.mode_builtin')}"])
-                    b.setFlags(b.flags() | Qt.ItemIsUserCheckable)
-                    b.setCheckState(0, Qt.Checked if conns.get(key) else Qt.Unchecked)
-                    b.setData(0, Qt.UserRole, ("ms365_builtin", "ms365", key))
-                    cat_item.addChild(b)
-            for idx, entry in enumerate(ext.get(cat, [])):
-                mode_label = tr("ext.mode_mcp") if entry.get("mode") == "mcp_stdio" else tr("ext.mode_rest")
-                child = QTreeWidgetItem([f"{entry.get('name', '')} — {mode_label}"])
-                child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
-                child.setCheckState(0, Qt.Checked if entry.get("enabled") else Qt.Unchecked)
-                child.setData(0, Qt.UserRole, ("connector", cat, idx))
-                cat_item.addChild(child)
-            if cat == "other":
-                # Jira is a built-in "Other" connector (like OneDrive under MS365):
-                # checkbox = enabled; double-click opens its minimal setup dialog.
-                jira = self.ctx.config.data.get("jira", {})
-                configured = bool(jira.get("base_url") and jira.get("email")
-                                  and jira.get("api_token"))
-                jstate = tr("connectors.jira_connected") if configured else tr("connectors.jira_not_set")
-                jrow = QTreeWidgetItem([f"Jira — {tr('ext.mode_builtin')} · {jstate}"])
-                jrow.setIcon(0, icon("link"))
-                jrow.setFlags(jrow.flags() | Qt.ItemIsUserCheckable)
-                on = configured and jira.get("enabled", True)
-                jrow.setCheckState(0, Qt.Checked if on else Qt.Unchecked)
-                jrow.setToolTip(0, tr("connectors.jira_setup_hint"))
-                jrow.setData(0, Qt.UserRole, ("jira_builtin", "other"))
-                cat_item.addChild(jrow)
-            cat_item.setExpanded(True)
-        self.ext_tree.blockSignals(False)
+            self._cat_lay.addWidget(self._category_section(cat))
 
-    def _on_ext_check(self, item: QTreeWidgetItem, _col: int) -> None:
-        data = item.data(0, Qt.UserRole)
-        if data and data[0] == "ms365_builtin":
-            self.ctx.config.ms365.setdefault("connectors", {})[data[2]] = (
-                item.checkState(0) == Qt.Checked)
-            self.ctx.save()
-            return
-        if data and data[0] == "jira_builtin":
-            self.ctx.config.data.setdefault("jira", {})["enabled"] = (
-                item.checkState(0) == Qt.Checked)
-            self.ctx.save()
-            return
-        if not data or data[0] != "connector":
-            return
-        _, cat, idx = data
-        entries = self.ctx.config.ext_connectors.get(cat, [])
-        if 0 <= idx < len(entries):
-            entries[idx]["enabled"] = item.checkState(0) == Qt.Checked
-            self.ctx.save()
+    def _category_section(self, cat: str) -> QWidget:
+        section = QWidget()
+        enable_height_for_width(section)  # this section wraps a FlowLayout row — see FlowLayout
+        sl = QVBoxLayout(section)
+        sl.setContentsMargins(0, 0, 0, 0)
+        sl.setSpacing(6)
 
-    def _current_ext_category(self) -> str:
-        item = self.ext_tree.currentItem()
-        data = item.data(0, Qt.UserRole) if item else None
-        return data[1] if data else EXT_CATEGORIES[0]
+        hdr = QHBoxLayout()
+        hdr.setSpacing(6)
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(icon(self._EXT_CATEGORY_ICONS.get(cat, "plug"), size=18).pixmap(18, 18))
+        hdr.addWidget(icon_lbl)
+        name, _, subtitle = self._EXT_CATEGORY_LABELS.get(cat, cat).partition(" (")
+        name_lbl = QLabel(name)
+        name_lbl.setStyleSheet("font-weight:700;")
+        hdr.addWidget(name_lbl)
+        if subtitle:
+            sub_lbl = QLabel("(" + subtitle)
+            sub_lbl.setObjectName("hint")
+            hdr.addWidget(sub_lbl)
+        hdr.addStretch(1)
+        sl.addLayout(hdr)
 
-    def _current_ext_connector(self):
-        item = self.ext_tree.currentItem()
-        data = item.data(0, Qt.UserRole) if item else None
-        if not data or data[0] != "connector":
-            return None
-        _, cat, idx = data
-        entries = self.ctx.config.ext_connectors.get(cat, [])
-        return (cat, entries[idx]) if 0 <= idx < len(entries) else None
+        flow_host = QWidget()
+        flow = FlowLayout(flow_host, margin=0, h_spacing=10, v_spacing=10)
+
+        if cat == "ms365":
+            conns = self.ctx.config.ms365.get("connectors", {})
+            for key, label in self._MS365_BUILTIN_LABELS.items():
+                flow.addWidget(self._connector_card(
+                    label, tr("connectors.builtin_auto"), bool(conns.get(key)),
+                    lambda on, k=key: self._toggle_ms365_builtin(k, on)))
+
+        for entry in self.ctx.config.ext_connectors.get(cat, []):
+            mode_label = tr("ext.mode_mcp") if entry.get("mode") == "mcp_stdio" else tr("ext.mode_rest")
+            flow.addWidget(self._connector_card(
+                entry.get("name", ""), mode_label, bool(entry.get("enabled")),
+                lambda on, e=entry: self._toggle_ext_entry(e, on),
+                # QPushButton.clicked emits a `checked` bool — a lambda whose
+                # ONLY parameter is a defaulted capture (`e=entry`) looks like
+                # it accepts that bool, so Qt hands it the click state instead
+                # of using the default, silently replacing the captured dict
+                # with False. An explicit leading `checked=False` soaks up the
+                # signal's argument so `e` keeps the entry it was defined with.
+                edit_cb=lambda checked=False, e=entry: self._edit_ext_entry(cat, e),
+                delete_cb=lambda checked=False, e=entry: self._delete_ext_entry(cat, e)))
+
+        if cat == "other":
+            # Jira is a built-in "Other" connector (like OneDrive under MS365):
+            # switch = enabled; ✎ Sửa opens its own minimal setup dialog — no
+            # 🗑 Xóa, same as OneDrive/SharePoint have neither (nothing to delete).
+            jira = self.ctx.config.data.get("jira", {})
+            configured = bool(jira.get("base_url") and jira.get("email") and jira.get("api_token"))
+            jstate = tr("connectors.jira_connected") if configured else tr("connectors.jira_not_set")
+            flow.addWidget(self._connector_card(
+                "Jira", f"{tr('ext.mode_builtin').capitalize()} · {jstate}",
+                configured and jira.get("enabled", True), self._toggle_jira,
+                edit_cb=self._open_jira_dialog))
+
+        sl.addWidget(flow_host)
+        return section
+
+    def _connector_card(self, title: str, subtitle: str, checked: bool, on_toggle,
+                        edit_cb=None, delete_cb=None) -> QWidget:
+        card = QFrame()
+        card.setFrameShape(QFrame.NoFrame)
+        style_card(card)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(10, 8, 10, 8)
+        lay.setSpacing(4)
+
+        hdr = QHBoxLayout()
+        name_lbl = QLabel(title)
+        name_lbl.setStyleSheet("font-weight:700; border: none;")
+        hdr.addWidget(name_lbl)
+        hdr.addStretch(1)
+        sw = ToggleSwitch()
+        sw.setChecked(checked)
+        sw.toggled.connect(on_toggle)
+        hdr.addWidget(sw)
+        lay.addLayout(hdr)
+
+        sub_lbl = QLabel(subtitle)
+        sub_lbl.setObjectName("hint")
+        sub_lbl.setStyleSheet("border: none;")
+        lay.addWidget(sub_lbl)
+
+        if edit_cb is not None or delete_cb is not None:
+            actions = QHBoxLayout()
+            actions.setContentsMargins(0, 2, 0, 0)
+            actions.setSpacing(2)
+            if edit_cb is not None:
+                b = QPushButton(tr("settings.ext_edit_btn"))
+                b.setIcon(icon("edit"))
+                b.setFlat(True)
+                b.setCursor(Qt.PointingHandCursor)
+                b.clicked.connect(edit_cb)
+                actions.addWidget(b)
+            if delete_cb is not None:
+                b = QPushButton(tr("settings.ext_delete_btn"))
+                b.setIcon(icon("trash"))
+                b.setFlat(True)
+                b.setCursor(Qt.PointingHandCursor)
+                b.clicked.connect(delete_cb)
+                actions.addWidget(b)
+            actions.addStretch(1)
+            lay.addLayout(actions)
+
+        return card
+
+    def _toggle_ms365_builtin(self, key: str, checked: bool) -> None:
+        self.ctx.config.ms365.setdefault("connectors", {})[key] = checked
+        self.ctx.save()
+
+    def _toggle_jira(self, checked: bool) -> None:
+        self.ctx.config.data.setdefault("jira", {})["enabled"] = checked
+        self.ctx.save()
+
+    def _toggle_ext_entry(self, entry: dict, checked: bool) -> None:
+        entry["enabled"] = checked
+        self.ctx.save()
 
     # ---- CRUD -----------------------------------------------------------------
     def _ext_add(self) -> None:
-        dlg = ExtConnectorEditDialog(self, category=self._current_ext_category())
+        dlg = ExtConnectorEditDialog(self, category=EXT_CATEGORIES[0])
         if dlg.exec():
             entry = dlg.result_connector()
             self.ctx.config.ext_connectors.setdefault(entry["category"], []).append(entry)
             self.ctx.save()
-            self._reload_ext_tree()
+            self._reload_connectors()
 
-    def _ext_edit(self) -> None:
-        """Configure the selected row. Built-in Jira → its minimal dialog;
-        a normal connector → the MCP/REST editor."""
-        item = self.ext_tree.currentItem()
-        data = item.data(0, Qt.UserRole) if item else None
-        if data and data[0] == "jira_builtin":
-            self._open_jira_dialog()
-            return
-        current = self._current_ext_connector()
-        if current is None:
-            return
-        cat, entry = current
+    def _edit_ext_entry(self, cat: str, entry: dict) -> None:
         dlg = ExtConnectorEditDialog(self, category=cat, connector=entry)
         if dlg.exec():
             entry.update(dlg.result_connector())
             self.ctx.save()
-            self._reload_ext_tree()
+            self._reload_connectors()
 
     def _open_jira_dialog(self) -> None:
         JiraConnectDialog(self.ctx, self).exec()
-        self._reload_ext_tree()
+        self._reload_connectors()
 
-    def _ext_delete(self) -> None:
-        current = self._current_ext_connector()
-        if current is None:
-            return
-        cat, entry = current
+    def _delete_ext_entry(self, cat: str, entry: dict) -> None:
         if QMessageBox.question(
                 self, tr("settings.ext_delete_btn"),
                 tr("settings.ext_delete_confirm", name=entry.get("name", ""))) != QMessageBox.Yes:
             return
         self.ctx.config.ext_connectors[cat].remove(entry)
         self.ctx.save()
-        self._reload_ext_tree()
+        self._reload_connectors()
 
     def _refresh_ms365_local_status(self) -> None:
         from .. import paths
@@ -314,16 +362,13 @@ class ConnectorsPanel(QWidget):
     def _apply_connect_external_enabled(self, on: bool) -> None:
         """Grey out the per-connector setup when the master switch is off — the
         agent won't connect to any of them anyway."""
-        for w in (self.ext_tree, self.add_btn, self.edit_btn, self.del_btn):
+        for w in (self._cat_scroll, self.add_btn):
             w.setEnabled(on)
 
     def _retranslate(self) -> None:
-        self.connect_external_chk.setText(tr("connectors.connect_external"))
-        self.connect_external_chk.setToolTip(tr("connectors.connect_external_tooltip"))
+        self.connect_external_sw.setText(tr("connectors.connect_external"))
+        self.connect_external_sw.setToolTip(tr("connectors.connect_external_tooltip"))
         self.add_btn.setText(tr("settings.ext_add_btn"))
-        self.edit_btn.setText(tr("settings.ext_edit_btn"))
-        self.del_btn.setText(tr("settings.ext_delete_btn"))
-        self.dbl_hint.setText(tr("connectors.dbl_configure"))
         self._refresh_ms365_local_status()
-        self._reload_ext_tree()
+        self._reload_connectors()
         self._apply_connect_external_enabled(self.ctx.config.connect_external)

@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextBrowser,
+    QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QPushButton, QTextBrowser,
     QVBoxLayout, QWidget,
 )
 
@@ -31,12 +31,30 @@ from .icons import icon
 _ASSETS = Path(__file__).resolve().parent.parent / "assets"
 
 _MARGIN = 18                       # gap from the window's bottom-right corner
-_LAUNCHER = 64                     # collapsed app-icon badge size (a clean rounded card, like image 2)
-_LAUNCHER_ICON = 52                # the icon inside it, inset so the light badge frames it
-_COLLAPSE_W, _COLLAPSE_H = 18, 44  # the "hide to the edge" chevron beside it
-_GAP = 2
-_TAB_W, _TAB_H = 16, 48            # the thin "show" tab when hidden at the edge
+# Closed, the assistant is a single 26px dot. It used to be an 84×64 block (a
+# 64px badge plus an 18px "hide" chevron beside it) sitting permanently over the
+# bottom-right of every screen — on Cowork, right on top of the Send button —
+# for something opened a few times a day. The name now appears on hover only,
+# and "hide to the edge" moved into the panel's ⋯ menu.
+# The audit page draws this at 26px ("26×26 · không chữ, không chevron").
+# Doubled at the user's request: 26 read as too small to notice on a 1920
+# screen. Still half the area of the 84×64 button it replaced.
+_DOT = 52                          # closed launcher (a round chip)
+_DOT_ICON = 28                     # the sparkle inside it
+_PILL_PAD = 12                     # extra width for the label when hovered
+_TAB_W, _TAB_H = 28, 48            # the "show" tab when hidden at the edge (was 16 wide)
 _PANEL_W, _PANEL_H = 340, 460      # expanded chat panel size
+
+# Straight from docs/ui-audit.html (.wf .fab / .fabpill / .spark): the
+# assistant is teal, not the app accent, and the same in both themes —
+# it is one recognisable object floating over every screen.
+_TEAL_BG, _TEAL_LINE = "#E6F6F4", "#7FD0C4"
+_TEAL_TEXT = "#0F6E62"
+# The page's CSS says .spark{color:#0F9B8A}, but the glyph is the ✨ EMOJI and a
+# colour emoji ignores CSS colour — so what the page actually renders is the
+# gold star. Sampled from the page's own render of section 27 (1055 pixels of
+# the star, averaged): #FDBE59.
+_SPARK_GOLD = "#FDBE59"
 
 # The three states the floating assistant cycles through.
 _HIDDEN, _LAUNCHER_ST, _PANEL = "hidden", "launcher", "panel"
@@ -53,27 +71,46 @@ def _app_icon() -> QIcon:
     return QIcon(str(p)) if p.exists() else icon("robot")
 
 
-def _app_pixmap(size: int) -> QPixmap:
-    """icon.png scaled to ``size`` (smooth), for the launcher badge label."""
-    p = _ASSETS / "icon.png"
-    if p.exists():
-        return QPixmap(str(p)).scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-    return icon("robot").pixmap(size, size)
+# _app_pixmap()/_IconTap were the 52px icon and its click-through QLabel for the
+# old 64px badge. The launcher is a real button now, so both are gone.
 
 
-class _IconTap(QLabel):
-    """A QLabel that behaves like a button (click → signal) — used for the
-    launcher badge so it carries NO QPushButton chrome/box, just the icon on a
-    clean rounded card."""
+class _HoverPill(QPushButton):
+    """The closed launcher: a dot at rest, a labelled pill under the pointer.
 
-    clicked = Signal()
+    Keyboard focus counts as hover, so the name is reachable without a mouse.
+    Resizing is delegated to the owner because this widget is inside an overlay
+    that has to re-pin itself to the window corner whenever its size changes.
+    """
 
-    def mousePressEvent(self, e):  # noqa: N802 - Qt override
-        if e.button() == Qt.LeftButton:
-            self.clicked.emit()
-            e.accept()
+    def __init__(self, owner):
+        super().__init__(owner)
+        self._owner = owner
+        self.open = False
+
+    def _set_open(self, value: bool) -> None:
+        if value == self.open:
             return
-        super().mousePressEvent(e)
+        self.open = value
+        self.setText(f"  {tr('help_agent.badge')}" if value else "")
+        self._owner._layout_launcher()
+
+    def enterEvent(self, e):  # noqa: N802 - Qt override
+        self._set_open(True)
+        super().enterEvent(e)
+
+    def leaveEvent(self, e):  # noqa: N802 - Qt override
+        if not self.hasFocus():
+            self._set_open(False)
+        super().leaveEvent(e)
+
+    def focusInEvent(self, e):  # noqa: N802 - Qt override
+        self._set_open(True)
+        super().focusInEvent(e)
+
+    def focusOutEvent(self, e):  # noqa: N802 - Qt override
+        self._set_open(False)
+        super().focusOutEvent(e)
 
 
 class HelpAgentWidget(QWidget):
@@ -91,9 +128,12 @@ class HelpAgentWidget(QWidget):
         self._worker: Optional[AgentWorker] = None
         # Conversation history (excludes the system prompt, prepended per call).
         # Seeded with the greeting so the panel always opens on a friendly hello.
-        self._history: List[Dict[str, str]] = [
-            {"role": "assistant", "content": self._greeting()}
-        ]
+        # Kept by identity so retranslate() can rewrite it without having to
+        # guess which language the visible text is in — and without touching a
+        # real reply that happens to look like a greeting.
+        self._greet_msg: Dict[str, str] = {
+            "role": "assistant", "content": self._greeting()}
+        self._history: List[Dict[str, str]] = [self._greet_msg]
         self.setAttribute(Qt.WA_StyledBackground, True)
         self._pal = self._compute_palette()
         self._build_edge_tab()
@@ -103,67 +143,63 @@ class HelpAgentWidget(QWidget):
         self._apply_state()
 
     # ---- theming ----------------------------------------------------------
-    def _compute_palette(self) -> Dict[str, str]:
-        """Chat-body colours that FOLLOW the app's light/dark theme. The header
-        is intentionally NOT themed here (it stays a fixed light bar — see
-        _apply_style), only the conversation area adapts."""
-        from ..theme import resolve_theme
-        dark = resolve_theme(getattr(self.ctx.config, "theme", "system")) == "dark"
-        if dark:
-            return {
-                "panel_bg": "#16202b", "text": "#e3ebf5", "log_bg": "#0f1720",
-                "input_bg": "#1b2733", "border": "#33404d",
-                "user_bg": "#123a52", "user_label": "#58c0ee",
-                "bot_bg": "#232f3b", "bot_label": "#6fe3a4",
-            }
-        return {
-            "panel_bg": "#ffffff", "text": "#14212b", "log_bg": "#f7f9fb",
-            "input_bg": "#ffffff", "border": "#d5d9de",
-            "user_bg": "#dceff8", "user_label": "#0077B6",
-            "bot_bg": "#eef1f4", "bot_label": "#2f7d55",
-        }
+    def _compute_palette(self):
+        """The app's design tokens for the theme in effect. The whole dock —
+        header included — follows the app theme; a header locked to a light
+        strip stranded a bright bar in the middle of the dark UI."""
+        from ..theme import palette
+        return palette(getattr(self.ctx.config, "theme", "system"))
 
     def apply_theme(self) -> None:
         """Re-style + re-render when the app theme switches (called from
-        MainWindow._apply_theme). Header stays fixed; chat body re-colours."""
+        MainWindow._apply_theme). The whole dock re-colours, icons included —
+        icons are painted bitmaps, so they must be rebuilt, not restyled."""
         self._pal = self._compute_palette()
         self._apply_style()
+        muted = self._pal.text_muted
+        self.edge_tab.setIcon(icon("chevron-left", color=_TEAL_TEXT))
+        self.launcher.setIcon(icon("sparkle", size=_DOT_ICON, color=_SPARK_GOLD))
+        self.min_btn.setIcon(icon("minus", color=muted))
         self._render()
 
     def _apply_style(self) -> None:
-        # The HEADER bar is a FIXED light strip in both themes (per request); only
-        # the chat body below follows the app's light/dark palette (self._pal).
-        from ..theme import ACCENT, ACCENT2, GRADIENT
+        """The dock owns its own style sheet (it floats above the window, so the
+        app-wide sheet does not reach it cleanly) but draws every value from the
+        shared tokens — see theme.py."""
         p = self._pal
+        r, rl = p.radius, p.radius_lg
         self.setStyleSheet(f"""
-            /* Clean rounded app-icon badge (like image 2): a fixed light card
-               framing the icon — no QPushButton box. */
-            #helpLauncher {{ background: #e8f2fb; border: 1px solid #d3e3f2;
-                border-radius: 16px; }}
-            #helpLauncher:hover {{ background: #dcedfb; }}
-            #helpCollapseBtn, #helpEdgeTab {{ background: rgba(0,0,0,0.06); border: none;
-                border-radius: 6px; }}
-            #helpCollapseBtn:hover, #helpEdgeTab:hover {{ background: rgba(0,0,0,0.14); }}
-            #helpPanel {{ background: {p['panel_bg']}; border: 1px solid {p['border']};
-                border-radius: 14px; color: {p['text']}; }}
-            /* Faint-blue header bar — LOCKED light, dark title, in both themes.
-               The header AND its child labels set fixed backgrounds so the dark
-               theme never bleeds into the App-Assistant title strip. */
-            #helpHeader {{ background: #e8f2fb; border-bottom: 1px solid #d9e6f2;
-                border-top-left-radius: 14px; border-top-right-radius: 14px; }}
-            #helpHeader QLabel {{ background: transparent; color: #14212b; }}
-            #helpTitle {{ color: #14212b; font-weight: 700; font-size: 13px; background: transparent; }}
-            #helpMinBtn {{ background: transparent; border: none; }}
-            #helpMinBtn:hover {{ background: rgba(0,0,0,0.10); border-radius: 6px; }}
-            #helpLog {{ background: {p['log_bg']}; border: none; color: {p['text']}; padding: 4px 6px; }}
-            #helpInputRow {{ background: {p['panel_bg']}; border-bottom-left-radius: 14px;
-                border-bottom-right-radius: 14px; }}
-            #helpInput {{ border: 1px solid {p['border']}; border-radius: 8px; padding: 5px 8px;
-                background: {p['input_bg']}; color: {p['text']}; }}
-            #helpInput:focus {{ border: 1px solid {ACCENT}; }}
-            #helpSendBtn {{ background: {GRADIENT}; border: none; border-radius: 8px; }}
-            #helpSendBtn:hover {{ background: {ACCENT2}; }}
-            #helpSendBtn:disabled {{ background: #b7c0c9; }}
+            /* Closed launcher: a {_DOT}px dot. `pill` flips to true on hover, when
+               the label comes out and the shape stretches to a rounded bar. */
+            #helpLauncher {{ background: {_TEAL_BG}; border: 1px solid {_TEAL_LINE};
+                border-radius: {_DOT // 2}px; color: {_TEAL_TEXT}; font-weight: 700;
+                font-size: 12px; padding: 0; text-align: center; }}
+            #helpLauncher[pill="true"] {{ text-align: left; padding-left: 6px; }}
+            #helpLauncher:hover {{ background: #D5EFEA; border-color: {_TEAL_LINE}; }}
+            #helpLauncher:focus {{ border: 1px solid {_TEAL_TEXT}; }}
+            #helpEdgeTab {{ background: {_TEAL_BG}; border: 1px solid {_TEAL_LINE};
+                border-right: none; border-top-left-radius: {r}px;
+                border-bottom-left-radius: {r}px; }}
+            #helpEdgeTab:hover {{ background: #D5EFEA; }}
+            #helpPanel {{ background: {p.surface}; border: 1px solid {p.border};
+                border-radius: {rl}px; color: {p.text}; }}
+            #helpHeader {{ background: {p.surface}; border-bottom: 1px solid {p.border};
+                border-top-left-radius: {rl}px; border-top-right-radius: {rl}px; }}
+            #helpHeader QLabel {{ background: transparent; color: {p.text}; }}
+            #helpTitle {{ color: {p.text}; font-weight: 600; font-size: 13px;
+                background: transparent; }}
+            #helpMinBtn {{ background: transparent; border: none; border-radius: {r}px; }}
+            #helpMinBtn:hover {{ background: {p.hover}; }}
+            #helpLog {{ background: {p.sunken}; border: none; color: {p.text};
+                padding: 4px 6px; }}
+            #helpInputRow {{ background: {p.surface};
+                border-bottom-left-radius: {rl}px; border-bottom-right-radius: {rl}px; }}
+            #helpInput {{ border: 1px solid {p.border}; border-radius: {r}px; padding: 5px 8px;
+                background: {p.surface_raised}; color: {p.text}; }}
+            #helpInput:focus {{ border: 1px solid {p.focus_ring}; }}
+            #helpSendBtn {{ background: {p.accent_solid}; border: none; border-radius: {r}px; }}
+            #helpSendBtn:hover {{ background: {p.accent_solid_hover}; }}
+            #helpSendBtn:disabled {{ background: {p.border_strong}; }}
         """)
 
     # ---- greeting / labels ------------------------------------------------
@@ -177,28 +213,21 @@ class HelpAgentWidget(QWidget):
         # assistant back (chevron points left = "slide out").
         self.edge_tab = QPushButton(self)
         self.edge_tab.setObjectName("helpEdgeTab")
-        self.edge_tab.setIcon(icon("chevron-left", color="#5a6570"))
+        self.edge_tab.setIcon(icon("chevron-left", color=_TEAL_TEXT))
         self.edge_tab.setCursor(Qt.PointingHandCursor)
         self.edge_tab.setToolTip(tr("help_agent.show_tooltip"))
         self.edge_tab.clicked.connect(self._show_launcher)
 
     def _build_launcher(self) -> None:
-        # A left-side chevron collapses the assistant to the edge…
-        self.collapse_btn = QPushButton(self)
-        self.collapse_btn.setObjectName("helpCollapseBtn")
-        self.collapse_btn.setIcon(icon("chevron-right", color="#5a6570"))
-        self.collapse_btn.setCursor(Qt.PointingHandCursor)
-        self.collapse_btn.setToolTip(tr("help_agent.hide_tooltip"))
-        self.collapse_btn.clicked.connect(self._hide_to_edge)
-        # …and the app icon itself opens the chat — a clean rounded badge (like
-        # image 2), NOT a QPushButton (which added a pale box around the icon).
-        self.launcher = _IconTap(self)
+        # One control, one job: this opens the chat. The chevron that used to sit
+        # beside it (a second 18px hit target for a second meaning of "closed")
+        # is gone — hiding to the edge is now a line in the panel's ⋯ menu.
+        self.launcher = _HoverPill(self)
         self.launcher.setObjectName("helpLauncher")
-        self.launcher.setFixedSize(_LAUNCHER, _LAUNCHER)
-        self.launcher.setAlignment(Qt.AlignCenter)
-        self.launcher.setPixmap(_app_pixmap(_LAUNCHER_ICON))
+        self.launcher.setIcon(icon("sparkle", size=_DOT_ICON, color=_SPARK_GOLD))
         self.launcher.setCursor(Qt.PointingHandCursor)
-        self.launcher.setToolTip(tr("help_agent.open_tooltip"))
+        self.launcher.setToolTip(
+            f'{tr("help_agent.open_tooltip")} · {tr("help_agent.dot_hint")}')
         self.launcher.clicked.connect(self._expand)
 
     def _build_panel(self) -> None:
@@ -215,19 +244,31 @@ class HelpAgentWidget(QWidget):
         hb = QHBoxLayout(header)
         hb.setContentsMargins(12, 8, 8, 8)
         self.title_icon = QLabel(header)
-        self.title_icon.setPixmap(_app_icon().pixmap(20, 20))
+        self.title_icon.setPixmap(
+            icon("sparkle", size=16, color=_SPARK_GOLD).pixmap(16, 16))
         hb.addWidget(self.title_icon)
         self.title = QLabel(tr("help_agent.title"), header)
         self.title.setObjectName("helpTitle")
         hb.addWidget(self.title, 1)
         self.min_btn = QPushButton(header)
         self.min_btn.setObjectName("helpMinBtn")
-        self.min_btn.setIcon(icon("minus", color="#5a6570"))
+        self.min_btn.setIcon(icon("minus", color=self._pal.text_muted))
         self.min_btn.setFixedSize(24, 24)
         self.min_btn.setCursor(Qt.PointingHandCursor)
         self.min_btn.setToolTip(tr("help_agent.collapse_tooltip"))
         self.min_btn.clicked.connect(self._collapse)
         hb.addWidget(self.min_btn)
+        # No ⋯ menu. The audit page put "Ẩn trợ lý" in one, but its two entries
+        # were "thu nhỏ" — which the − button beside it already does — and
+        # "ẩn vào cạnh phải". A drop-list to reach one action that duplicates
+        # its neighbour is chrome; removed at the user's request.
+        #
+        # Hiding stays reachable by right-click, on the header while the panel
+        # is open and on the dot while it is shut, so no route is lost.
+        for target in (header, self.launcher):
+            target.setContextMenuPolicy(Qt.CustomContextMenu)
+            target.customContextMenuRequested.connect(
+                lambda pos, w=target: self._hide_menu(w, pos))
         v.addWidget(header)
 
         # Conversation log
@@ -268,6 +309,19 @@ class HelpAgentWidget(QWidget):
         self._state = _LAUNCHER_ST
         self._apply_state()
 
+    def _hide_menu(self, widget, pos) -> None:
+        """Right-click, on the dot or the open panel's header: hide to the edge.
+
+        The only action worth offering here — collapsing is what the − button
+        and the dot itself already are.
+        """
+        from PySide6.QtWidgets import QMenu
+
+        menu = QMenu(widget)
+        act = menu.addAction(tr("help_agent.hide_tooltip"))
+        act.triggered.connect(self._hide_to_edge)
+        menu.exec(widget.mapToGlobal(pos))
+
     def _hide_to_edge(self) -> None:
         self._state = _HIDDEN
         self._apply_state()
@@ -276,28 +330,49 @@ class HelpAgentWidget(QWidget):
         self._state = _LAUNCHER_ST
         self._apply_state()
 
+    def _layout_launcher(self) -> None:
+        """Size the overlay to the dot, or to the pill while it is hovered."""
+        w = _DOT
+        if self.launcher.open:
+            w = max(_DOT, self.launcher.fontMetrics()
+                    .horizontalAdvance(self.launcher.text()) + _DOT + _PILL_PAD)
+        self.resize(w, _DOT)
+        self.launcher.setGeometry(0, 0, w, _DOT)
+        # Round while it is a dot, pill-shaped once the label is out.
+        self.launcher.setProperty("pill", bool(self.launcher.open))
+        self.launcher.style().unpolish(self.launcher)
+        self.launcher.style().polish(self.launcher)
+        self.reposition()
+        self.raise_()
+
     def _apply_state(self) -> None:
         st = self._state
         self.edge_tab.setVisible(st == _HIDDEN)
-        self.collapse_btn.setVisible(st == _LAUNCHER_ST)
         self.launcher.setVisible(st == _LAUNCHER_ST)
         self.panel.setVisible(st == _PANEL)
         if st == _PANEL:
             self.resize(_PANEL_W, _PANEL_H)
             self.panel.setGeometry(0, 0, _PANEL_W, _PANEL_H)
         elif st == _LAUNCHER_ST:
-            w = _LAUNCHER + _GAP + _COLLAPSE_W
-            self.resize(w, _LAUNCHER)
-            # Icon on the left, the collapse chevron on the RIGHT (toward the
-            # screen edge it tucks into).
-            self.launcher.setGeometry(0, 0, _LAUNCHER, _LAUNCHER)
-            self.collapse_btn.setGeometry(_LAUNCHER + _GAP, (_LAUNCHER - _COLLAPSE_H) // 2,
-                                          _COLLAPSE_W, _COLLAPSE_H)
+            self._layout_launcher()
+            return                      # _layout_launcher repositions and raises
         else:  # hidden
             self.resize(_TAB_W, _TAB_H)
             self.edge_tab.setGeometry(0, 0, _TAB_W, _TAB_H)
         self.reposition()
         self.raise_()
+
+    # A screen whose bottom edge is an input row (Cowork's composer) must not
+    # have the dock sitting on top of it — set by MainWindow when the page
+    # changes, in window coordinates.
+    _bottom_guard = 0
+
+    def set_bottom_guard(self, height: int) -> None:
+        """Reserve `height` px at the foot of the window for the page's own
+        controls; the dock floats above it instead of over the Send button."""
+        if height != self._bottom_guard:
+            self._bottom_guard = max(0, height)
+            self.reposition()
 
     def reposition(self) -> None:
         """Pin to the parent's bottom-right corner (called on parent resize)."""
@@ -305,7 +380,7 @@ class HelpAgentWidget(QWidget):
         if p is None:
             return
         x = max(0, p.width() - self.width() - _MARGIN)
-        y = max(0, p.height() - self.height() - _MARGIN)
+        y = max(0, p.height() - self.height() - _MARGIN - self._bottom_guard)
         self.move(x, y)
 
     # ---- rendering --------------------------------------------------------
@@ -318,17 +393,19 @@ class HelpAgentWidget(QWidget):
         p = self._pal
         text = (content or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         text = text.replace("\n", "<br>")
+        # bgcolor= is a solid-only HTML attribute, hence accent_wash (pre-blended)
+        # rather than the translucent accent_soft used in style sheets.
         if who == "user":
-            align, bg, label_color = "right", p["user_bg"], p["user_label"]
+            align, bg, label_color = "right", p.accent_wash, p.accent
             label = tr("chat.you")
         else:
-            align, bg, label_color = "left", p["bot_bg"], p["bot_label"]
+            align, bg, label_color = "left", p.surface_raised, p.success
             label = tr("help_agent.title")
         return (
             f'<table width="100%" cellspacing="0" cellpadding="0"><tr>'
             f'<td align="{align}">'
             f'<table width="80%" cellspacing="0" cellpadding="7" bgcolor="{bg}"><tr>'
-            f'<td style="color:{p["text"]};">'
+            f'<td style="color:{p.text};">'
             f'<b style="color:{label_color};">{label}</b><br>{text}'
             f'</td></tr></table></td></tr></table>'
             '<div style="line-height:6px;">&nbsp;</div>'   # gap between turns
@@ -388,9 +465,18 @@ class HelpAgentWidget(QWidget):
         self.send_btn.setEnabled(not busy)
 
     def retranslate(self) -> None:
+        # The transcript is rendered HTML, so switching language left the
+        # greeting — and every "AI Assistant" speaker label — in the language
+        # the panel was built in.
+        if self._history and self._history[0] is self._greet_msg:
+            self._greet_msg["content"] = self._greeting()
+        self._render()
         self.title.setText(tr("help_agent.title"))
         self.input.setPlaceholderText(tr("help_agent.placeholder"))
-        self.launcher.setToolTip(tr("help_agent.open_tooltip"))
+        self.launcher.setToolTip(
+            f'{tr("help_agent.open_tooltip")} · {tr("help_agent.dot_hint")}')
+        if self.launcher.open:
+            self.launcher.setText(f"  {tr('help_agent.badge')}")
+            self._layout_launcher()
         self.min_btn.setToolTip(tr("help_agent.collapse_tooltip"))
-        self.collapse_btn.setToolTip(tr("help_agent.hide_tooltip"))
         self.edge_tab.setToolTip(tr("help_agent.show_tooltip"))

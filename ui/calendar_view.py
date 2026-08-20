@@ -20,6 +20,7 @@ from ..core.calendar_grid import (
     GRANULARITIES, group_tasks_by_date, month_grid, month_task_counts, shift_period, week_days,
 )
 from ..i18n import on_language_changed, tr
+from ..theme import current_palette
 from .icons import icon
 
 _WEEKDAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -56,20 +57,21 @@ class _DayCell(QFrame):
                 today: bool = False, weekend: bool = False) -> None:
         self._date_str = d.isoformat()
         self.date_lbl.setText(str(d.day))
-        num_color = "#0096C7" if today else ("#888" if dim else "")
-        self.date_lbl.setStyleSheet(f"font-weight:700; color:{num_color};")
-        # Today = accent border + stronger tint; weekend (Sat/Sun) = a subtle
-        # darker-blue tint than the base cell. rgba overlays read correctly on
-        # both light and dark themes.
-        base_border = "1px solid rgba(128,128,128,0.35)"
+        p = current_palette()
+        num_color = p.accent if today else (p.text_faint if dim else p.text)
+        self.date_lbl.setStyleSheet(f"font-weight:600; color:{num_color};")
+        # Today is the only cell that gets a filled surface + accent border;
+        # weekends are set apart by a recessed surface alone, so the eye lands
+        # on "today" first and on the weekend block only when scanning.
+        r = p.radius
         if today:
-            css = ("#dayCell { background: rgba(0,150,199,0.22); "
-                   "border: 2px solid #0096C7; border-radius: 6px; }")
+            css = (f"#dayCell {{ background: {p.accent_soft}; "
+                   f"border: 1px solid {p.accent}; border-radius: {r}px; }}")
         elif weekend:
-            css = ("#dayCell { background: rgba(0,120,182,0.13); "
-                   f"border: {base_border}; border-radius: 6px; }}")
+            css = (f"#dayCell {{ background: {p.surface}; "
+                   f"border: 1px solid {p.border}; border-radius: {r}px; }}")
         else:
-            css = f"#dayCell {{ border: {base_border}; border-radius: 6px; }}"
+            css = f"#dayCell {{ border: 1px solid {p.border}; border-radius: {r}px; }}"
         self.setStyleSheet(css)
         self.list.clear()
         for t in tasks:

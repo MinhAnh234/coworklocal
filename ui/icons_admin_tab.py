@@ -22,6 +22,7 @@ from .icons import icon
 
 def _grid() -> QListWidget:
     g = QListWidget()
+    g.setObjectName("iconGrid")   # accent border on hover/selection, see theme.py
     g.setViewMode(QListWidget.IconMode)
     g.setResizeMode(QListWidget.Adjust)
     g.setMovement(QListWidget.Static)
@@ -36,34 +37,44 @@ class IconsAdminTab(QWidget):
         super().__init__()
         self.ctx = ctx
         root = QVBoxLayout(self)
-        self._hint = QLabel(); self._hint.setObjectName("hint"); self._hint.setWordWrap(True)
-        root.addWidget(self._hint)
-
-        # search over built-in names
-        self.search = QLineEdit()
-        self.search.textChanged.connect(self._reload_builtin)
-        root.addWidget(self.search)
-
-        self._builtin_lbl = QLabel()
-        root.addWidget(self._builtin_lbl)
-        self.builtin_grid = _grid()
-        root.addWidget(self.builtin_grid, 2)
-
-        self._custom_lbl = QLabel()
-        root.addWidget(self._custom_lbl)
-        self.custom_grid = _grid()
-        root.addWidget(self.custom_grid, 1)
-
-        btns = QHBoxLayout()
+        # Header row: the three actions sit beside the title, where the drawing
+        # puts them, instead of in a strip below the two grids where they read
+        # as belonging to the custom grid alone.
+        head = QHBoxLayout()
+        self._title = QLabel()
+        self._title.setObjectName("monTitle")
+        head.addWidget(self._title)
+        head.addStretch(1)
         self.add_btn = QPushButton(); self.add_btn.setIcon(icon("plus"))
         self.add_btn.clicked.connect(self._add_icon)
         self.paste_btn = QPushButton()
         self.paste_btn.clicked.connect(self._add_from_svg_text)
         self.del_btn = QPushButton(); self.del_btn.setIcon(icon("trash"))
         self.del_btn.clicked.connect(self._delete_icon)
-        btns.addWidget(self.add_btn); btns.addWidget(self.paste_btn)
-        btns.addWidget(self.del_btn); btns.addStretch(1)
-        root.addLayout(btns)
+        for b in (self.add_btn, self.paste_btn, self.del_btn):
+            head.addWidget(b)
+        root.addLayout(head)
+
+        self._hint = QLabel(); self._hint.setObjectName("hint"); self._hint.setWordWrap(True)
+        root.addWidget(self._hint)
+
+        # search over built-in names, with the magnifier the drawing asks for
+        self.search = QLineEdit()
+        self.search.addAction(icon("search"), QLineEdit.LeadingPosition)
+        self.search.textChanged.connect(self._reload_builtin)
+        root.addWidget(self.search)
+
+        self._builtin_lbl = QLabel()
+        self._builtin_lbl.setObjectName("navSectionHdr")   # quiet caps heading
+        root.addWidget(self._builtin_lbl)
+        self.builtin_grid = _grid()
+        root.addWidget(self.builtin_grid, 2)
+
+        self._custom_lbl = QLabel()
+        self._custom_lbl.setObjectName("navSectionHdr")
+        root.addWidget(self._custom_lbl)
+        self.custom_grid = _grid()
+        root.addWidget(self.custom_grid, 1)
 
         on_language_changed(self._retranslate)
         self._retranslate()
@@ -131,10 +142,13 @@ class IconsAdminTab(QWidget):
         self._reload_custom()
 
     def _retranslate(self) -> None:
+        self._title.setText(tr("monitoring.tab_icons"))
         self._hint.setText(tr("icons_admin.hint"))
         self.search.setPlaceholderText(tr("icons_admin.search"))
-        self._builtin_lbl.setText(tr("icons_admin.builtin"))
-        self._custom_lbl.setText(tr("icons_admin.custom"))
+        # ICON TÍCH HỢP / ICON TÙY CHỈNH — caps, like every other section
+        # heading the audit page draws.
+        self._builtin_lbl.setText(tr("icons_admin.builtin").upper())
+        self._custom_lbl.setText(tr("icons_admin.custom").upper())
         self.add_btn.setText(tr("icons_admin.add"))
         self.paste_btn.setText(tr("icons_admin.paste"))
         self.del_btn.setText(tr("icons_admin.delete"))

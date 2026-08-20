@@ -18,7 +18,7 @@ from PySide6.QtGui import QBrush, QColor, QFont, QPen
 from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QGraphicsEllipseItem, QGraphicsLineItem,
     QGraphicsScene, QGraphicsSimpleTextItem, QGraphicsView, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QSplitter, QStackedWidget,
+    QLabel, QLineEdit, QPushButton, QSplitter, QStackedWidget, QTabBar,
     QTextBrowser, QVBoxLayout, QWidget,
 )
 
@@ -48,6 +48,7 @@ except Exception:  # pragma: no cover
     _HAS_WEB = False
 
 from ..core.structure_graph import EDGE_KIND_COLORS, NODE_KIND_COLORS
+from ..theme import current_palette
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
@@ -112,7 +113,11 @@ class _Node(QGraphicsEllipseItem):
         super().__init__(-radius, -radius, 2 * radius, 2 * radius)
         self.data = data
         self.edges = []
-        color = QColor(NODE_KIND_COLORS.get(data.kind, "#888888"))
+        tok = current_palette()
+        # NODE_KIND_COLORS is a categorical data encoding (one hue per node
+        # kind), not UI chrome — it stays fixed across themes on purpose so a
+        # given kind is always the same colour. Only the chrome follows tokens.
+        color = QColor(NODE_KIND_COLORS.get(data.kind, tok.text_muted))
         self.setBrush(QBrush(color))
         self.setPen(QPen(color.darker(160), 1.5))
         self.setFlags(
@@ -122,7 +127,7 @@ class _Node(QGraphicsEllipseItem):
         )
         self.setZValue(1)
         label = QGraphicsSimpleTextItem(data.label, self)
-        label.setBrush(QBrush(QColor("#e6e6e6")))
+        label.setBrush(QBrush(QColor(tok.text)))
         label.setPos(radius + 3, -8)
 
     def itemChange(self, change, value):  # noqa: N802
@@ -224,33 +229,40 @@ class StructureGraphView(QWidget):
         self._scan_btn.setIcon(icon("search"))
         self._scan_btn.setObjectName("primary")
         self._scan_btn.clicked.connect(self._scan)
-        bar.addWidget(self.path_edit, 1)
-        bar.addWidget(self._pick_btn)
-        bar.addWidget(self.project_combo)
-        bar.addWidget(self._scan_btn)
-        root.addLayout(bar)
-        self._refresh_project_combo()
-
-        # Toolbar: messages toggle + export
-        bar2 = QHBoxLayout()
-        bar2.addStretch(1)
-        self._msgs_toggle_btn = QPushButton()
-        self._msgs_toggle_btn.setIcon(icon("message"))
-        self._msgs_toggle_btn.setToolTip(tr("structure.msgs_tooltip"))
-        self._msgs_toggle_btn.clicked.connect(self._toggle_messages)
-        bar2.addWidget(self._msgs_toggle_btn)
-
+        # ONE toolbar row. There used to be a second row holding just the
+        # messages toggle and Export, which cost a whole row of height to carry
+        # two buttons.
         self._export_btn = QPushButton()
         self._export_btn.setIcon(icon("upload"))
         self._export_btn.setObjectName("primary")
         self._export_btn.clicked.connect(self._export)
-        bar2.addWidget(self._export_btn)
+        bar.addWidget(self.path_edit, 1)
+        bar.addWidget(self._pick_btn)
+        bar.addWidget(self.project_combo)
+        bar.addWidget(self._scan_btn)
+        bar.addWidget(self._export_btn)
+        root.addLayout(bar)
+        self._refresh_project_combo()
 
-        root.addLayout(bar2)
+        # Đồ thị | Tin nhắn as a real pair of tabs: the old single button
+        # relabelled itself, so the view you were NOT looking at was the only
+        # one named on screen.
+        self.view_tabs = QTabBar()
+        self.view_tabs.setObjectName("viewTabs")
+        self.view_tabs.setDrawBase(False)
+        self.view_tabs.setExpanding(False)
+        self.view_tabs.addTab(icon("graph"), "")
+        self.view_tabs.addTab(icon("message"), "")
+        self.view_tabs.currentChanged.connect(self._on_view_tab)
+        tab_row = QHBoxLayout()
+        tab_row.setContentsMargins(0, 0, 0, 0)
+        tab_row.addWidget(self.view_tabs)
+        tab_row.addStretch(1)
+        root.addLayout(tab_row)
 
         split = QSplitter(Qt.Horizontal)
         self.scene = QGraphicsScene()
-        self.scene.setBackgroundBrush(QColor("#0D1F35"))  # deep ocean dark bg
+        self.scene.setBackgroundBrush(QColor(current_palette().bg))
         self.scene.selectionChanged.connect(self._on_selection)
         self.view = _GraphView(self.scene)
 
@@ -332,8 +344,10 @@ class StructureGraphView(QWidget):
         self._pick_btn.setText(tr("structure.browse"))
         self._scan_btn.setText(tr("structure.scan"))
         self._export_btn.setText(tr("structure.export_png"))
-        showing = self._stack.currentWidget() is getattr(self, "_msgs_view", None)
-        self._msgs_toggle_btn.setText(tr("structure.graph_btn") if showing else tr("structure.msgs_btn"))
+        # Both views are named at once now, so neither label depends on state.
+        self.view_tabs.setTabText(0, tr("structure.graph_btn"))
+        self.view_tabs.setTabText(1, tr("structure.msgs_btn"))
+        self.view_tabs.setTabToolTip(1, tr("structure.msgs_tooltip"))
         self._ag_collapse.setToolTip(tr("structure.collapse_agent_tooltip"))
         self._ag_label.setText(tr("structure.agent_header"))
         self.ask_edit.setPlaceholderText(tr("structure.ask_placeholder"))
@@ -390,10 +404,13 @@ class StructureGraphView(QWidget):
             if project is not None:
                 self.path_edit.setText(str(project.workspace_dir()))
         if project_changed:
+            # Mark it and scan on the next visit rather than now. The rail's
+            # project picker made switching a one-click thing from any screen,
+            # and each switch rebuilt this graph — a folder walk plus a force
+            # layout plus a full setHtml of the D3 page — for a tab that was
+            # usually not even on screen. auto_scan_and_fit() picks the flag up
+            # when GraphRAG is actually opened.
             self._needs_scan = True
-            if self.web is not None:
-                self._needs_scan = False
-                self._scan()
 
     # ---- helpers -----------------------------------------------------
     def _pick(self) -> None:
@@ -408,16 +425,19 @@ class StructureGraphView(QWidget):
         self._rescan_timer.start()
 
     # ---- Messages (by day, as JSON) --------------------------------------
-    def _toggle_messages(self) -> None:
-        """Switch between the knowledge graph and the Messages-by-day view."""
-        showing = self._stack.currentWidget() is self._msgs_view
-        if showing:
-            self._stack.setCurrentWidget(self.web if self.web is not None else self.view)
-        else:
+    def _on_view_tab(self, index: int) -> None:
+        """Tab 0 = graph, tab 1 = messages. Same two views as before, now named
+        on screen instead of hidden behind one button's changing label."""
+        if index == 1:
             self._reload_messages()
             self._stack.setCurrentWidget(self._msgs_view)
-        self._msgs_toggle_btn.setText(
-            tr("structure.graph_btn") if not showing else tr("structure.msgs_btn"))
+        else:
+            self._stack.setCurrentWidget(self.web if self.web is not None else self.view)
+
+    def _toggle_messages(self) -> None:
+        """Kept for callers that still ask for a flip (e.g. keyboard paths)."""
+        showing = self._stack.currentWidget() is self._msgs_view
+        self.view_tabs.setCurrentIndex(0 if showing else 1)
 
     def _reload_messages(self) -> None:
         """Build the tree: day → conversation. Click a conversation to see its
@@ -475,10 +495,31 @@ class StructureGraphView(QWidget):
             f'<pre style="white-space:pre-wrap; font-family:Consolas,monospace; '
             f'font-size:12px;">{html.escape(text)}</pre>')
 
+    def prewarm(self) -> None:
+        """Pay for the graph view before it is clicked on, not during.
+
+        Opening GraphRAG built a QWebEngineView (~140ms) and scanned the project
+        (~485ms) while an empty browser sat on screen — long enough, and white
+        enough, to read as the app restarting itself. Called from an idle timer
+        after the window is up, so startup itself is unaffected; the memory the
+        lazy construction was saving is spent a few seconds later instead.
+        """
+        if not _HAS_WEB or self.web is not None:
+            return
+        self._ensure_web()
+        if self._graph is None and self.path_edit.text().strip():
+            self._needs_scan = False
+            self._scan()          # runs on a worker thread
+
     def _ensure_web(self) -> None:
         if self.web is not None or not _HAS_WEB:
             return
         self.web = QWebEngineView()
+        # Blank the page in the app's own background first. A fresh
+        # QWebEngineView paints white, and on a dark theme that white rectangle
+        # WAS the flash — it showed for as long as the first scan took.
+        self.web.setHtml(
+            f"<body style='margin:0;background:{current_palette().bg}'></body>")
         self._bridge = _Bridge()
         self._channel = QWebChannel()
         self._channel.registerObject("py", self._bridge)
@@ -546,7 +587,7 @@ class StructureGraphView(QWidget):
         self._graph = graph
 
         self.scene.clear()
-        self.scene.setBackgroundBrush(QColor("#0D1F35"))  # restore deep ocean bg after clear
+        self.scene.setBackgroundBrush(QColor(current_palette().bg))   # restore after clear
         self._node_items = []
         self._edge_items = []
         degree = {n.id: 0 for n in graph.nodes}

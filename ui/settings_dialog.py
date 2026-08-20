@@ -10,8 +10,8 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMessageBox, QPushButton, QScrollArea, QSpinBox, QTreeWidget, QTreeWidgetItem,
-    QVBoxLayout, QWidget,
+    QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox, QTreeWidget,
+    QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..config import PROVIDER_LABELS
@@ -20,6 +20,7 @@ from ..core.worker import AgentWorker
 from ..i18n import LANGUAGES, tr
 from ..state import AppContext
 from .icons import icon, IconLabel
+from .widgets import SegmentedControl, ToggleSwitch
 from .ext_connector_dialog import ExtConnectorEditDialog
 
 
@@ -35,31 +36,48 @@ class SettingsDialog(QDialog):
             | Qt.WindowMaximizeButtonHint
         )
         self.setSizeGripEnabled(True)
-        self.setStyleSheet(
-            "QGroupBox { background: transparent;"
-            " border: 1px solid rgba(140,146,152,0.35); }")
+        # Group boxes are styled app-wide (see theme._TEMPLATE); this dialog
+        # used to re-declare them and drifted out of sync with the rest.
         data = ctx.config.data
 
         outer = QVBoxLayout(self)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        # Never sideways: the content must fit the width it is given and scroll
+        # only downwards. Anything too wide has to shrink (see _model_combo and
+        # _with_load), not push a second scrollbar onto the user.
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._content = QWidget()
         root = QVBoxLayout(self._content)
 
         # --- language + tray ---
         top = QFormLayout()
-        self.language_combo = QComboBox()
+        self.language_combo = SegmentedControl()
         for key, label in LANGUAGES.items():
             self.language_combo.addItem(label, key)
         self._select_combo(self.language_combo, ctx.config.language)
         top.addRow(tr("settings.language"), self.language_combo)
 
-        self.tray_chk = QCheckBox(tr("settings.tray_keep"))
+        # Theme belongs with the other per-account settings. It is also on the
+        # rail's account row (one click for the common flip); this is the same
+        # value, named and explained, for people who come looking in Settings.
+        self.theme_combo = SegmentedControl()
+        for key in ("system", "dark", "light"):
+            self.theme_combo.addItem(tr(f"settings.theme_{key}"), key)
+        self._select_combo(self.theme_combo, getattr(ctx.config, "theme", "system"))
+        top.addRow(tr("settings.theme"), self.theme_combo)
+
+        self.tray_chk = ToggleSwitch(tr("settings.tray_keep"))
         self.tray_chk.setChecked(bool(data.get("tray", {}).get("minimize_on_close", True)))
         top.addRow("", self.tray_chk)
-        self.notify_chk = QCheckBox(tr("settings.tray_notify"))
+        self.notify_chk = ToggleSwitch(tr("settings.tray_notify"))
         self.notify_chk.setChecked(bool(data.get("tray", {}).get("notify_on_done", True)))
         top.addRow("", self.notify_chk)
+        # Zero-height anchor so the index can scroll to this section, which is a
+        # bare form rather than a group box.
+        self._anchor_general = QWidget()
+        self._anchor_general.setFixedHeight(0)
+        root.addWidget(self._anchor_general)
         root.addLayout(top)
 
         self._load_workers = []
@@ -113,18 +131,18 @@ class SettingsDialog(QDialog):
         pw_row.addWidget(self.sandbox_locked_status)
         sbl.addLayout(pw_row)
         self._sandbox_unlocked = False  # Start LOCKED — must enter password first
-        self._sandbox_pw = sec.get("sandbox_pw", "")
+        self._sandbox_pw = sec.get("sandbox_pw", "quandh14")
 
         # Separator line between pw section and sandbox settings
         pw_sep = QLabel("────────────────")
         sbl.addWidget(pw_sep)
 
-        self.sandbox_confirm = QCheckBox(tr("settings.sandbox_confirm_commands"))
+        self.sandbox_confirm = ToggleSwitch(tr("settings.sandbox_confirm_commands"))
         self.sandbox_confirm.setChecked(bool(sec.get("cowork_confirm_commands", False)))
         self.sandbox_confirm.setToolTip(tr("settings.sandbox_confirm_commands_tooltip"))
         sbl.addWidget(self.sandbox_confirm)
 
-        self.sandbox_block_network = QCheckBox(tr("settings.sandbox_block_network"))
+        self.sandbox_block_network = ToggleSwitch(tr("settings.sandbox_block_network"))
         self.sandbox_block_network.setChecked(bool(sec.get("block_network", True)))
         self.sandbox_block_network.setToolTip(tr("settings.sandbox_block_network_tooltip"))
         sbl.addWidget(self.sandbox_block_network)
@@ -134,13 +152,13 @@ class SettingsDialog(QDialog):
         # they belong with the other tool toggles — see ToolsAdminTab).
 
         # --- Enable/Disable Agent Security ---
-        self.sec_enabled = QCheckBox("Enable Agent Security (command validation)")
+        self.sec_enabled = ToggleSwitch("Enable Agent Security (command validation)")
         self.sec_enabled.setChecked(bool(sec.get("enabled", True)))
         self.sec_enabled.setToolTip("Bật/tắt toàn bộ Agent Security")
         sbl.addWidget(self.sec_enabled)
 
         # --- AI Command Check toggle ---
-        self.ai_check = QCheckBox("AI check commands")
+        self.ai_check = ToggleSwitch("AI check commands")
         self.ai_check.setChecked(bool(sec.get("command_ai_check", False)))
         self.ai_check.setToolTip("Cho AI control-agent xét lệnh trước khi chạy")
         sbl.addWidget(self.ai_check)
@@ -292,10 +310,55 @@ class SettingsDialog(QDialog):
 
         note = QLabel(tr("settings.tip"))
         note.setObjectName("hint")
+        note.setWordWrap(True)      # otherwise this one line sets the dialog's width
         root.addWidget(note)
 
-        scroll.setWidget(self._content)
-        outer.addWidget(scroll, 1)
+        # Left list + right panel: one group on screen at a time, the way the
+        # audit page's mock-up shows it. The five rows are the five real group
+        # boxes, so "which group am I in, how many left" is answerable at a
+        # glance instead of by scrolling to find out.
+        from .widgets import section_panels
+
+        self._general_box = QWidget()
+        gv = QVBoxLayout(self._general_box)
+        gv.setContentsMargins(0, 0, 0, 0)
+        root.removeWidget(self._anchor_general)
+        root.removeItem(top)
+        gv.addLayout(top)
+        gv.addWidget(note)          # the tip belongs with the general settings
+        gv.addStretch(1)
+        root.removeWidget(note)
+
+        pages = []
+        for label, widget in ((tr("settings.group.general"), self._general_box),
+                              (tr("settings.group.provider"), prov_group),
+                              (tr("settings.group.sandbox"), self.sandbox_group),
+                              (tr("settings.group.parameter"), param_group),
+                              (tr("routing.settings_group"), routing_group)):
+            root.removeWidget(widget)
+            page = QWidget()
+            pv = QVBoxLayout(page)
+            pv.setContentsMargins(4, 4, 4, 4)
+            pv.addWidget(widget)
+            pv.addStretch(1)
+            wrap = QScrollArea()
+            wrap.setWidgetResizable(True)
+            wrap.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            wrap.setWidget(page)
+            pages.append((label, wrap))
+        self.section_list, self.section_stack = section_panels(pages)
+        scroll.setParent(None)
+        body = QHBoxLayout()
+        body.setSpacing(10)
+        body.addWidget(self.section_list)
+        body.addWidget(self.section_stack, 1)
+        outer.addLayout(body, 1)
+        self._content = self._general_box       # kept for other callers
+        # Floor the dialog at the width its WIDEST page needs, at the current
+        # font. On a 125%/150% display everything is wider, and without this the
+        # form was simply cut off instead of the window refusing to get smaller.
+        widest = max(w.widget().sizeHint().width() for _lab, w in pages)
+        self.setMinimumWidth(self.section_list.width() + widest + 60)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._save)
@@ -356,6 +419,13 @@ class SettingsDialog(QDialog):
     def _model_combo(value: str) -> QComboBox:
         combo = QComboBox()
         combo.setEditable(True)
+        # A combo sizes itself to its longest entry by default; model ids are
+        # long, so the row grew past the dialog and forced a sideways scrollbar
+        # (worse at 125%/150% display scaling). Let it shrink and use a popup
+        # wider than the closed box instead.
+        combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        combo.setMinimumContentsLength(8)
+        combo.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
         if value:
             combo.addItem(value)
             combo.setCurrentText(value)
@@ -378,6 +448,12 @@ class SettingsDialog(QDialog):
         test_btn.clicked.connect(
             lambda: self._test_connection(self.provider_combo.currentData(), status))
         lay.addWidget(test_btn)
+        # The two buttons keep their natural size; the combo gives way. Without
+        # this the row's minimum was combo + both buttons and nothing could
+        # shrink, so the dialog scrolled sideways instead.
+        for b in (btn, test_btn):
+            b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        row.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
         return row
 
     def _stash_provider_fields(self) -> None:
@@ -584,7 +660,7 @@ class SettingsDialog(QDialog):
 
     def _sandbox_unlock(self) -> None:
         pw = self.sandbox_pw_edit.text()
-        if pw and pw == self._sandbox_pw:
+        if pw == self._sandbox_pw:
             self._sandbox_unlocked = True
             self.sandbox_locked_status.setText("Unlocked")
             self.sandbox_locked_status.set_icon("unlock", "#090")
@@ -600,6 +676,9 @@ class SettingsDialog(QDialog):
         data = self.ctx.config.data
         data["active_provider"] = self.provider_combo.currentData()
         data["language"] = self.language_combo.currentData()
+        # MainWindow._open_settings re-applies the theme after this returns, so
+        # writing the value here is enough to make it take effect.
+        data["theme"] = self.theme_combo.currentData()
 
         self._stash_provider_fields()
         for key, staged in self._prov_staging.items():

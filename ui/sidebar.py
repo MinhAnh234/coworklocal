@@ -164,6 +164,9 @@ class HistorySidebar(QWidget):
         self._refresh_btn.setToolTip(tr("sidebar.refresh_tooltip"))
         self.refresh()   # re-render group headers / running suffix in the new language
 
+    def is_collapsed(self) -> bool:
+        return self._strip.isVisible()
+
     def set_collapsed(self, collapsed: bool) -> None:
         """Collapse to a thin line (kept visible) or restore the full panel."""
         self._content.setVisible(not collapsed)

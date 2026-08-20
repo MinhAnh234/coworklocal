@@ -13,7 +13,7 @@ from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
 
-from ..theme import ACCENT
+from ..theme import current_palette
 
 
 def _endpoint_label_rect(point_x: float, point_y: float, text_width: float,
@@ -75,17 +75,13 @@ class SplineChart(QWidget):
         self._refs = list(refs or [])
         self.update()
 
-    def _dark(self) -> bool:
-        from .chat_view import _app_theme
-        return _app_theme() == "dark"
-
     def paintEvent(self, _e):  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        dark = self._dark()
-        grid = QColor("#1A2D4A" if dark else "#C7DEEE")
-        text = QColor("#8FB2D4" if dark else "#5C7A94")
-        accent = QColor(ACCENT)
+        tok = current_palette()
+        grid = QColor(tok.chart_grid)
+        text = QColor(tok.chart_label)
+        accent = QColor(tok.accent)
         w, h = self.width(), self.height()
 
         pts = self._points

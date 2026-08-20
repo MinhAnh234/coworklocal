@@ -1,0 +1,9 @@
+PySide6>=6.6
+pydantic>=2
+requests
+psutil
+pygments
+openpyxl
+python-pptx
+networkx
+pytest

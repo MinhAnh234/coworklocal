@@ -11,17 +11,123 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QEasingCurve, QPropertyAnimation, Signal
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QInputDialog, QLabel,
-    QLineEdit, QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
-    QScrollArea, QSpinBox, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QInputDialog,
+    QLabel, QLineEdit, QListWidget, QListWidgetItem, QPlainTextEdit,
+    QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from ..config import PROVIDER_LABELS
 from ..core.co4e import PERMISSION_PRESETS, Step, SubAgent
 from ..i18n import tr
+from ..theme import current_palette
 from .icons import icon, icon_picker_combo
+
+_SECTION_ANIM_MS = 180
+
+
+class _SectionHeader(QLabel):
+    """A clickable label — a QPushButton's own style chrome (border, native
+    button margin, focus rect) always leaves a taller minimum height than a
+    plain label, even once its QSS padding is zeroed out, so the header that
+    needs to sit tight against its neighbours is a label, not a button."""
+
+    clicked = Signal()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        # fontMetrics() at construction time (before this label is ever part
+        # of a shown top-level window) reflects the QSS font-size only if the
+        # style has fully polished by then — on the very FIRST paint of the
+        # Co4E screen it sometimes hasn't, so the fixed height computed in
+        # _add_section is briefly wrong (too tall) until something else
+        # triggers a relayout. Recomputing here, every time the label
+        # actually becomes visible, means the first paint is never stale.
+        self.setFixedHeight(self.fontMetrics().height())
+        super().showEvent(event)
+
+
+def _add_section(outer: QVBoxLayout, title: str) -> tuple[QFormLayout, QWidget]:
+    """One group of fields, collapsed to just its heading by default and
+    independently expandable, so a long step config reads as a short list of
+    group names until you open the one you need. Deliberately bare — no card
+    border/background/box — the ▶/▼ marker and the heading text are the only
+    things separating one group from the next; opening one never closes
+    another (not an accordion, not a tab bar). Returns ``(form, card)``: add
+    the group's rows to ``form``; ``card`` is the whole section (header +
+    body) — hide it to remove the group entirely (e.g. for a section that
+    only applies to some steps), rather than hiding individual rows inside
+    an always-visible header."""
+    p = current_palette()
+    card = QWidget()
+    card_lay = QVBoxLayout(card)
+    card_lay.setContentsMargins(0, 0, 0, 0)
+    card_lay.setSpacing(0)
+
+    header = _SectionHeader()
+    header.setCursor(Qt.PointingHandCursor)
+    header.setStyleSheet(f"font-weight:400; font-size:13px; color:{p.text}; padding:0; margin:0;")
+    header.setContentsMargins(0, 0, 0, 0)
+    # QSS font-size only lands on the widget's actual QFont (and therefore
+    # its fontMetrics()) once the style sheet is polished — ensurePolished()
+    # forces that now, so the fixed height below is computed from the 12px
+    # font just set above, not the default one this label was constructed
+    # with. A label's natural sizeHint still reserves font leading above/
+    # below the glyphs on top of the (now zeroed) QSS padding — pinning the
+    # height to the text's actual cap-to-baseline span is what closes that
+    # last gap without clipping the ▶ glyph, the title, or Vietnamese
+    # diacritics.
+    header.ensurePolished()
+    header.setFixedHeight(header.fontMetrics().height())
+    header.setText(f"▶ {title}")
+    card_lay.addWidget(header)
+
+    body = QWidget()
+    body.setVisible(False)
+    body.setMaximumHeight(0)
+    form = QFormLayout(body)
+    form.setContentsMargins(0, 6, 0, 0)
+    card_lay.addWidget(body)
+
+    anim = QPropertyAnimation(body, b"maximumHeight", body)
+    anim.setDuration(_SECTION_ANIM_MS)
+    anim.setEasingCurve(QEasingCurve.InOutCubic)
+
+    is_open = False
+
+    def _on_finished() -> None:
+        if is_open:
+            # Uncapped once open, so switching to a step whose fields make
+            # this section taller/shorter (e.g. a parallel node's sub-agent
+            # list appearing) is never clipped by the height this animation
+            # last landed on.
+            body.setMaximumHeight(16_777_215)
+        else:
+            body.setVisible(False)
+    anim.finished.connect(_on_finished)
+
+    def _toggle() -> None:
+        nonlocal is_open
+        is_open = not is_open
+        header.setText(f"{'▼' if is_open else '▶'} {title}")
+        anim.stop()
+        if is_open:
+            body.setVisible(True)
+            anim.setStartValue(body.height())
+            anim.setEndValue(body.sizeHint().height())
+        else:
+            anim.setStartValue(body.height())
+            anim.setEndValue(0)
+        anim.start()
+    header.clicked.connect(_toggle)
+
+    outer.addWidget(card)
+    return form, card
 
 
 class StepConfigPanel(QScrollArea):
@@ -39,7 +145,16 @@ class StepConfigPanel(QScrollArea):
         self.setWidgetResizable(True)
         host = QWidget()
         self.setWidget(host)
-        form = QFormLayout(host)
+        outer = QVBoxLayout(host)
+        outer.setSpacing(1)
+
+        # Grouped sections stacked on one scrolling page — same fields as
+        # before, grouped by what they're for: identity, execution
+        # (model/permission), and the extra resources fed to the step
+        # (skills/files/sub-agents). No tabs/accordion: every group's border
+        # and heading are what separate it from its neighbours, and all three
+        # are on screen (or one scroll away) at once.
+        form, _basic_card = _add_section(outer, tr("co4e.tab_basic"))
 
         self.label_edit = QLineEdit()
         self.label_edit.textChanged.connect(self._on_edit)
@@ -80,6 +195,8 @@ class StepConfigPanel(QScrollArea):
         self.context_edit.textChanged.connect(self._on_edit)
         form.addRow(tr("co4e.f_context"), self.context_edit)
 
+        form2, _model_card = _add_section(outer, tr("co4e.tab_model_perm"))
+
         model_row = QHBoxLayout()
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
@@ -92,13 +209,13 @@ class StepConfigPanel(QScrollArea):
         model_row.addWidget(self.model_combo, 1)
         model_row.addWidget(self.load_models_btn)
         mrow = QWidget(); mrow.setLayout(model_row)
-        form.addRow(tr("co4e.f_model"), mrow)
+        form2.addRow(tr("co4e.f_model"), mrow)
 
         self.perm_combo = QComboBox()
         for preset in PERMISSION_PRESETS:
             self.perm_combo.addItem(tr(f"co4e.perm.{preset}"), preset)
         self.perm_combo.currentIndexChanged.connect(self._on_edit)
-        form.addRow(tr("co4e.f_permission"), self.perm_combo)
+        form2.addRow(tr("co4e.f_permission"), self.perm_combo)
 
         verify_row = QHBoxLayout()
         self.verify_chk = QCheckBox(tr("co4e.f_self_verify"))
@@ -111,13 +228,15 @@ class StepConfigPanel(QScrollArea):
         verify_row.addWidget(self.rounds_spin)
         verify_row.addStretch(1)
         vrow = QWidget(); vrow.setLayout(verify_row)
-        form.addRow("", vrow)
+        form2.addRow("", vrow)
+
+        form3, _skills_card = _add_section(outer, tr("co4e.tab_skills_files"))
 
         # Skills checklist (registry skills)
         self.skills_list = QListWidget()
         self.skills_list.setMaximumHeight(110)
         self.skills_list.itemChanged.connect(self._on_edit)
-        form.addRow(tr("co4e.f_skills"), self.skills_list)
+        form3.addRow(tr("co4e.f_skills"), self.skills_list)
 
         # Attachments — files whose extracted text is fed to this step at run time.
         self.attach_list = QListWidget()
@@ -133,11 +252,15 @@ class StepConfigPanel(QScrollArea):
         att_btns.addWidget(self.attach_del_btn)
         att_btns.addStretch(1)
         abtn = QWidget(); abtn.setLayout(att_btns)
-        form.addRow(tr("co4e.f_attachments"), self.attach_list)
-        form.addRow("", abtn)
+        form3.addRow(tr("co4e.f_attachments"), self.attach_list)
+        form3.addRow("", abtn)
 
-        # Parallel sub-agents (only shown for parallel nodes)
-        self.parallel_label = QLabel(tr("co4e.f_subagents"))
+        # Parallel sub-agents get their OWN section — same header style as
+        # Cơ bản/Model & Quyền/Skills & Tệp — rather than a row buried inside
+        # Skills & Tệp, since it's really a distinct group, just one that
+        # only applies to parallel-variant steps. load_step() hides the whole
+        # card for a non-parallel step (see is_par below).
+        form4, self._parallel_card = _add_section(outer, tr("co4e.f_subagents"))
         self.sub_list = QListWidget()
         self.sub_list.setMaximumHeight(90)
         self.sub_list.itemDoubleClicked.connect(self._edit_subagent)   # re-pick agent
@@ -152,10 +275,11 @@ class StepConfigPanel(QScrollArea):
         sub_btns.addWidget(self.sub_del_btn)
         sub_btns.addStretch(1)
         sbtn = QWidget(); sbtn.setLayout(sub_btns)
-        form.addRow(self.parallel_label, self.sub_list)
-        form.addRow("", sbtn)
+        form4.addRow(self.sub_list)
+        form4.addRow("", sbtn)
 
-        # Footer actions — one compact row (Run · Run from here · Delete).
+        # Footer actions — one compact row (Run · Run from here · Delete),
+        # kept below every section, not inside one of the cards.
         self.run_btn = QPushButton(tr("co4e.run"))
         self.run_btn.setIcon(icon("play"))
         self.run_btn.setToolTip(tr("co4e.run_this_step"))
@@ -170,12 +294,21 @@ class StepConfigPanel(QScrollArea):
         self.del_btn.setFixedWidth(38)
         self.del_btn.clicked.connect(lambda: self.delete_node.emit(self._node_id))
         foot = QHBoxLayout()
-        foot.setContentsMargins(0, 0, 0, 0)
         foot.addWidget(self.run_btn, 1)
         foot.addWidget(self.run_from_btn, 1)
         foot.addWidget(self.del_btn)
         foot_w = QWidget(); foot_w.setLayout(foot)
-        form.addRow("", foot_w)
+        outer.addWidget(foot_w)
+        # Without this, QVBoxLayout hands every child widget an EQUAL share of
+        # whatever extra height the scroll area's viewport has beyond the
+        # content's own sizeHint (setWidgetResizable(True) stretches `host` to
+        # fill it) — each collapsed header's card was measuring a true
+        # sizeHint of ~17px but rendering over 100px taller, and no amount of
+        # margin/padding/spacing on the header itself could touch that: the
+        # surplus was being spent on the cards, not around them. One trailing
+        # stretch absorbs all of it instead, so every section (and the
+        # footer) renders at exactly its own natural height.
+        outer.addStretch(1)
 
         self.setEnabled(False)
 
@@ -209,12 +342,11 @@ class StepConfigPanel(QScrollArea):
             item = QListWidgetItem(_P(path).name)
             item.setToolTip(path)
             self.attach_list.addItem(item)
-        # parallel sub-agents
+        # parallel sub-agents — the whole "Agent song song" section only
+        # applies to parallel-variant steps, so the entire card (header
+        # included) is hidden for any other step, not just its rows.
         is_par = step.is_parallel
-        self.parallel_label.setVisible(is_par)
-        self.sub_list.setVisible(is_par)
-        self.sub_add_btn.setVisible(is_par)
-        self.sub_del_btn.setVisible(is_par)
+        self._parallel_card.setVisible(is_par)
         self.sub_list.clear()
         if is_par:
             for sub in step.sub_agents:

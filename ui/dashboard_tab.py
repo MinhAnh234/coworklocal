@@ -24,6 +24,7 @@ from ..core import usage_tracker as ut
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
+from ..theme import current_palette
 from .icons import icon
 from .spline_chart import SplineChart
 from .widgets import BudgetCard as _BudgetCard
@@ -91,39 +92,52 @@ class DashboardTab(QWidget):
         self.refresh_btn.setIcon(icon("refresh"))
         self.refresh_btn.setFixedWidth(34)
         self.refresh_btn.clicked.connect(self.refresh)
+        # Two rows, grouped by what the controls do, instead of nine widgets
+        # strung across one line where the title, a date pager, two chart
+        # selectors, a currency picker and Refresh all read as one undifferentiated
+        # strip. Row 1 is "where am I"; row 2 is "what am I looking at".
         head.addWidget(self._title, 1)
-        head.addWidget(self.chart_prev_btn)
-        head.addWidget(self._chart_period_lbl)
-        head.addWidget(self.chart_next_btn)
-        head.addWidget(self.gran_combo)
-        head.addWidget(self.metric_combo)
-        head.addWidget(self.currency_lbl)
-        head.addWidget(self.currency_combo)
         head.addWidget(self.refresh_btn)
         root.addLayout(head)
 
+        controls = QHBoxLayout()
+        controls.setSpacing(6)
+        controls.addWidget(self.chart_prev_btn)          # period pager
+        controls.addWidget(self._chart_period_lbl)
+        controls.addWidget(self.chart_next_btn)
+        controls.addSpacing(12)
+        controls.addWidget(self.gran_combo)              # what the chart plots
+        controls.addWidget(self.metric_combo)
+        controls.addStretch(1)
+        controls.addWidget(self.currency_lbl)            # how money is displayed
+        controls.addWidget(self.currency_combo)
+        root.addLayout(controls)
+
         # ---- stat cards ---------------------------------------------------
-        # Single row, 5 equal-width cards (same layout as Monitoring Overview)
+        # Cost is the headline this screen exists for, so it gets a card twice
+        # the height of the rest instead of being the fifth of five identical
+        # tiles — with six equal cards nothing said which number mattered.
         cards_grid = QGridLayout()
         cards_grid.setSpacing(8)
         self.card_total = _StatCard()
         self.card_in = _StatCard()
         self.card_out = _StatCard()
         self.card_cache = _StatCard()
-        self.card_cost = _StatCard()
-        for i, card in enumerate((self.card_total, self.card_in, self.card_out,
-                                  self.card_cache, self.card_cost)):
-            cards_grid.addWidget(card, 0, i)
+        self.card_cost = _StatCard().as_hero()
+        # Hero on the left, spanning both rows; the four supporting figures fill
+        # a 2×2 block beside it.
+        cards_grid.addWidget(self.card_cost, 0, 0, 2, 1)
+        for i, card in enumerate((self.card_total, self.card_in,
+                                  self.card_out, self.card_cache)):
+            cards_grid.addWidget(card, i // 2, 1 + i % 2)
         # Budget: remaining/budget, direct entry, auto-warns red past 85% used.
         self.budget_card = _BudgetCard()
         self.budget_card.apply_btn.setIcon(icon("check"))
         self.budget_card.apply_btn.clicked.connect(self._apply_budget)
-        cards_grid.addWidget(self.budget_card, 0, 5)
-        # Equal stretch on every column — otherwise the grid sizes each column
-        # to its widest cell's natural content (Budget's longer "$X / $Y" value
-        # + entry row made its column ~25% wider than the plain stat cards).
-        for col in range(6):
-            cards_grid.setColumnStretch(col, 1)
+        cards_grid.addWidget(self.budget_card, 0, 3, 2, 1)
+        # The hero and Budget columns get more room than the small tiles.
+        for col, stretch in ((0, 3), (1, 2), (2, 2), (3, 3)):
+            cards_grid.setColumnStretch(col, stretch)
         root.addLayout(cards_grid)
 
         # ---- token/cost within the selected period (spline): WEEK → 7 days
@@ -298,8 +312,11 @@ class DashboardTab(QWidget):
         n_points = max(1, len(parts))
         refs = []
         if prev[mi] > 0:
+            # Muted on purpose: the comparison line is a reference, not the
+            # series — it must not compete with the accent-coloured spline.
             refs.append((prev[mi] / n_points,
-                         f"{tr(ref_key)} {self._delta_txt(cur[mi], prev[mi])}", "#B08968"))
+                         f"{tr(ref_key)} {self._delta_txt(cur[mi], prev[mi])}",
+                         current_palette().text_muted))
         self.chart.set_reference_lines(refs)
         self.chart.set_data(pts, fmt, tr(f"dashboard.metric_{metric}"))
         self._chart_period_lbl.setText(ut.period_range_label(gran, self._chart_offset))

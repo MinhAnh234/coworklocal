@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from ..config import CONFIG_DIR
 from ..i18n import on_language_changed, tr
+from ..theme import current_palette
 from .icons import icon, IconLabel
 
 
@@ -451,7 +452,12 @@ class Composer(QWidget):
         self.stop_btn.setObjectName("danger")
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self.stop_requested.emit)
+        # Attach pinned to the input's top edge, Send (and Stop, once a turn
+        # is running) pinned to its bottom edge — the gap between them is
+        # absorbed by this stretch instead of splitting evenly above/below
+        # the whole button column, which is what centering it did before.
         btns.addWidget(self.attach_btn)
+        btns.addStretch(1)
         btns.addWidget(self.send_btn)
         btns.addWidget(self.stop_btn)
         row.addLayout(btns)
@@ -459,11 +465,18 @@ class Composer(QWidget):
 
         # bottom row: left slot (e.g. Cowork's output-folder picker) — stretch —
         # right slot (e.g. Plan/Act toggle, the per-tab Agent combo on Code/Cowork)
+        # Its own strip UNDER the typing box, styled as a status line rather
+        # than a second toolbar: the design asks for the typing area to be just
+        # input · attach · send, with agent / routing / usage / folder reading
+        # as status underneath. They stay interactive — only quieter.
         self._bottom_left_count = 0
-        self.extra_row = QHBoxLayout()
-        self.extra_row.setContentsMargins(0, 0, 0, 0)
+        self.extra_bar = QWidget()
+        self.extra_bar.setObjectName("composerStatus")
+        self.extra_row = QHBoxLayout(self.extra_bar)
+        self.extra_row.setContentsMargins(2, 2, 2, 0)
+        self.extra_row.setSpacing(6)
         self.extra_row.addStretch(1)
-        root.addLayout(self.extra_row)
+        root.addWidget(self.extra_bar)
 
         on_language_changed(self._retranslate)
 
@@ -583,7 +596,10 @@ class Composer(QWidget):
         for p in self._attachments:
             item = QListWidgetItem()
             row = QWidget()
-            row.setStyleSheet("background: rgba(140,146,152,0.18); border-radius: 6px;")
+            _cp = current_palette()
+            row.setStyleSheet(
+                f"background: {_cp.surface_raised}; border: 1px solid {_cp.border};"
+                f" border-radius: {_cp.radius_sm}px;")
             h = QHBoxLayout(row)
             h.setContentsMargins(8, 2, 4, 2)
             h.setSpacing(4)

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="vi" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cấu trúc hệ thống · Cowork Local</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f4; --border:#dbe0e7;
+    --ink:#131a22; --ink-2:#4b5663; --ink-3:#7c8794;
+    --accent:#0e7c86; --accent-ink:#0a5b63; --accent-soft:#e2f2f2;
+    --ok:#157f4a; --warn:#9a5a0e; --crit:#b5322c;
+    --ok-soft:#e4f4ea; --warn-soft:#f8efdd; --crit-soft:#f7e5e3;
+    --mono-bg:#eef2f6; --shadow:0 1px 2px rgba(16,24,32,.06),0 8px 24px -12px rgba(16,24,32,.18);
+    --font-display:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",system-ui,-apple-system,sans-serif;
+    --font-body:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    --font-mono:"Cascadia Code","Cascadia Mono",Consolas,"SF Mono",ui-monospace,monospace;
+    --maxw:920px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1218; --surface:#141c25; --surface-2:#1b2530; --border:#28343f;
+      --ink:#e7edf4; --ink-2:#a2b2c2; --ink-3:#6c7d8e;
+      --accent:#46cfc8; --accent-ink:#8fe9e3; --accent-soft:#14312f;
+      --ok:#47c97e; --warn:#e0a33a; --crit:#f0726b;
+      --ok-soft:#12281c; --warn-soft:#2c2410; --crit-soft:#2e1614;
+      --mono-bg:#0f1720; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f4; --border:#dbe0e7;
+    --ink:#131a22; --ink-2:#4b5663; --ink-3:#7c8794;
+    --accent:#0e7c86; --accent-ink:#0a5b63; --accent-soft:#e2f2f2;
+    --ok:#157f4a; --warn:#9a5a0e; --crit:#b5322c;
+    --ok-soft:#e4f4ea; --warn-soft:#f8efdd; --crit-soft:#f7e5e3; --mono-bg:#eef2f6;
+    --shadow:0 1px 2px rgba(16,24,32,.06),0 8px 24px -12px rgba(16,24,32,.18);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1218; --surface:#141c25; --surface-2:#1b2530; --border:#28343f;
+    --ink:#e7edf4; --ink-2:#a2b2c2; --ink-3:#6c7d8e;
+    --accent:#46cfc8; --accent-ink:#8fe9e3; --accent-soft:#14312f;
+    --ok:#47c97e; --warn:#e0a33a; --crit:#f0726b;
+    --ok-soft:#12281c; --warn-soft:#2c2410; --crit-soft:#2e1614; --mono-bg:#0f1720;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);
+    font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* top bar */
+  header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);
+    backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--border)}
+  .top .wrap{display:flex;align-items:center;gap:18px;height:58px}
+  .brand{font-family:var(--font-mono);font-weight:600;font-size:14px;letter-spacing:.02em;
+    color:var(--ink);display:flex;align-items:center;gap:9px;white-space:nowrap}
+  .brand .dot{width:10px;height:10px;border-radius:2px;background:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft)}
+  nav.doc{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  nav.doc a{font-size:13.5px;color:var(--ink-2);text-decoration:none;padding:7px 12px;border-radius:8px;
+    font-weight:550;white-space:nowrap}
+  nav.doc a:hover{background:var(--surface-2);color:var(--ink)}
+  nav.doc a[aria-current="page"]{background:var(--accent-soft);color:var(--accent-ink)}
+  .toggle{border:1px solid var(--border);background:var(--surface);color:var(--ink-2);
+    width:36px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;display:grid;place-items:center}
+  .toggle:hover{color:var(--ink);border-color:var(--accent)}
+  .toggle:focus-visible,nav.doc a:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* hero */
+  .hero{padding:64px 0 34px}
+  .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent-ink);font-weight:600;margin:0 0 14px}
+  h1{font-family:var(--font-display);font-weight:700;font-size:clamp(2.1rem,5vw,3.1rem);line-height:1.06;
+    letter-spacing:-.02em;margin:0 0 18px;text-wrap:balance}
+  .lead{font-size:1.16rem;color:var(--ink-2);max-width:64ch;margin:0}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+  .tag{font-family:var(--font-mono);font-size:12px;padding:5px 11px;border-radius:999px;
+    background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2)}
+
+  section{padding:34px 0;border-top:1px solid var(--border)}
+  h2{font-family:var(--font-display);font-weight:650;font-size:1.6rem;letter-spacing:-.01em;margin:0 0 6px;
+    display:flex;align-items:baseline;gap:12px;text-wrap:balance}
+  h2 .num{font-family:var(--font-mono);font-size:.85rem;color:var(--accent-ink);font-weight:600}
+  h3{font-family:var(--font-display);font-weight:600;font-size:1.13rem;margin:26px 0 8px;letter-spacing:-.01em}
+  p{margin:.6em 0}
+  .sub{color:var(--ink-2);margin:2px 0 20px;max-width:66ch}
+  a{color:var(--accent-ink);text-underline-offset:3px}
+  strong{font-weight:650;color:var(--ink)}
+  code,.k{font-family:var(--font-mono);font-size:.86em;background:var(--mono-bg);
+    padding:2px 6px;border-radius:6px;border:1px solid var(--border);color:var(--ink)}
+
+  /* layer stack diagram */
+  .stack{display:flex;flex-direction:column;gap:0;margin:24px 0}
+  .layer{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;
+    box-shadow:var(--shadow);position:relative}
+  .layer + .layer{margin-top:26px}
+  .layer + .layer::before{content:"";position:absolute;top:-20px;left:50%;width:2px;height:14px;
+    background:var(--border);transform:translateX(-50%)}
+  .layer + .layer::after{content:"▾";position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+    color:var(--ink-3);font-size:13px}
+  .layer .lh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .layer .lh .tier{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:#fff;background:var(--accent);padding:3px 8px;border-radius:6px;font-weight:600}
+  .layer .lh h4{margin:0;font-family:var(--font-display);font-weight:600;font-size:1.02rem}
+  .layer .lh small{color:var(--ink-3);margin-left:auto;font-size:12.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-family:var(--font-mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:8px;padding:6px 10px;color:var(--ink-2)}
+  .chip b{color:var(--ink);font-weight:600}
+
+  /* cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:8px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 18px;
+    box-shadow:var(--shadow)}
+  .card h4{margin:0 0 6px;font-family:var(--font-display);font-size:1.04rem;font-weight:600;
+    display:flex;align-items:center;gap:9px}
+  .card h4 .ic{width:26px;height:26px;border-radius:7px;background:var(--accent-soft);color:var(--accent-ink);
+    display:grid;place-items:center;font-size:14px;flex:none}
+  .card p{margin:0;color:var(--ink-2);font-size:14.5px}
+  .card .files{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+  .card .files code{font-size:11.5px}
+
+  /* flow steps */
+  .flow{display:flex;flex-direction:column;gap:10px;margin:18px 0;counter-reset:fl}
+  .flow li{list-style:none;display:flex;gap:14px;align-items:flex-start;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;padding:13px 15px}
+  .flow li::before{counter-increment:fl;content:counter(fl);font-family:var(--font-mono);font-weight:600;
+    font-size:13px;color:var(--accent-ink);background:var(--accent-soft);border-radius:8px;
+    width:28px;height:28px;display:grid;place-items:center;flex:none}
+  .flow b{color:var(--ink)}
+  .flow small{color:var(--ink-3);display:block;font-size:13px}
+
+  .note{border:1px solid var(--border);border-left:3px solid var(--accent);background:var(--surface);
+    border-radius:0 12px 12px 0;padding:14px 16px;margin:18px 0;font-size:14.5px;color:var(--ink-2)}
+  .note b{color:var(--ink)}
+
+  footer{border-top:1px solid var(--border);padding:34px 0 60px;color:var(--ink-3);font-size:13.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--ink-2)}
+  @media (max-width:560px){.brand span.full{display:none}.hero{padding:40px 0 24px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="brand"><span class="dot"></span>cowork_local<span class="full">&nbsp;· docs</span></span>
+  <nav class="doc" aria-label="Tài liệu">
+    <a href="architecture.html" aria-current="page">Cấu trúc</a>
+    <a href="security.html">Bảo mật</a>
+    <a href="usage.html">Cách dùng</a>
+  </nav>
+  <button class="toggle" id="themeBtn" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện">◐</button>
+</div></header>
+
+<main>
+<div class="wrap hero">
+  <p class="eyebrow">Cowork Local · Tài liệu kỹ thuật</p>
+  <h1>Cấu trúc hệ thống</h1>
+  <p class="lead">Trợ lý AI dạng agent chạy <strong>cục bộ trên máy</strong> (desktop, ưu tiên Windows). Người dùng trò chuyện, chạy luồng nhiều bước, thao tác tệp và lên lịch tác vụ — mọi thứ được bọc trong một khung bảo mật nhiều lớp.</p>
+  <div class="meta">
+    <span class="tag">PySide6 / Qt6</span>
+    <span class="tag">Local-first</span>
+    <span class="tag">Provider-agnostic</span>
+    <span class="tag">~53K dòng Python</span>
+    <span class="tag">Windows · macOS · Linux</span>
+  </div>
+</div>
+
+<section class="wrap">
+  <h2><span class="num">01</span> Tổng quan &amp; nguyên tắc</h2>
+  <p class="sub">Bốn nguyên tắc định hình toàn bộ kiến trúc.</p>
+  <div class="grid">
+    <div class="card"><h4><span class="ic">▤</span>Local-first</h4><p>Cấu hình, lịch sử hội thoại, workspace và nhật ký đều nằm trên máy người dùng. Chỉ lệnh gọi mô hình mới ra ngoài.</p></div>
+    <div class="card"><h4><span class="ic">⛨</span>Bảo mật nhiều lớp</h4><p>Mọi tool có tác động (chạy lệnh, ghi tệp, tải URL) đi qua chuỗi kiểm soát fail-closed; xem tài liệu <a href="security.html">Bảo mật</a>.</p></div>
+    <div class="card"><h4><span class="ic">⧉</span>Đa workspace</h4><p>Nhiều project chạy song song, mỗi project nhiều hội thoại Cowork và nhiều luồng Co4E — không cái nào chặn cái nào.</p></div>
+    <div class="card"><h4><span class="ic">⇄</span>Provider-agnostic</h4><p>Nhiều nhà cung cấp mô hình (OpenAI-compatible…), tự động định tuyến chọn mô hình phù hợp trong số các model được bật.</p></div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2><span class="num">02</span> Ngăn xếp công nghệ</h2>
+  <p class="sub">Những thư viện/thành phần chủ chốt và vai trò của chúng.</p>
+  <div class="chips">
+    <span class="chip"><b>PySide6/Qt6</b> · toàn bộ giao diện, đa luồng QThread</span>
+    <span class="chip"><b>FastAPI + uvicorn</b> · Routing API (chỉ localhost)</span>
+    <span class="chip"><b>MCP</b> · kết nối công cụ ngoài (Model Context Protocol)</span>
+    <span class="chip"><b>MSAL</b> · đăng nhập Microsoft 365</span>
+    <span class="chip"><b>openpyxl / python-pptx</b> · đọc Office</span>
+    <span class="chip"><b>opendataloader-pdf</b> · trích xuất PDF</span>
+    <span class="chip"><b>networkx</b> · đồ thị cấu trúc (GraphRAG)</span>
+    <span class="chip"><b>keyring</b> · lưu bí mật qua OS</span>
+    <span class="chip"><b>ctypes / Win32</b> · sandbox AppContainer &amp; Job Object</span>
+    <span class="chip"><b>Pygments</b> · tô màu mã nguồn</span>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2><span class="num">03</span> Kiến trúc phân lớp</h2>
+  <p class="sub">Một yêu cầu đi từ giao diện xuống lớp thực thi rồi ra ngoài — mỗi lớp có trách nhiệm rõ ràng.</p>
+  <div class="stack">
+    <div class="layer">
+      <div class="lh"><span class="tier">UI</span><h4>Lớp giao diện — PySide6</h4><small>người dùng thao tác</small></div>
+      <div class="chips">
+        <span class="chip">MainWindow</span><span class="chip">WorkspaceTab / WorkspacePane</span>
+        <span class="chip">CoworkTab (chat)</span><span class="chip">Co4ETab (flow canvas)</span>
+        <span class="chip">FolderTab</span><span class="chip">ScheduleTaskTab</span>
+        <span class="chip">MonitoringTab → Security</span><span class="chip">SettingsDialog</span>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lh"><span class="tier">Agent</span><h4>Lớp agent / lõi thực thi</h4><small>điều phối lượt chạy</small></div>
+      <div class="chips">
+        <span class="chip"><b>chat_agent</b> · run_cowork</span>
+        <span class="chip"><b>code_agent</b> · run_code</span>
+        <span class="chip"><b>co4e_runner</b> · run_workflow</span>
+        <span class="chip"><b>task_executors</b> · tác vụ theo lịch</span>
+        <span class="chip"><b>model_routing</b> · assess &amp; chọn model</span>
+        <span class="chip"><b>agent_security</b> · guardrail</span>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lh"><span class="tier">Tool</span><h4>Lớp công cụ &amp; sandbox</h4><small>ranh giới tin cậy</small></div>
+      <div class="chips">
+        <span class="chip"><b>ToolContext</b> · confine đường dẫn + scope</span>
+        <span class="chip">execute_tool</span>
+        <span class="chip">read/write/edit/list_dir</span>
+        <span class="chip">run_command · install_package</span>
+        <span class="chip">fetch_url · jira</span>
+        <span class="chip"><b>SandboxManager</b> + backends</span>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lh"><span class="tier">Provider</span><h4>Lớp nhà cung cấp mô hình</h4><small>gọi ra mạng an toàn</small></div>
+      <div class="chips">
+        <span class="chip">providers/* (OpenAI-compatible…)</span>
+        <span class="chip"><b>tls_trust</b> · phục hồi TLS gateway</span>
+        <span class="chip">usage_tracker · đo token/chi phí</span>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lh"><span class="tier">Ngoài</span><h4>Dịch vụ bên ngoài</h4><small>không tin cậy mặc định</small></div>
+      <div class="chips">
+        <span class="chip">LLM APIs</span><span class="chip">MCP servers</span>
+        <span class="chip">Microsoft 365</span><span class="chip">Jira</span><span class="chip">Web (fetch_url)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2><span class="num">04</span> Các subsystem chính</h2>
+  <p class="sub">Mỗi khối là một tính năng lớn người dùng thấy được, ánh xạ tới module tương ứng.</p>
+  <div class="grid">
+    <div class="card"><h4><span class="ic">▦</span>Workspaces &amp; Projects</h4><p>Nhiều project song song, mỗi cái một pane riêng với sandbox bật/tắt để tiết kiệm tài nguyên.</p><div class="files"><code>workspace_tab.py</code><code>workspace_pane.py</code></div></div>
+    <div class="card"><h4><span class="ic">💬</span>Cowork · đa hội thoại</h4><p>Nhiều hội thoại trong một project; lượt chạy nền giữ đúng hội thoại gốc kể cả khi bạn chuyển tab.</p><div class="files"><code>chat_panel.py</code><code>cowork_tab.py</code></div></div>
+    <div class="card"><h4><span class="ic">◈</span>Co4E flows</h4><p>Canvas nhiều bước, agent tùy biến, chế độ auto/plan/manual, chạy song song &amp; theo dõi ở Flow Status.</p><div class="files"><code>co4e_tab.py</code><code>co4e_runner.py</code></div></div>
+    <div class="card"><h4><span class="ic">⇉</span>Model routing</h4><p>Tự đánh giá &amp; chọn mô hình tốt nhất trong số model được bật theo policy (chất lượng/chi phí/độ trễ).</p><div class="files"><code>core/routing/*</code></div></div>
+    <div class="card"><h4><span class="ic">⛨</span>Sandbox</h4><p>Chọn backend theo mức rủi ro: best-effort → AppContainer → Windows Sandbox VM.</p><div class="files"><code>sandbox_manager.py</code><code>appcontainer_sandbox.py</code></div></div>
+    <div class="card"><h4><span class="ic">⏱</span>Scheduler</h4><p>Tác vụ theo lịch (Cowork/Code/Flow), phụ thuộc chuỗi, opt-in chạy lệnh.</p><div class="files"><code>task_scheduler.py</code><code>task_executors.py</code></div></div>
+    <div class="card"><h4><span class="ic">📊</span>Monitoring</h4><p>Tổng quan chi phí, nhật ký sự kiện/bảo mật, quản trị Tool/Agent, trang Security.</p><div class="files"><code>monitoring_tab.py</code></div></div>
+    <div class="card"><h4><span class="ic">🗄</span>Lưu trữ</h4><p>Cấu hình + lịch sử theo project + workspace + audit log, tất cả trên máy.</p><div class="files"><code>config.py</code><code>core/history.py</code></div></div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2><span class="num">05</span> Mô hình đồng thời</h2>
+  <p class="sub">Vì sao nhiều lượt chạy song song không giẫm chân nhau.</p>
+  <h3>Cô lập theo lượt (per-turn)</h3>
+  <p>Mỗi lượt chat chạy trong một <code>AgentWorker</code> (QThread) riêng. Tại thời điểm bắt đầu, lượt chụp lại bối cảnh <span class="k">home_*</span> (id hội thoại, thư mục làm việc, project) — nên dù người dùng chuyển sang hội thoại khác, lượt nền vẫn ghi kết quả về <strong>đúng hội thoại gốc</strong> và quét đúng thư mục của nó.</p>
+  <h3>Quản lý luồng Co4E dùng chung</h3>
+  <p>Một <code>Co4ERunManager</code> duy nhất phục vụ mọi pane, mỗi run gắn <span class="k">project_id</span> để lọc. Khi dừng một worker bị treo, nó được "park" giữ tham chiếu (không GC luồng đang chạy → tránh crash <em>QThread destroyed while running</em>).</p>
+  <div class="note"><b>Cách ly dừng (Stop):</b> nút Stop chỉ tác động lên các worker của <em>chính</em> hội thoại đó và xóa hàng đợi của riêng nó — dừng ở hội thoại này không ảnh hưởng hội thoại khác.</div>
+</section>
+
+<section class="wrap">
+  <h2><span class="num">06</span> Luồng dữ liệu một lượt chat</h2>
+  <p class="sub">Từ tin nhắn người dùng đến kết quả — mỗi bước là một điểm kiểm soát.</p>
+  <ol class="flow">
+    <li><div><b>Tin nhắn + đính kèm</b><small>Người dùng gửi; tệp/thư mục workspace được nạp qua <code>_augment</code>.</small></div></li>
+    <li><div><b>Bọc nội dung không tin cậy</b><small>Nội dung tệp/web/tool được rào trong khối <span class="k">UNTRUSTED DATA</span> — model coi là dữ liệu, không phải mệnh lệnh.</small></div></li>
+    <li><div><b>Định tuyến mô hình</b><small>Auto Routing có thể chọn mô hình phù hợp trong số model được bật.</small></div></li>
+    <li><div><b>Gọi provider</b><small><code>provider.chat()</code> qua <code>tls_trust</code>; usage_tracker ghi token/chi phí theo hội thoại gốc.</small></div></li>
+    <li><div><b>Model gọi tool</b><small>Mỗi tool qua: kiểm scope ở executor → human-gate (nếu bật) → classifier → sandbox.</small></div></li>
+    <li><div><b>Kết quả &amp; lưu</b><small>Văn bản/diff hiện realtime; hội thoại lưu vào <code>.cowork_history</code> của project.</small></div></li>
+  </ol>
+</section>
+
+<section class="wrap">
+  <h2><span class="num">07</span> Lưu trữ trên máy</h2>
+  <p class="sub">Dữ liệu nằm ở đâu.</p>
+  <div class="chips">
+    <span class="chip"><b>~/.cowork_local/config.json</b> · cấu hình (perm 0o600)</span>
+    <span class="chip"><b>&lt;project&gt;/.cowork_history</b> · hội thoại theo project</span>
+    <span class="chip"><b>workspaces/</b> · thư mục làm việc mỗi project</span>
+    <span class="chip"><b>audit log</b> · mọi tool-call &amp; quyết định quyền (lưu hash lệnh)</span>
+    <span class="chip"><b>trusted_certs/</b> · cert gateway đã pin</span>
+    <span class="chip"><b>appcontainer_grants.json</b> · cache cấp quyền sandbox</span>
+  </div>
+  <div class="note">Vị trí lịch sử có thể trỏ vào thư mục đồng bộ OneDrive — tiện chia sẻ, nhưng lưu ý dữ liệu tệp đã nạp sẽ được sao lên cloud dạng plaintext. Xem khuyến nghị ở tài liệu <a href="security.html">Bảo mật</a>.</div>
+</section>
+</main>
+
+<footer><div class="wrap">
+  <span>Cowork Local — tài liệu nội bộ · Cấu trúc hệ thống</span>
+  <span><a href="security.html">Bảo mật →</a> &nbsp; <a href="usage.html">Cách dùng →</a></span>
+</div></footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, key="cowork_docs_theme";
+    var saved=null; try{saved=localStorage.getItem(key)}catch(e){}
+    if(saved==="dark"||saved==="light") root.setAttribute("data-theme",saved);
+    else root.removeAttribute("data-theme");
+    document.getElementById("themeBtn").addEventListener("click",function(){
+      var cur=root.getAttribute("data-theme");
+      if(!cur){ // currently following OS → flip to opposite of OS
+        cur=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+      }
+      var next=cur==="dark"?"light":"dark";
+      root.setAttribute("data-theme",next);
+      try{localStorage.setItem(key,next)}catch(e){}
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+services:
+  cowork-desktop:
+    image: python:3.11-slim-bookworm
+    container_name: cowork-local-desktop-preview
+    working_dir: /workspace
+    volumes:
+      - /workspace:/workspace:Z
+      - pip-cache:/root/.cache/pip:Z
+    ports:
+      - "6080:6080"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      QT_QPA_PLATFORM: "vnc:size=1280x800:depth=32"
+      QT_QPA_VNC_HOST: "127.0.0.1"
+      QT_QPA_VNC_PORT: "5900"
+      QSG_RHI_BACKEND: "software"
+      PYTHONPATH: "/opt"
+    entrypoint: ["/bin/sh", "/workspace/.vibeflow-preview/entrypoint.sh"]
+    command: []
+    restart: unless-stopped
+
+volumes:
+  pip-cache: {}

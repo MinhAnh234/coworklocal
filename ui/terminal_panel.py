@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..i18n import on_language_changed, tr
+from ..theme import current_palette
 from .icons import icon
 
 _IS_WIN = sys.platform == "win32"
@@ -75,8 +76,10 @@ class TerminalPanel(QWidget):
         # ---- header (always visible; click to expand/collapse) --------------
         self._header = QFrame()
         self._header.setObjectName("termHeader")
+        _tp = current_palette()
         self._header.setStyleSheet(
-            "#termHeader { background: rgba(0,0,0,0.06); border-radius: 6px; }")
+            f"#termHeader {{ background: {_tp.surface};"
+            f" border-radius: {_tp.radius}px; }}")
         hb = QHBoxLayout(self._header)
         hb.setContentsMargins(8, 4, 8, 4)
         self._toggle_btn = QPushButton()
@@ -107,8 +110,7 @@ class TerminalPanel(QWidget):
         mono.setStyleHint(QFont.Monospace)
         mono.setPointSize(10)
         self.output.setFont(mono)
-        self.output.setStyleSheet(
-            "#termOutput { background: #1e1e1e; color: #d4d4d4; border: none; }")
+        # Surface comes from the central style sheet (#termOutput) — see theme.py.
         self.output.setMinimumHeight(160)
         bl.addWidget(self.output, 1)
 
@@ -119,9 +121,7 @@ class TerminalPanel(QWidget):
         self.input = _TermInput()
         self.input.setObjectName("termInput")
         self.input.setFont(mono)
-        self.input.setStyleSheet(
-            "#termInput { background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; "
-            "border-radius: 6px; padding: 4px 8px; }")
+        # Surface comes from the central style sheet (#termInput) — see theme.py.
         self.input.returnPressed.connect(self._run_current)
         self.input.complete_requested.connect(self._complete)
         self.input.history_prev.connect(lambda: self._history_move(-1))
@@ -282,11 +282,12 @@ class TerminalPanel(QWidget):
         if not text:
             return
         from PySide6.QtGui import QColor, QTextCursor
-        colors = {"cmd": "#4ec9b0", "err": "#f48771", "ok": "#6a9955", "out": "#d4d4d4"}
+        p = current_palette()
+        colors = {"cmd": p.code_type, "err": p.code_error, "ok": p.code_comment, "out": p.code_fg}
         cursor = self.output.textCursor()
         cursor.movePosition(QTextCursor.End)
         fmt = cursor.charFormat()
-        fmt.setForeground(QColor(colors.get(role, "#d4d4d4")))
+        fmt.setForeground(QColor(colors.get(role, p.code_fg)))
         cursor.setCharFormat(fmt)
         cursor.insertText(text)
         self.output.setTextCursor(cursor)

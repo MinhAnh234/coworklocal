@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
+from ..theme import current_palette
 from .chat_view import ChatView
 from .icons import icon
 from .libreoffice_view import DOC_SUFFIXES
@@ -89,23 +90,26 @@ class PygmentsHighlighter(QSyntaxHighlighter):
         from pygments.token import (
             Comment, Error, Keyword, Name, Number, Operator, Punctuation, String,
         )
+        p = current_palette()
         # Ordered specific → general: first matching token type wins.
+        # Colours are resolved when the editor is built, so reopening a file
+        # after a theme switch re-highlights it in the new theme.
         return [
-            (Comment, _fmt("#6A9955", italic=True)),
-            (Keyword.Type, _fmt("#4EC9B0")),
-            (Keyword, _fmt("#569CD6")),
-            (Name.Function, _fmt("#DCDCAA")),
-            (Name.Class, _fmt("#4EC9B0")),
-            (Name.Decorator, _fmt("#DCDCAA")),
-            (Name.Builtin, _fmt("#4EC9B0")),
-            (Name.Tag, _fmt("#569CD6")),
-            (Name.Attribute, _fmt("#9CDCFE")),
-            (String.Doc, _fmt("#6A9955", italic=True)),
-            (String, _fmt("#CE9178")),
-            (Number, _fmt("#B5CEA8")),
-            (Operator, _fmt("#D4D4D4")),
-            (Punctuation, _fmt("#D4D4D4")),
-            (Error, _fmt("#F44747")),
+            (Comment, _fmt(p.code_comment, italic=True)),
+            (Keyword.Type, _fmt(p.code_type)),
+            (Keyword, _fmt(p.code_keyword)),
+            (Name.Function, _fmt(p.code_func)),
+            (Name.Class, _fmt(p.code_type)),
+            (Name.Decorator, _fmt(p.code_func)),
+            (Name.Builtin, _fmt(p.code_type)),
+            (Name.Tag, _fmt(p.code_keyword)),
+            (Name.Attribute, _fmt(p.code_attr)),
+            (String.Doc, _fmt(p.code_comment, italic=True)),
+            (String, _fmt(p.code_string)),
+            (Number, _fmt(p.code_number)),
+            (Operator, _fmt(p.code_fg)),
+            (Punctuation, _fmt(p.code_fg)),
+            (Error, _fmt(p.code_error)),
         ]
 
     def set_filename(self, filename: str, text: str = "") -> None:
@@ -179,9 +183,7 @@ class CodeEditor(QPlainTextEdit):
         font.setStyleHint(QFont.Monospace)
         font.setPointSize(10)
         self.setFont(font)
-        self.setStyleSheet(
-            "#codeEditor { background: #1e1e1e; color: #d4d4d4; border: none; "
-            "selection-background-color: #264f78; }")
+        # Surface comes from the central style sheet (#codeEditor) — see theme.py.
         self._gutter = _LineNumbers(self)
         self.blockCountChanged.connect(lambda _=0: self._update_gutter_width())
         self.updateRequest.connect(self._on_update_request)
@@ -210,13 +212,14 @@ class CodeEditor(QPlainTextEdit):
         self._gutter.setGeometry(QRect(cr.left(), cr.top(), self.line_number_width(), cr.height()))
 
     def paint_line_numbers(self, event) -> None:
+        p = current_palette()
         painter = QPainter(self._gutter)
-        painter.fillRect(event.rect(), QColor("#1a1a1a"))
+        painter.fillRect(event.rect(), QColor(p.code_gutter_bg))
         block = self.firstVisibleBlock()
         num = block.blockNumber()
         top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
         bottom = top + self.blockBoundingRect(block).height()
-        painter.setPen(QColor("#858585"))
+        painter.setPen(QColor(p.code_gutter_fg))
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 painter.drawText(0, int(top), self._gutter.width() - 6,
@@ -258,14 +261,20 @@ class FolderTab(QWidget):
 
         root = QVBoxLayout(self)
 
+        # The path IS the title of this screen, so it is written as one rather
+        # than shown in a read-only text box that looks editable and costs a
+        # whole row of its own. Full path on hover; the button still opens the
+        # folder picker.
         bar = QHBoxLayout()
-        self.path_edit = QLineEdit(self._root)
-        self.path_edit.setReadOnly(True)
+        self.path_lbl = QLabel(self._root)
+        self.path_lbl.setObjectName("folderTitle")
+        self.path_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.path_lbl.setToolTip(self._root)
         self._open_btn = QPushButton()
         self._open_btn.setIcon(icon("folder"))
         self._open_btn.setObjectName("primary")
         self._open_btn.clicked.connect(self._pick_root)
-        bar.addWidget(self.path_edit, 1)
+        bar.addWidget(self.path_lbl, 1)
         bar.addWidget(self._open_btn)
         root.addLayout(bar)
 
@@ -380,7 +389,8 @@ class FolderTab(QWidget):
         if not p or not os.path.isdir(p):
             return
         self._root = p
-        self.path_edit.setText(p)
+        self.path_lbl.setText(p)
+        self.path_lbl.setToolTip(p)
         self.model.setRootPath(p)
         self.tree.setRootIndex(self.model.index(p))
         if getattr(self, "terminal", None) is not None:
@@ -1096,7 +1106,7 @@ class FolderTab(QWidget):
         if n and hasattr(self, "_ai_status"):
             self._ai_status.setText("⏳ " + tr("folder.ai_status_running")
                                     + "  ·  " + tr("folder.ai_queue_count", n=n))
-            self._ai_status.setStyleSheet("color:#0096C7;")
+            self._ai_status.setStyleSheet(f"color:{current_palette().accent};")
 
     def _ai_maybe_dequeue(self) -> None:
         """When the pipeline is fully idle, start the next queued instruction."""
@@ -1308,7 +1318,7 @@ class FolderTab(QWidget):
         name = target if create else getattr(self, "_ai_running_file", "")
         self.status_message.emit(tr("folder.ai_proposed_status", name=name))
         self._ai_status.setText("● " + hint)
-        self._ai_status.setStyleSheet("color:#c77d00;")
+        self._ai_status.setStyleSheet(f"color:{current_palette().warning};")
 
     def _ai_apply(self) -> None:
         """Confirmed by the user. If the edit GENERATES images, ask the image
@@ -1464,7 +1474,7 @@ class FolderTab(QWidget):
         self.ai_send_btn.setEnabled(not busy)
         if busy:
             self._ai_status.setText("⏳ " + tr("folder.ai_status_running"))
-            self._ai_status.setStyleSheet("color:#0096C7;")
+            self._ai_status.setStyleSheet(f"color:{current_palette().accent};")
             self.ai_btn.setText(tr("folder.ai_edit") + " ⏳")   # visible even when collapsed
         else:
             self._ai_status.setText("")
@@ -1478,7 +1488,7 @@ class FolderTab(QWidget):
             self._ai_maybe_dequeue()
             return
         self._ai_status.setText("✓ " + tr("folder.ai_status_done"))
-        self._ai_status.setStyleSheet("color:#1f9d63;")
+        self._ai_status.setStyleSheet(f"color:{current_palette().success};")
         if not self.ai_btn.isChecked() or self._ai_panel.isHidden():
             self.ai_btn.setText(tr("folder.ai_edit") + " ✓")
 
@@ -1489,7 +1499,9 @@ class FolderTab(QWidget):
                               else tr("folder.preview"))
 
     def _retranslate(self) -> None:
-        self.path_edit.setPlaceholderText(tr("folder.path_placeholder"))
+        # The label always shows a real path, so the placeholder became a
+        # tooltip hint on the button that changes it.
+        self._open_btn.setToolTip(tr("folder.path_placeholder"))
         self._open_btn.setText(tr("folder.open_folder"))
         self.save_btn.setText(tr("folder.save"))
         self.ext_btn.setText(tr("folder.open_external"))

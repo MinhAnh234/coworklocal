@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tìm hiểu RAG — Hỏi &amp; Đáp</title>
+<style>
+:root{
+  --navy:#1B3C87; --blue:#0A4EA3; --acc:#1565C0; --acc2:#4A90D9;
+  --bg:#fff; --sf:#F7F9FC; --card:#fff; --bd:#E3E8EF; --bds:#CBD5E1;
+  --tx:#2B3542; --mut:#5A6675; --fnt:#8A94A3;
+  --ok:#1B7A3D; --okbg:#E8F5EC; --warn:#B26A00; --warnbg:#FDF3E3;
+  --bad:#C0392B; --badbg:#FCEDEC; --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+  font:15px/1.6 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+.bar{background:var(--navy);color:#fff;padding:12px 28px;font-weight:700;font-size:16px;
+  display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:9}
+.bar .sub{font-weight:400;opacity:.85;font-size:13px}
+.wrap{max-width:1060px;margin:0 auto;padding:28px 28px 80px}
+h1{color:var(--blue);font-size:30px;margin:14px 0 6px;letter-spacing:-.02em}
+h2{color:var(--blue);font-size:20px;margin:40px 0 4px;padding-top:18px;
+  border-top:2px solid var(--bd)}
+.lead{color:var(--mut);margin:0 0 8px}
+.qa{border:1px solid var(--bd);border-radius:var(--r);margin:14px 0;background:var(--card);
+  box-shadow:0 1px 2px rgba(16,32,64,.04)}
+.q{padding:13px 18px;font-weight:700;color:var(--blue);font-size:15.5px;
+  display:flex;gap:10px;align-items:flex-start}
+.q .n{background:var(--acc);color:#fff;border-radius:5px;min-width:26px;height:22px;
+  display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.a{padding:0 18px 15px 54px;color:var(--tx)}
+.a p{margin:0 0 8px}
+.a ul{margin:6px 0;padding-left:20px}.a li{margin:3px 0}
+b{color:var(--blue)}
+code{font:13px "Cascadia Code",Consolas,monospace;background:var(--sf);
+  border:1px solid var(--bd);border-radius:4px;padding:1px 5px;color:#0F3D6E}
+.note{border-left:4px solid var(--acc);background:#EAF2FC;border-radius:6px;
+  padding:10px 14px;margin:10px 0}
+.note.ok{border-left-color:var(--ok);background:var(--okbg)}
+.note.warn{border-left-color:var(--warn);background:var(--warnbg)}
+.note.bad{border-left-color:var(--bad);background:var(--badbg)}
+figure{margin:12px 0;padding:14px;background:var(--sf);border:1px solid var(--bd);
+  border-radius:var(--r)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{color:var(--fnt);font-size:12.5px;margin-top:8px;text-align:center}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{text-align:left;padding:7px 11px;border-bottom:1px solid var(--bd);vertical-align:top}
+th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.toc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:14px 20px}
+.toc ol{margin:6px 0;padding-left:20px;columns:2;column-gap:32px;font-size:14px}
+.toc a{color:var(--tx);text-decoration:none}.toc a:hover{color:var(--acc)}
+@media(max-width:820px){.toc ol{columns:1}.a{padding-left:18px}}
+</style>
+</head>
+<body>
+<div class="bar"><span>Tìm hiểu RAG — Hỏi &amp; Đáp</span>
+<span class="sub">Chuẩn bị cho phần Q&amp;A sau buổi trình bày</span></div>
+<div class="wrap">
+
+<h1>Những câu hay được hỏi nhất</h1>
+<p class="lead">20 câu, xếp từ dễ tới khó. Năm câu cuối là về chính dự án Cowork-Local —
+nhóm câu này gần như chắc chắn sẽ có người hỏi.</p>
+
+<div class="toc"><b>Nội dung</b>
+<ol>
+<li><a href="#q1">RAG là gì, nói gọn trong một câu?</a></li>
+<li><a href="#q2">RAG khác fine-tuning thế nào?</a></li>
+<li><a href="#q3">RAG có xoá hết bịa đặt không?</a></li>
+<li><a href="#q4">Vector là gì mà so sánh được nghĩa?</a></li>
+<li><a href="#q5">Chia đoạn bao nhiêu chữ là đúng?</a></li>
+<li><a href="#q6">Overlap để làm gì?</a></li>
+<li><a href="#q7">top-K nên đặt bao nhiêu?</a></li>
+<li><a href="#q8">Chọn mô hình embedding thế nào? Tiếng Việt thì sao?</a></li>
+<li><a href="#q9">Bắt buộc phải có Vector DB không?</a></li>
+<li><a href="#q10">Chỉ tìm theo vector đã đủ chưa?</a></li>
+<li><a href="#q11">Câu hỏi cần nối nhiều tài liệu thì sao?</a></li>
+<li><a href="#q12">Context window đã 1 triệu token, còn cần RAG?</a></li>
+<li><a href="#q13">Chi phí thực tế bao nhiêu?</a></li>
+<li><a href="#q14">RAG làm chậm bao nhiêu?</a></li>
+<li><a href="#q15">Tài liệu sửa thì cập nhật thế nào?</a></li>
+<li><a href="#q16">Đo chất lượng RAG bằng gì?</a></li>
+<li><a href="#q17">Phân quyền tài liệu xử lý ra sao?</a></li>
+<li><a href="#q18">Cowork-Local đã có RAG chưa?</a></li>
+<li><a href="#q19">GraphRAG của dự án có phải GraphRAG của Microsoft?</a></li>
+<li><a href="#q20">Muốn nâng lên RAG đầy đủ cần làm gì?</a></li>
+</ol></div>
+
+<h2>Nhóm 1 — Khái niệm</h2>
+
+<div class="qa" id="q1"><div class="q"><span class="n">1</span>
+RAG là gì, nói gọn trong một câu?</div>
+<div class="a">
+<p><b>Tìm tài liệu liên quan trước, rồi đưa cho LLM đọc và trả lời dựa trên đó</b> — thay vì
+để LLM trả lời bằng trí nhớ có sẵn.</p>
+<p>Ví von: thay vì bắt thí sinh làm bài từ trí nhớ, ta cho <i>thi mở sách</i> — nhưng có
+thủ thư lật sẵn đúng trang cần đọc.</p>
+</div></div>
+
+<div class="qa" id="q2"><div class="q"><span class="n">2</span>
+RAG khác fine-tuning thế nào? Khi nào dùng cái nào?</div>
+<div class="a">
+<figure>
+<svg viewBox="0 0 720 190" role="img" aria-label="So sánh RAG và fine-tuning">
+<rect x="8" y="14" width="340" height="162" rx="8" fill="#EAF2FC" stroke="#1565C0"/>
+<text x="26" y="40" font-size="15" font-weight="700" fill="#0A4EA3">RAG — đưa thêm tài liệu</text>
+<rect x="26" y="56" width="86" height="34" rx="5" fill="#fff" stroke="#4A90D9"/>
+<text x="69" y="77" font-size="12" text-anchor="middle" fill="#2B3542">Câu hỏi</text>
+<path d="M116 73 h22" stroke="#5A6675" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="142" y="56" width="94" height="34" rx="5" fill="#fff" stroke="#4A90D9"/>
+<text x="189" y="72" font-size="11" text-anchor="middle" fill="#2B3542">Tìm tài liệu</text>
+<text x="189" y="84" font-size="10" text-anchor="middle" fill="#5A6675">top-K đoạn</text>
+<path d="M240 73 h22" stroke="#5A6675" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="266" y="56" width="66" height="34" rx="5" fill="#1565C0"/>
+<text x="299" y="77" font-size="12" text-anchor="middle" fill="#fff">LLM</text>
+<text x="26" y="116" font-size="12" fill="#2B3542">✔ Cập nhật tức thì — chỉ re-index</text>
+<text x="26" y="136" font-size="12" fill="#2B3542">✔ Trích được nguồn</text>
+<text x="26" y="156" font-size="12" fill="#2B3542">✔ Rẻ, không cần GPU train</text>
+<rect x="372" y="14" width="340" height="162" rx="8" fill="#FDF3E3" stroke="#B26A00"/>
+<text x="390" y="40" font-size="15" font-weight="700" fill="#8A5000">Fine-tune — dạy lại mô hình</text>
+<rect x="390" y="56" width="96" height="34" rx="5" fill="#fff" stroke="#D9A24A"/>
+<text x="438" y="72" font-size="11" text-anchor="middle" fill="#2B3542">Dữ liệu mẫu</text>
+<text x="438" y="84" font-size="10" text-anchor="middle" fill="#5A6675">hàng nghìn cặp</text>
+<path d="M490 73 h22" stroke="#5A6675" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="516" y="56" width="80" height="34" rx="5" fill="#fff" stroke="#D9A24A"/>
+<text x="556" y="77" font-size="12" text-anchor="middle" fill="#2B3542">Huấn luyện</text>
+<path d="M600 73 h22" stroke="#5A6675" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="626" y="56" width="70" height="34" rx="5" fill="#B26A00"/>
+<text x="661" y="77" font-size="12" text-anchor="middle" fill="#fff">Model mới</text>
+<text x="390" y="116" font-size="12" fill="#2B3542">✔ Dạy được <i>văn phong</i>, định dạng</text>
+<text x="390" y="136" font-size="12" fill="#2B3542">✔ Dạy được kỹ năng chuyên ngành</text>
+<text x="390" y="156" font-size="12" fill="#2B3542">✘ Kiến thức mới → phải train lại</text>
+<defs><marker id="ar" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+<path d="M0 0 L7 3.5 L0 7 z" fill="#5A6675"/></marker></defs>
+</svg>
+<figcaption>RAG thêm <i>kiến thức</i>. Fine-tune thay đổi <i>hành vi</i>.</figcaption>
+</figure>
+<p><b>Quy tắc chọn:</b> câu trả lời phụ thuộc <i>nội dung tài liệu</i> → RAG.
+Phụ thuộc <i>cách nói / định dạng / kỹ năng</i> → fine-tune. Cần cả hai thì làm cả hai.</p>
+<div class="note">Đa số bài toán doanh nghiệp là loại thứ nhất, nên RAG hầu như luôn là
+bước làm trước.</div>
+</div></div>
+
+<div class="qa" id="q3"><div class="q"><span class="n">3</span>
+RAG có xoá hết bịa đặt (hallucination) không?</div>
+<div class="a">
+<p><b>Không. Chỉ giảm mạnh.</b> Đây là câu dễ bị hỏi vặn nhất, nên trả lời thẳng.</p>
+<p>RAG vẫn sai được ở bốn chỗ:</p>
+<ul>
+<li><b>Tra sai đoạn</b> — lấy nhầm tài liệu, LLM trả lời trung thực trên tài liệu sai.</li>
+<li><b>Không có trong kho</b> — LLM vẫn cố trả lời thay vì nói "không tìm thấy".</li>
+<li><b>Đọc đúng nhưng suy diễn thêm</b> — thêm chi tiết không có trong đoạn trích.</li>
+<li><b>Tài liệu gốc đã sai</b> — RAG không kiểm chứng nội dung.</li>
+</ul>
+<div class="note warn">Cách khắc phục thực dụng: bắt LLM <b>trích dẫn đoạn nguồn</b> cho từng ý,
+và cho phép trả lời <b>"không tìm thấy trong tài liệu"</b>. Slide "Ưu điểm" nên nói
+<i>giảm</i> hallucination, không nói <i>hết</i>.</div>
+</div></div>
+
+<div class="qa" id="q4"><div class="q"><span class="n">4</span>
+Vector là gì mà so sánh được "nghĩa giống nhau"?</div>
+<div class="a">
+<figure>
+<svg viewBox="0 0 720 210" role="img" aria-label="Không gian vector, các câu gần nghĩa nằm gần nhau">
+<rect x="40" y="14" width="640" height="164" rx="8" fill="#fff" stroke="var(--bds)"/>
+<line x1="70" y1="160" x2="660" y2="160" stroke="#CBD5E1"/>
+<line x1="70" y1="160" x2="70" y2="30" stroke="#CBD5E1"/>
+<circle cx="180" cy="70" r="6" fill="#1565C0"/><text x="192" y="74" font-size="12">"Xe hơi"</text>
+<circle cx="214" cy="88" r="6" fill="#1565C0"/><text x="226" y="92" font-size="12">"Ô tô"</text>
+<circle cx="196" cy="52" r="6" fill="#1565C0"/><text x="208" y="56" font-size="12">"Xe bốn bánh"</text>
+<ellipse cx="200" cy="70" rx="86" ry="46" fill="none" stroke="#1565C0"
+  stroke-dasharray="4 3" opacity=".6"/>
+<circle cx="520" cy="120" r="6" fill="#B26A00"/><text x="532" y="124" font-size="12">"Nấu phở"</text>
+<circle cx="556" cy="98" r="6" fill="#B26A00"/><text x="568" y="102" font-size="12">"Công thức bún"</text>
+<ellipse cx="540" cy="110" rx="70" ry="38" fill="none" stroke="#B26A00"
+  stroke-dasharray="4 3" opacity=".6"/>
+<circle cx="300" cy="118" r="7" fill="#C0392B"/>
+<text x="252" y="140" font-size="12" fill="#C0392B">câu hỏi của user</text>
+<line x1="300" y1="118" x2="214" y2="88" stroke="#C0392B" stroke-width="1.4"/>
+<text x="236" y="112" font-size="10.5" fill="#C0392B">gần → lấy</text>
+<line x1="300" y1="118" x2="520" y2="120" stroke="#CBD5E1" stroke-width="1.2"
+  stroke-dasharray="3 3"/>
+<text x="386" y="134" font-size="10.5" fill="#8A94A3">xa → bỏ qua</text>
+</svg>
+<figcaption>Mỗi đoạn chữ thành một điểm trong không gian nhiều chiều.
+Gần nhau = gần nghĩa.</figcaption>
+</figure>
+<p>Mô hình embedding biến một đoạn chữ thành dãy số (768 – 4096 chiều). Nó được huấn luyện
+sao cho <b>hai đoạn cùng nghĩa cho ra hai điểm gần nhau</b>, kể cả khi không trùng một chữ nào.</p>
+<p>Máy đo "gần" bằng <b>cosine similarity</b> — góc giữa hai vector. Nhờ vậy hỏi "xe hơi"
+vẫn tìm ra tài liệu viết "ô tô".</p>
+<div class="note">Đây chính là điểm RAG hơn tìm kiếm từ khoá: từ khoá cần <i>trùng chữ</i>,
+vector chỉ cần <i>trùng nghĩa</i>.</div>
+</div></div>
+
+<h2>Nhóm 2 — Tham số kỹ thuật</h2>
+
+<div class="qa" id="q5"><div class="q"><span class="n">5</span>
+Chia đoạn bao nhiêu chữ là đúng?</div>
+<div class="a">
+<p><b>Không có con số đúng chung</b> — phụ thuộc loại tài liệu. Nhưng có nguyên tắc:</p>
+<table>
+<tr><th>Loại tài liệu</th><th>Cỡ đoạn gợi ý</th><th>Vì sao</th></tr>
+<tr><td>FAQ, hỏi đáp ngắn</td><td>100 – 300 chữ</td><td>Mỗi mục vốn đã độc lập</td></tr>
+<tr><td>Chính sách, quy trình</td><td>300 – 600 chữ</td><td>Giữ trọn một điều khoản</td></tr>
+<tr><td>Sách, báo cáo dài</td><td>500 – 1000 chữ</td><td>Cần đủ ngữ cảnh xung quanh</td></tr>
+<tr><td>Mã nguồn</td><td>theo hàm / lớp</td><td>Cắt giữa hàm là hỏng nghĩa</td></tr>
+</table>
+<div class="note warn"><b>Đoạn quá nhỏ</b> → mất ngữ cảnh, tra ra mảnh vụn vô nghĩa.
+<b>Đoạn quá lớn</b> → một đoạn chứa nhiều chủ đề, vector bị "trung bình hoá" nên tra kém chính xác,
+lại tốn token.</div>
+<p>Thực tế nên <b>cắt theo cấu trúc trước</b> (theo mục, theo điều, theo hàm) rồi mới giới hạn
+độ dài — cắt cứng theo số chữ là phương án cuối.</p>
+</div></div>
+
+<div class="qa" id="q6"><div class="q"><span class="n">6</span>
+Overlap 10–20% để làm gì?</div>
+<div class="a">
+<figure>
+<svg viewBox="0 0 720 150" role="img" aria-label="Chia đoạn có phần chồng lấn">
+<text x="20" y="26" font-size="12.5" font-weight="700" fill="#C0392B">Không overlap — câu bị cắt đôi</text>
+<rect x="20" y="36" width="200" height="30" rx="4" fill="#EAF2FC" stroke="#4A90D9"/>
+<rect x="222" y="36" width="200" height="30" rx="4" fill="#EAF2FC" stroke="#4A90D9"/>
+<rect x="424" y="36" width="200" height="30" rx="4" fill="#EAF2FC" stroke="#4A90D9"/>
+<text x="120" y="55" font-size="11" text-anchor="middle">đoạn 1</text>
+<text x="322" y="55" font-size="11" text-anchor="middle">đoạn 2</text>
+<text x="524" y="55" font-size="11" text-anchor="middle">đoạn 3</text>
+<line x1="221" y1="30" x2="221" y2="72" stroke="#C0392B" stroke-width="2"/>
+<text x="228" y="82" font-size="10.5" fill="#C0392B">"Mức phụ cấp là | 2 triệu/tháng" — mất vế sau</text>
+<text x="20" y="110" font-size="12.5" font-weight="700" fill="#1B7A3D">Có overlap — câu nào cũng trọn ở ít nhất 1 đoạn</text>
+<rect x="20" y="118" width="210" height="26" rx="4" fill="#E8F5EC" stroke="#1B7A3D"/>
+<rect x="196" y="118" width="210" height="26" rx="4" fill="#E8F5EC" stroke="#1B7A3D"
+  opacity=".75"/>
+<rect x="372" y="118" width="210" height="26" rx="4" fill="#E8F5EC" stroke="#1B7A3D"
+  opacity=".55"/>
+<rect x="196" y="118" width="34" height="26" fill="#1B7A3D" opacity=".2"/>
+<rect x="372" y="118" width="34" height="26" fill="#1B7A3D" opacity=".2"/>
+<text x="600" y="136" font-size="10.5" fill="#1B7A3D">phần tô đậm = chồng lấn</text>
+</svg>
+<figcaption>Overlap là bảo hiểm cho những câu nằm vắt ngang ranh giới đoạn.</figcaption>
+</figure>
+<p>Cắt cứng theo số chữ sẽ có lúc cắt <b>giữa một câu hoặc giữa một ý</b>. Đoạn nào cũng
+lặp lại một phần đoạn trước thì thông tin ở ranh giới luôn còn nguyên vẹn ở ít nhất một đoạn.</p>
+<p>Giá phải trả: kho phình thêm đúng bằng tỉ lệ overlap. 20% overlap → nhiều hơn ~20% vector.</p>
+</div></div>
+
+<div class="qa" id="q7"><div class="q"><span class="n">7</span>
+top-K nên đặt bao nhiêu?</div>
+<div class="a">
+<p>Thường <b>3 – 10</b>. Cách chọn:</p>
+<ul>
+<li><b>K nhỏ (3–5)</b> — câu hỏi tra cứu một dữ kiện. Ít nhiễu, rẻ, nhanh.</li>
+<li><b>K lớn (8–15)</b> — câu hỏi tổng hợp, cần gom nhiều nguồn.</li>
+</ul>
+<div class="note warn">K càng lớn <b>không</b> đồng nghĩa càng chính xác. Đoạn thứ 15 thường
+đã lạc đề, và nó <i>làm loãng</i> ngữ cảnh khiến LLM trả lời kém đi — hiện tượng
+"lạc giữa đống tài liệu".</div>
+<p>Thực dụng hơn: đặt <b>ngưỡng điểm tương đồng</b> thay vì K cố định — lấy mọi đoạn trên
+ngưỡng, không có đoạn nào đạt thì trả lời "không tìm thấy".</p>
+</div></div>
+
+<div class="qa" id="q8"><div class="q"><span class="n">8</span>
+Chọn mô hình embedding thế nào? Tiếng Việt có ổn không?</div>
+<div class="a">
+<p>Ba tiêu chí: <b>hỗ trợ tiếng Việt</b>, <b>số chiều</b>, <b>chạy nội bộ hay gọi API</b>.</p>
+<table>
+<tr><th>Nhóm</th><th>Ví dụ</th><th>Ghi chú</th></tr>
+<tr><td>API thương mại</td><td>OpenAI <code>text-embedding-3</code>, Cohere</td>
+<td>Chất lượng tốt, nhưng <b>tài liệu phải gửi ra ngoài</b></td></tr>
+<tr><td>Đa ngữ, chạy nội bộ</td><td>multilingual-e5, BGE-M3</td>
+<td>Tiếng Việt khá tốt, chạy được trên máy công ty</td></tr>
+<tr><td>Chuyên tiếng Việt</td><td>PhoBERT và các bản fine-tune</td>
+<td>Cần đánh giá lại trên chính dữ liệu của mình</td></tr>
+</table>
+<div class="note bad"><b>Lưu ý bắt buộc:</b> đổi mô hình embedding thì
+<b>phải index lại toàn bộ kho</b>. Vector của mô hình này không so sánh được với vector của
+mô hình khác. Nên chọn kỹ ngay từ đầu.</div>
+<p>Với dữ liệu nội bộ nhạy cảm, nhóm "chạy nội bộ" thường là lựa chọn duy nhất khả thi.</p>
+</div></div>
+
+<div class="qa" id="q9"><div class="q"><span class="n">9</span>
+Bắt buộc phải có Vector DB riêng không?</div>
+<div class="a">
+<p><b>Không.</b> Chọn theo quy mô:</p>
+<table>
+<tr><th>Quy mô</th><th>Giải pháp</th><th>Ghi chú</th></tr>
+<tr><td>&lt; 100k vector</td><td>FAISS, Chroma, hoặc file numpy</td>
+<td>Không cần dựng thêm dịch vụ</td></tr>
+<tr><td>Đã có PostgreSQL</td><td><code>pgvector</code></td>
+<td>Dùng luôn DB sẵn có — thường là lựa chọn tốt nhất</td></tr>
+<tr><td>Triệu vector trở lên</td><td>Milvus, Qdrant, Weaviate</td>
+<td>Cần index ANN chuyên dụng</td></tr>
+<tr><td>Không muốn tự vận hành</td><td>Pinecone</td>
+<td>Dịch vụ đám mây, dữ liệu ra ngoài</td></tr>
+</table>
+<p>Ví dụ trong slide — 100 file PDF ra 20.000 vector — <b>hoàn toàn không cần</b> Vector DB
+chuyên dụng. FAISS trên một máy là đủ và nhanh.</p>
+</div></div>
+
+<h2>Nhóm 3 — Chất lượng truy hồi</h2>
+
+<div class="qa" id="q10"><div class="q"><span class="n">10</span>
+Chỉ tìm theo vector đã đủ chưa?</div>
+<div class="a">
+<figure>
+<svg viewBox="0 0 720 168" role="img" aria-label="Hybrid search và rerank">
+<rect x="14" y="52" width="98" height="42" rx="6" fill="#fff" stroke="#4A90D9"/>
+<text x="63" y="70" font-size="12" text-anchor="middle">Câu hỏi</text>
+<text x="63" y="85" font-size="10" text-anchor="middle" fill="#5A6675">của user</text>
+<path d="M116 73 h26" stroke="#5A6675" stroke-width="1.6" marker-end="url(#a2)"/>
+<rect x="146" y="20" width="128" height="42" rx="6" fill="#EAF2FC" stroke="#1565C0"/>
+<text x="210" y="38" font-size="12" text-anchor="middle" fill="#0A4EA3">Tìm theo vector</text>
+<text x="210" y="52" font-size="10" text-anchor="middle" fill="#5A6675">bắt được ý nghĩa</text>
+<rect x="146" y="84" width="128" height="42" rx="6" fill="#FDF3E3" stroke="#B26A00"/>
+<text x="210" y="102" font-size="12" text-anchor="middle" fill="#8A5000">Tìm theo từ khoá</text>
+<text x="210" y="116" font-size="10" text-anchor="middle" fill="#5A6675">bắt mã, tên riêng</text>
+<path d="M278 41 h20 v32" stroke="#5A6675" stroke-width="1.6" fill="none"/>
+<path d="M278 105 h20 v-32" stroke="#5A6675" stroke-width="1.6" fill="none"
+  marker-end="url(#a2)"/>
+<rect x="318" y="52" width="104" height="42" rx="6" fill="#fff" stroke="#4A90D9"/>
+<text x="370" y="70" font-size="12" text-anchor="middle">Gộp kết quả</text>
+<text x="370" y="85" font-size="10" text-anchor="middle" fill="#5A6675">~30 đoạn</text>
+<path d="M426 73 h26" stroke="#5A6675" stroke-width="1.6" marker-end="url(#a2)"/>
+<rect x="456" y="52" width="110" height="42" rx="6" fill="#1565C0"/>
+<text x="511" y="70" font-size="12" text-anchor="middle" fill="#fff">Rerank</text>
+<text x="511" y="85" font-size="10" text-anchor="middle" fill="#D6E7F8">chấm lại điểm</text>
+<path d="M570 73 h26" stroke="#5A6675" stroke-width="1.6" marker-end="url(#a2)"/>
+<rect x="600" y="52" width="104" height="42" rx="6" fill="#E8F5EC" stroke="#1B7A3D"/>
+<text x="652" y="70" font-size="12" text-anchor="middle" fill="#14612F">Top 5 tinh</text>
+<text x="652" y="85" font-size="10" text-anchor="middle" fill="#5A6675">đưa cho LLM</text>
+<defs><marker id="a2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+<path d="M0 0 L7 3.5 L0 7 z" fill="#5A6675"/></marker></defs>
+</svg>
+<figcaption>Hai cách tìm bù khuyết cho nhau, rồi lọc lại một lần nữa.</figcaption>
+</figure>
+<p><b>Chưa đủ.</b> Vector giỏi bắt ý nghĩa nhưng <b>dở với mã số, tên riêng, ký hiệu</b> —
+hỏi "điều 7.5.3" hay "mã lỗi FN0101" thì tìm từ khoá lại chính xác hơn hẳn.</p>
+<p>Hai cải tiến gần như luôn đáng làm:</p>
+<ul>
+<li><b>Hybrid search</b> — chạy song song vector + từ khoá (BM25), gộp kết quả.</li>
+<li><b>Rerank</b> — lấy ~30 đoạn rồi dùng mô hình cross-encoder chấm lại, giữ 5 đoạn tốt nhất.
+Đây thường là <b>cải thiện lớn nhất</b> với chi phí nhỏ nhất.</li>
+</ul>
+</div></div>
+
+<div class="qa" id="q11"><div class="q"><span class="n">11</span>
+Câu hỏi cần nối nhiều tài liệu (multi-hop) thì sao?</div>
+<div class="a">
+<p>Slide đã nêu đúng đây là điểm yếu. Ví dụ: <i>"Nhân viên nào ký hợp đồng với nhà cung cấp
+có doanh số cao nhất năm ngoái?"</i> — cần tra bảng doanh số trước, rồi mới tra hợp đồng.</p>
+<p>RAG một lượt sẽ hỏng, vì một lần tra không thể ra cả hai. Ba hướng xử lý:</p>
+<ul>
+<li><b>Tra nhiều vòng (agentic RAG)</b> — cho LLM tự quyết định tra tiếp, dùng kết quả vòng
+trước làm câu truy vấn vòng sau.</li>
+<li><b>Tách câu hỏi</b> — chia thành các câu con, tra từng câu, rồi tổng hợp.</li>
+<li><b>Knowledge graph</b> — dựng sẵn quan hệ giữa các thực thể để đi theo liên kết thay vì
+tra lại từ đầu. Đây chính là ý tưởng của GraphRAG.</li>
+</ul>
+</div></div>
+
+<h2>Nhóm 4 — Vận hành</h2>
+
+<div class="qa" id="q12"><div class="q"><span class="n">12</span>
+Context window đã tới 1 triệu token — còn cần RAG không?</div>
+<div class="a">
+<p><b>Vẫn cần</b>, vì ba lý do:</p>
+<ul>
+<li><b>Chi phí</b> — nhét 500k token vào mỗi câu hỏi thì mỗi lượt hỏi tốn gấp hàng trăm lần
+so với nhét 5 đoạn. Nhân với số lượt hỏi mỗi ngày.</li>
+<li><b>Độ trễ</b> — đọc 500k token mất hàng chục giây.</li>
+<li><b>Quy mô</b> — kho tài liệu doanh nghiệp thường vài chục triệu token, vượt xa mọi
+context window.</li>
+</ul>
+<div class="note">Thêm nữa, độ chính xác <b>giảm khi ngữ cảnh quá dài</b> — mô hình hay bỏ sót
+thông tin nằm ở giữa. Đưa 5 đoạn đúng thường cho kết quả tốt hơn đưa cả cuốn sách.</div>
+<p>Context dài <i>có</i> chỗ dùng: khi tổng tài liệu nhỏ (vài chục trang) và bạn muốn giải pháp
+đơn giản nhất — lúc đó bỏ RAG cho gọn là hợp lý.</p>
+</div></div>
+
+<div class="qa" id="q13"><div class="q"><span class="n">13</span>
+Chi phí thực tế bao nhiêu?</div>
+<div class="a">
+<p>Tách làm hai phần, và phần đắt <b>không</b> phải phần người ta hay lo:</p>
+<table>
+<tr><th>Khoản</th><th>Khi nào phát sinh</th><th>Mức độ</th></tr>
+<tr><td>Embedding tài liệu</td><td>Một lần lúc index + khi tài liệu đổi</td>
+<td><b>Rẻ</b> — embedding rẻ hơn LLM hàng chục lần</td></tr>
+<tr><td>Lưu trữ vector</td><td>Liên tục</td><td>Nhỏ, trừ khi kho cực lớn</td></tr>
+<tr><td>Embedding câu hỏi</td><td>Mỗi lượt hỏi</td><td>Không đáng kể</td></tr>
+<tr><td><b>LLM sinh câu trả lời</b></td><td>Mỗi lượt hỏi</td>
+<td><b>Chiếm phần lớn chi phí</b></td></tr>
+</table>
+<p>Vì vậy giảm chi phí RAG thực chất là <b>giảm số token đưa vào LLM</b> — tức chọn top-K
+gọn và đoạn sạch, chứ không phải tiết kiệm ở khâu embedding.</p>
+</div></div>
+
+<div class="qa" id="q14"><div class="q"><span class="n">14</span>
+RAG làm chậm thêm bao nhiêu?</div>
+<div class="a">
+<p>Bước tra thường tốn <b>vài chục tới vài trăm mili-giây</b>: embedding câu hỏi + tìm trong
+vector DB. Có rerank thì cộng thêm chút nữa.</p>
+<p>So với thời gian LLM sinh câu trả lời (thường vài giây), phần này <b>gần như không đáng kể</b>.</p>
+<div class="note warn">Slide ghi "ứng dụng real-time cần &lt; 100ms" thì nên cẩn trọng —
+đúng, nhưng lúc đó nút thắt là <b>LLM</b>, không phải bước tra. Nếu cần dưới 100ms thì
+bản thân việc gọi LLM đã không khả thi rồi.</div>
+</div></div>
+
+<div class="qa" id="q15"><div class="q"><span class="n">15</span>
+Tài liệu sửa thì cập nhật thế nào?</div>
+<div class="a">
+<p>Chỉ cần <b>index lại phần thay đổi</b>, không đụng tới mô hình:</p>
+<ul>
+<li>File sửa → xoá vector cũ của file đó, embedding lại, ghi vector mới.</li>
+<li>File xoá → xoá vector tương ứng.</li>
+<li>File mới → embedding và thêm vào.</li>
+</ul>
+<p>Cách làm thực dụng: lưu kèm <b>hash nội dung</b> mỗi file, chạy định kỳ, chỉ xử lý file
+có hash đổi. Vài giây cho một lần cập nhật thông thường.</p>
+<div class="note bad">Ngoại lệ duy nhất phải làm lại toàn bộ: <b>đổi mô hình embedding</b>
+hoặc <b>đổi cách chia đoạn</b>.</div>
+</div></div>
+
+<div class="qa" id="q16"><div class="q"><span class="n">16</span>
+Đo chất lượng RAG bằng gì? Làm sao biết là tốt?</div>
+<div class="a">
+<p>Điểm mấu chốt: <b>đo tách hai khâu</b>, vì hỏng ở đâu thì sửa ở đó khác nhau.</p>
+<table>
+<tr><th>Khâu</th><th>Đo gì</th><th>Hỏng thì sửa gì</th></tr>
+<tr><td><b>Truy hồi</b></td><td>Đoạn đúng có nằm trong top-K không?</td>
+<td>Chia đoạn, mô hình embedding, hybrid, rerank</td></tr>
+<tr><td><b>Sinh câu trả lời</b></td><td>Câu trả lời có bám vào đoạn đã lấy không?</td>
+<td>Prompt, model, yêu cầu trích nguồn</td></tr>
+</table>
+<p>Cách làm tối thiểu mà hiệu quả: dựng <b>bộ 50–100 câu hỏi mẫu có đáp án đúng</b> lấy từ
+người dùng thật. Mỗi lần chỉnh tham số thì chạy lại bộ đó và so điểm.</p>
+<div class="note">Không có bộ câu hỏi mẫu thì mọi tinh chỉnh chỉ là cảm tính — đây là việc
+nên làm ngay từ đầu, trước cả khi tối ưu.</div>
+</div></div>
+
+<div class="qa" id="q17"><div class="q"><span class="n">17</span>
+Phân quyền tài liệu xử lý ra sao? Người A không được xem tài liệu của phòng B.</div>
+<div class="a">
+<p>Đây là câu hay bị bỏ quên tới lúc triển khai thật mới lộ ra.</p>
+<p><b>Nguyên tắc: lọc quyền ở bước truy hồi, không phải ở bước trả lời.</b> Tuyệt đối không
+dựa vào việc nhắc LLM "đừng nói về tài liệu này" — không đáng tin.</p>
+<ul>
+<li>Mỗi vector lưu kèm <b>metadata quyền</b> (phòng ban, mức mật, danh sách người xem).</li>
+<li>Khi tra, lọc theo quyền của người hỏi <b>ngay trong truy vấn</b>.</li>
+<li>Tài liệu ngoài quyền thì không bao giờ vào được ngữ cảnh của LLM.</li>
+</ul>
+<div class="note bad">Rủi ro thường gặp: một đoạn trích chứa thông tin mật lọt vào ngữ cảnh,
+LLM tóm tắt lại và <b>rò rỉ gián tiếp</b> dù không trích nguyên văn.</div>
+</div></div>
+
+<h2>Nhóm 5 — Về dự án Cowork-Local</h2>
+<p class="lead">Nhóm này gần như chắc chắn được hỏi, vì slide 17 đã tự nêu ra.</p>
+
+<div class="qa" id="q18"><div class="q"><span class="n">18</span>
+Vậy Cowork-Local đã có RAG chưa?</div>
+<div class="a">
+<p>Trả lời thẳng như slide 17 đã viết: <b>chưa có RAG theo nghĩa đầy đủ.</b></p>
+<figure>
+<svg viewBox="0 0 720 150" role="img" aria-label="Ba mức nạp ngữ cảnh">
+<rect x="10" y="24" width="222" height="104" rx="8" fill="#FDF3E3" stroke="#B26A00"/>
+<text x="121" y="48" font-size="13" font-weight="700" text-anchor="middle" fill="#8A5000">
+Mức 1 — Nạp thủ công</text>
+<text x="121" y="70" font-size="11.5" text-anchor="middle" fill="#2B3542">Đính kèm file, dán link,</text>
+<text x="121" y="86" font-size="11.5" text-anchor="middle" fill="#2B3542">Instructions của project</text>
+<text x="121" y="110" font-size="11" text-anchor="middle" fill="#8A5000">Người dùng tự chọn</text>
+<rect x="248" y="24" width="222" height="104" rx="8" fill="#EAF2FC" stroke="#1565C0"/>
+<text x="359" y="48" font-size="13" font-weight="700" text-anchor="middle" fill="#0A4EA3">
+Mức 2 — Tra theo cấu trúc</text>
+<text x="359" y="70" font-size="11.5" text-anchor="middle" fill="#2B3542">GraphRAG: sơ đồ file,</text>
+<text x="359" y="86" font-size="11.5" text-anchor="middle" fill="#2B3542">lớp, hàm, quan hệ</text>
+<text x="359" y="110" font-size="11" text-anchor="middle" fill="#0A4EA3">AI tự tra — đang ở đây</text>
+<rect x="486" y="24" width="224" height="104" rx="8" fill="#F2F4F7" stroke="#CBD5E1"
+  stroke-dasharray="5 4"/>
+<text x="598" y="48" font-size="13" font-weight="700" text-anchor="middle" fill="#5A6675">
+Mức 3 — Tra theo ngữ nghĩa</text>
+<text x="598" y="70" font-size="11.5" text-anchor="middle" fill="#5A6675">Embedding + Vector DB</text>
+<text x="598" y="86" font-size="11.5" text-anchor="middle" fill="#5A6675">tìm theo nghĩa</text>
+<text x="598" y="110" font-size="11" text-anchor="middle" fill="#8A94A3">chưa có</text>
+</svg>
+<figcaption>Dự án đang ở mức 2. Mức 3 mới là RAG như trình bày ở phần đầu.</figcaption>
+</figure>
+<p>Cách nói an toàn khi bị hỏi vặn: <i>"Hiện tại là truy xuất theo cấu trúc, chưa phải truy xuất
+theo ngữ nghĩa. Phần trình bày hôm nay là kiến thức nền cho bước tiếp theo."</i></p>
+</div></div>
+
+<div class="qa" id="q19"><div class="q"><span class="n">19</span>
+"GraphRAG" của dự án có phải GraphRAG của Microsoft không?</div>
+<div class="a">
+<div class="note warn"><b>Câu này rất dễ bị hỏi và dễ gây hiểu nhầm — nên chủ động làm rõ trước.</b></div>
+<table>
+<tr><th></th><th>GraphRAG (Microsoft)</th><th>GraphRAG trong Cowork-Local</th></tr>
+<tr><td>Đồ thị chứa gì</td><td>Thực thể và quan hệ do <b>LLM trích</b> từ nội dung</td>
+<td>File, lớp, hàm và liên kết import</td></tr>
+<tr><td>Dựng bằng gì</td><td>Gọi LLM nhiều lượt, tốn chi phí</td>
+<td>Phân tích cú pháp mã nguồn, <b>không tốn phí gọi AI</b></td></tr>
+<tr><td>Trả lời câu hỏi</td><td>Đi theo quan hệ + tóm tắt theo cụm</td>
+<td>Đọc sơ đồ và nội dung file liên quan</td></tr>
+</table>
+<p><b>Cùng tên, khác bản chất.</b> Slide của bạn mô tả đúng cái thứ hai — "quét file, ghi nhận
+mỗi file có class/hàm gì và liên kết với file nào".</p>
+<p>Nói rõ điểm này lại là <b>lợi thế</b>: cách của dự án <i>rẻ và nhanh hơn nhiều</i> vì không
+phải gọi LLM để dựng đồ thị.</p>
+</div></div>
+
+<div class="qa" id="q20"><div class="q"><span class="n">20</span>
+Muốn nâng lên RAG đầy đủ thì cần làm gì?</div>
+<div class="a">
+<p>Bốn việc, xếp theo thứ tự nên làm:</p>
+<table>
+<tr><th>#</th><th>Việc</th><th>Quyết định phải chốt</th></tr>
+<tr><td>1</td><td>Chọn mô hình embedding</td>
+<td>Chạy nội bộ hay gọi API — quyết định này ràng buộc mọi thứ sau, và
+<b>đổi về sau là phải index lại toàn bộ</b></td></tr>
+<tr><td>2</td><td>Chia đoạn tài liệu</td>
+<td>Cắt theo cấu trúc (mục, điều, hàm) trước khi cắt theo độ dài</td></tr>
+<tr><td>3</td><td>Chọn nơi lưu vector</td>
+<td>Quy mô hiện tại chỉ cần FAISS hoặc <code>pgvector</code></td></tr>
+<tr><td>4</td><td>Dựng bộ câu hỏi đánh giá</td>
+<td>50–100 câu có đáp án đúng — <b>làm trước khi tối ưu</b></td></tr>
+</table>
+<div class="note ok"><b>Điểm mạnh sẵn có:</b> dự án đã có sẵn khái niệm <i>project</i> với
+thư mục riêng và phân tách dữ liệu theo project. Đó chính là ranh giới phân quyền tự nhiên
+cho câu 17 — thứ mà nhiều dự án phải làm lại từ đầu.</div>
+</div></div>
+
+<h2>Ba câu nên chuẩn bị sẵn câu trả lời</h2>
+<div class="note bad"><b>1. "RAG có hết bịa không?"</b> → Không, chỉ giảm. Nói thẳng và nêu
+cách giảm: bắt trích nguồn, cho phép trả lời "không tìm thấy".</div>
+<div class="note bad"><b>2. "GraphRAG này có phải GraphRAG kia không?"</b> → Không, cùng tên
+khác bản chất. Chủ động nói trước khi bị hỏi.</div>
+<div class="note bad"><b>3. "Vậy dự án đã có RAG chưa?"</b> → Chưa đủ. Đang ở mức truy xuất
+theo cấu trúc, chưa có truy xuất theo ngữ nghĩa.</div>
+
+</div>
+</body>
+</html>

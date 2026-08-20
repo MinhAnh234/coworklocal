@@ -178,9 +178,27 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "app.nav.collapse_tooltip": {"en": "Collapse menu to icons only", "ja": "メニューをアイコンのみに折りたたむ", "vi": "Thu gọn menu về icon"},
     "app.nav.expand_tooltip": {"en": "Expand menu", "ja": "メニューを展開", "vi": "Mở rộng menu"},
     "app.nav.menu_label": {"en": "MENU", "ja": "MENU", "vi": "MENU"},
+    # Shown on the rail rows the project gate disables (Cowork, GraphRAG) —
+    # they stay listed and greyed instead of disappearing from the menu.
+    "app.nav.needs_project": {
+        "en": "Select a project first", "ja": "先にプロジェクトを選択してください",
+        "vi": "Chọn project trước"},
+    # Rail header: the project a new chat will be created in, and what to do
+    # when there is no project yet.
+    "app.nav.project_pick": {
+        "en": "Project for new chats", "ja": "新しいチャットのプロジェクト",
+        "vi": "Project cho đoạn chat mới"},
+    "app.nav.no_project": {
+        "en": "No project yet", "ja": "プロジェクトなし", "vi": "Chưa có project"},
+    "app.nav.recents": {"en": "RECENTS", "ja": "最近", "vi": "GẦN ĐÂY"},
+    "app.nav.all_projects": {
+        "en": "All projects…", "ja": "すべてのプロジェクト…", "vi": "Tất cả project…"},
+    "app.nav.create_project_first": {
+        "en": "Create a project first", "ja": "先にプロジェクトを作成してください",
+        "vi": "Tạo project trước"},
 
     # ---- workspace_tab.py (Projects — Claude-Projects style) -----------
-    "workspace.header": {"en": "Workspace — Projects", "ja": "ワークスペース — プロジェクト", "vi": "Workspace — Projects"},
+    "workspace.header": {"en": "Manage projects", "ja": "プロジェクト管理", "vi": "Quản lý project"},
     "workspace.tab_cowork": {"en": "Cowork", "ja": "Cowork", "vi": "Cowork"},
     "workspace.tab_graphrag": {"en": "GraphRAG", "ja": "GraphRAG", "vi": "GraphRAG"},
     "workspace.tab_project": {"en": "Project", "ja": "プロジェクト", "vi": "Project"},
@@ -360,6 +378,12 @@ STRINGS: Dict[str, Dict[str, str]] = {
                "các file đặt ở gốc thư mục đó (project knowledge)."),
     },
     "workspace.new_project": {"en": "New project", "ja": "新規プロジェクト", "vi": "Project mới"},
+    "workspace.projects_heading": {"en": "PROJECTS", "ja": "プロジェクト", "vi": "PROJECT"},
+    "workspace.folder_label": {"en": "Workspace folder", "ja": "作業フォルダ", "vi": "Thư mục làm việc"},
+    "workspace.counts": {
+        "en": "{chats} chats · {tasks} tasks",
+        "ja": "チャット {chats} · タスク {tasks}",
+        "vi": "{chats} đoạn chat · {tasks} task"},
     "workspace.delete": {"en": "Delete", "ja": "削除", "vi": "Xóa"},
     "workspace.delete_confirm": {
         "en": "Delete project “{name}”? Its conversations and files are kept (threads move to General).",
@@ -373,19 +397,19 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Project của hội thoại này không còn tồn tại — không thể mở."},
     "workspace.name": {"en": "Name", "ja": "名前", "vi": "Tên"},
     "workspace.description": {"en": "Description", "ja": "説明", "vi": "Mô tả"},
-    "workspace.instructions": {"en": "Instructions (shared project context)", "ja": "指示（プロジェクト共有コンテキスト）", "vi": "Instructions (ngữ cảnh chung của project)"},
+    "workspace.instructions": {"en": "Instructions", "ja": "Instructions", "vi": "Instructions"},
     "workspace.instructions_placeholder": {
         "en": "e.g. \"All answers in Vietnamese. We are building the X reporting tool; always follow the naming rules …\"",
         "ja": "例:「回答はすべて日本語で。X レポートツールを開発中。命名規則に従うこと …」",
         "vi": "vd: \"Trả lời bằng tiếng Việt. Team đang xây tool báo cáo X; luôn theo quy tắc đặt tên …\"",
     },
-    "workspace.browse": {"en": "Change folder…", "ja": "フォルダ変更…", "vi": "Đổi thư mục…"},
+    "workspace.browse": {"en": "Change", "ja": "変更", "vi": "Đổi"},
     "workspace.browse_tooltip": {
         "en": "Choose the project's workspace folder (agent sandbox + shared knowledge root)",
         "ja": "プロジェクトのワークスペースフォルダを選択（エージェントのサンドボックス＋共有ナレッジのルート）",
         "vi": "Chọn thư mục workspace của project (sandbox của agent + gốc chứa knowledge chung)",
     },
-    "workspace.open_folder": {"en": "Open folder", "ja": "フォルダを開く", "vi": "Mở thư mục"},
+    "workspace.open_folder": {"en": "Open", "ja": "開く", "vi": "Mở"},
     "workspace.save": {"en": "Save project", "ja": "プロジェクトを保存", "vi": "Lưu project"},
     "workspace.saved": {"en": "Saved project {name}.", "ja": "プロジェクト {name} を保存しました。", "vi": "Đã lưu project {name}."},
     "workspace.threads": {"en": "Conversations in this project", "ja": "このプロジェクトの会話", "vi": "Hội thoại trong project này"},
@@ -468,7 +492,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "chat.assistant": {"en": "Assistant", "ja": "アシスタント", "vi": "Assistant"},
     "chat.error": {"en": "Error", "ja": "エラー", "vi": "Lỗi"},
     "help_agent.title": {
-        "en": "App Assistant", "ja": "アプリアシスタント", "vi": "Trợ lý App"},
+        # The audit page names this AI Assistant, and keeps it the same in every
+        # language — it is a product name, not a description.
+        "en": "AI Assistant", "ja": "AI Assistant", "vi": "AI Assistant"},
     "help_agent.greeting": {
         "en": "Hello {name}, have a great working day! How can I help you use the app?",
         "ja": "こんにちは {name} さん、良い一日を！アプリの使い方について何かお手伝いできますか？",
@@ -478,16 +504,27 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Ask how to use the app…", "ja": "アプリの使い方を質問…",
         "vi": "Hỏi cách sử dụng app…"},
     "help_agent.open_tooltip": {
-        "en": "App Assistant — help using the app",
-        "ja": "アプリアシスタント — アプリの使い方をサポート",
-        "vi": "Trợ lý App — hỗ trợ sử dụng app"},
+        "en": "AI Assistant — help using the app",
+        "ja": "AI Assistant — アプリの使い方をサポート",
+        "vi": "AI Assistant — hỗ trợ sử dụng app"},
     "help_agent.collapse_tooltip": {
         "en": "Minimize", "ja": "最小化", "vi": "Thu nhỏ"},
     "help_agent.hide_tooltip": {
         "en": "Hide to the edge", "ja": "端に隠す", "vi": "Ẩn vào cạnh phải"},
+    "help_agent.dot_hint": {
+        "en": "right-click to hide",
+        "ja": "右クリックで非表示",
+        "vi": "chuột phải để ẩn"},
+    # The name on the launcher pill. Deliberately the same in every language —
+    # it is a product name, and it only shows on hover, so length is not a
+    # constraint the way it was on a permanently visible badge.
+    "help_agent.badge": {
+        "en": "AI Assistant", "ja": "AI Assistant", "vi": "AI Assistant"},
+    "help_agent.more_tooltip": {
+        "en": "More", "ja": "その他", "vi": "Thêm"},
     "help_agent.show_tooltip": {
-        "en": "Show the App Assistant", "ja": "アプリアシスタントを表示",
-        "vi": "Hiện App Assistant"},
+        "en": "Show the AI Assistant", "ja": "AI Assistant を表示",
+        "vi": "Hiện AI Assistant"},
     "help_agent.empty_reply": {
         "en": "(no answer)", "ja": "(回答なし)", "vi": "(không có phản hồi)"},
     "help_agent.error": {
@@ -886,6 +923,14 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "schedtask.script_placeholder": {
         "en": "(script tasks only) e.g. python report.py", "ja": "（Scriptタスクのみ）例: python report.py",
         "vi": "(chỉ task Script) vd: python report.py"},
+    # The title/description block at the top of the Task editor had no name
+    # either — needed once the index had to list it.
+    "schedtask.g_basic": {"en": "Basics", "ja": "基本", "vi": "Thông tin chung"},
+    # The three steps the editor is split into: what to do, when, and what it
+    # connects to. Each holds the same group boxes as before.
+    "schedtask.step_content": {"en": "Content", "ja": "内容", "vi": "Nội dung"},
+    "schedtask.step_schedule": {"en": "Schedule", "ja": "スケジュール", "vi": "Lịch chạy"},
+    "schedtask.step_link": {"en": "Links", "ja": "連携", "vi": "Liên kết"},
     "schedtask.g_schedule": {"en": "Schedule Setup", "ja": "スケジュール設定", "vi": "Thiết lập lịch chạy"},
     "schedtask.sched_enable": {"en": "Enable schedule", "ja": "スケジュールを有効化", "vi": "Bật lịch chạy"},
     "schedtask.f_run_at": {"en": "Run at", "ja": "実行日時", "vi": "Chạy lúc"},
@@ -1241,7 +1286,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "dashboard.card_in": {"en": "Input", "ja": "入力", "vi": "Input"},
     "dashboard.card_out": {"en": "Output", "ja": "出力", "vi": "Output"},
     "dashboard.card_cache": {"en": "Cache", "ja": "キャッシュ", "vi": "Cache"},
-    "dashboard.card_cost": {"en": "Total cost", "ja": "合計コスト", "vi": "Tổng chi phí"},
+    "dashboard.card_cost": {"en": "Cost", "ja": "コスト", "vi": "Chi phí"},
     "dashboard.card_turns": {"en": "{n} turns", "ja": "{n} ターン", "vi": "{n} lượt"},
     "dashboard.prices_label": {
         "en": "Unit price (USD / 1M tokens):", "ja": "単価 (USD / 100万トークン):",
@@ -1276,7 +1321,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "dashboard.ref_last_week": {"en": "Last week", "ja": "先週", "vi": "Tuần trước"},
     "dashboard.ref_last_month": {"en": "Last month", "ja": "先月", "vi": "Tháng trước"},
     "dashboard.ref_last_year": {"en": "Last year", "ja": "昨年", "vi": "Năm trước"},
-    "usage.budget_title": {"en": "Budget", "ja": "予算", "vi": "Budget"},
+    "usage.budget_title": {"en": "Budget", "ja": "予算", "vi": "Ngân sách"},
     "usage.budget_no_budget": {"en": "No budget set", "ja": "予算未設定", "vi": "Chưa đặt Budget"},
     "usage.budget_used_pct": {"en": "{pct}% used", "ja": "{pct}% 使用済み", "vi": "Đã dùng {pct}%"},
     "usage.budget_over_warning": {"en": "⚠ Over 85% of budget used",
@@ -1441,6 +1486,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Hiện thông báo khay hệ thống khi tác vụ xong hoặc lỗi"},
     "settings.group.openai": {"en": "OpenAI-compatible (Internal Gateway)", "ja": "OpenAI 互換（社内ゲートウェイ）", "vi": "OpenAI-compatible (Gateway nội bộ)"},
     "settings.group.anthropic": {"en": "Anthropic Claude", "ja": "Anthropic Claude", "vi": "Anthropic Claude"},
+    # Name for the language/tray block at the top of Settings — it had none,
+    # because until the index existed nothing had to refer to it.
+    "settings.group.general": {"en": "General", "ja": "一般", "vi": "Chung"},
     "settings.group.provider": {"en": "AI Provider", "ja": "AI プロバイダー", "vi": "Nhà cung cấp AI"},
     "settings.group.parameter": {"en": "Parameter", "ja": "Parameter", "vi": "Parameter"},
     "settings.param_section_pricing": {
@@ -1751,6 +1799,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Xóa connector \"{name}\"?"},
     "ext.add_title": {"en": "Add connector", "ja": "コネクタを追加", "vi": "Thêm connector"},
     "ext.edit_title": {"en": "Edit connector", "ja": "コネクタを編集", "vi": "Sửa connector"},
+    "ext.category_label": {"en": "Category", "ja": "カテゴリ", "vi": "Nhóm"},
     "ext.preset_label": {"en": "App", "ja": "アプリ", "vi": "Ứng dụng"},
     "ext.preset_custom": {"en": "(Custom…)", "ja": "（カスタム…）", "vi": "(Tuỳ chỉnh…)"},
     "ext.name_label": {"en": "Display name", "ja": "表示名", "vi": "Tên hiển thị"},
@@ -2338,22 +2387,36 @@ STRINGS: Dict[str, Dict[str, str]] = {
     # ---- monitoring_tab.py (📊 Monitoring Dashboard) --------------------
     "monitoring.title": {"en": "Monitoring Dashboard", "ja": "モニタリングダッシュボード", "vi": "Bảng giám sát"},
     "monitoring.refresh": {"en": "Refresh", "ja": "更新", "vi": "Làm mới"},
-    "monitoring.tab_security": {"en": "Security Events", "ja": "セキュリティイベント", "vi": "Sự kiện bảo mật"},
-    "monitoring.tab_mcp": {"en": "MCP Call History", "ja": "MCP 呼び出し履歴", "vi": "Lịch sử gọi MCP"},
-    "monitoring.tab_actions": {"en": "Action Logs", "ja": "アクションログ", "vi": "Nhật ký hành động"},
-    "monitoring.tab_agents": {"en": "Agent Status", "ja": "エージェント状態", "vi": "Trạng thái Agent"},
+    "monitoring.tab_security": {"en": "Security", "ja": "セキュリティ", "vi": "Bảo mật"},
+    "monitoring.tab_mcp": {"en": "MCP", "ja": "MCP", "vi": "MCP"},
+    "monitoring.tab_actions": {"en": "Actions", "ja": "アクション", "vi": "Hành động"},
+    "monitoring.tab_agents": {"en": "Agent", "ja": "エージェント", "vi": "Agent"},
     "monitoring.tab_accounts": {"en": "Accounts", "ja": "アカウント", "vi": "Tài khoản"},
     "monitoring.col_time": {"en": "Time", "ja": "時刻", "vi": "Thời gian"},
     "monitoring.col_role": {"en": "Agent Role", "ja": "エージェント役割", "vi": "Vai trò Agent"},
     "monitoring.col_name": {"en": "Action", "ja": "アクション", "vi": "Hành động"},
     "monitoring.col_result": {"en": "Result", "ja": "結果", "vi": "Kết quả"},
+    # Security Events shows WHICH rule fired instead of a result that is always
+    # the same — every security_block is recorded with ok=False.
+    "monitoring.col_action": {"en": "Action", "ja": "アクション", "vi": "Hành động"},
+    # The fourth KPI tile on Overview, as the wireframe labels it.
+    "monitoring.overview_calls": {"en": "Calls", "ja": "呼び出し", "vi": "Lượt gọi"},
+    # The fold under the Sandbox summary line — the wireframe shows only the
+    # summary, so the ID / created / uptime / limits rows live behind this.
+    "monitoring.overview_disk_free": {
+        "en": "{size} free", "ja": "空き {size}", "vi": "{size} trống"},
+    "monitoring.overview_disk_label": {"en": "Disk", "ja": "ディスク", "vi": "Đĩa"},
+    "monitoring.overview_sbx_detail": {
+        "en": "Details", "ja": "詳細", "vi": "Chi tiết"},
     "monitoring.col_detail": {"en": "Detail", "ja": "詳細", "vi": "Chi tiết"},
     "monitoring.col_account": {"en": "Account", "ja": "アカウント", "vi": "Tài khoản"},
     "monitoring.col_machine": {"en": "Machine", "ja": "マシン", "vi": "Máy"},
     "monitoring.col_agent": {"en": "Agent", "ja": "エージェント", "vi": "Agent"},
-    "monitoring.col_active": {"en": "Active", "ja": "稼働中", "vi": "Đang chạy"},
     "monitoring.col_source": {"en": "Source", "ja": "ソース", "vi": "Nguồn"},
     "monitoring.active_n": {"en": "{n} running", "ja": "{n} 件実行中", "vi": "{n} đang chạy"},
+    "monitoring.idle": {"en": "Idle", "ja": "アイドル", "vi": "Rảnh"},
+    "monitoring.agent_status_title": {
+        "en": "Agent Status", "ja": "エージェント状態", "vi": "Trạng thái Agent"},
     "monitoring.source_cowork": {
         "en": "Cowork tab's active turns", "ja": "Cowork タブの実行中ターン",
         "vi": "Lượt đang chạy của tab Cowork"},
@@ -2384,7 +2447,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     # ---- monitoring_tab.py — Overview card dashboard ---------------------
     "monitoring.tab_overview": {"en": "Overview", "ja": "概要", "vi": "Tổng quan"},
     "monitoring.overview_usage_title": {
-        "en": "Token Usage & Cost", "ja": "トークン使用量とコスト", "vi": "Sử dụng token & Chi phí"},
+        "en": "Token & Cost", "ja": "トークンとコスト", "vi": "Token & Chi phí"},
     "monitoring.overview_currency": {"en": "Currency:", "ja": "通貨:", "vi": "Tiền tệ:"},
     "monitoring.tab_agents_admin": {
         "en": "Agents Admin", "ja": "エージェント管理", "vi": "Agents Admin"},
@@ -2418,8 +2481,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
               "下から独自のSVGアイコンを追加でき、名前ですぐ使えます。",
         "vi": "Các icon dùng cho agent và flow. Gõ tên vào ô Icon của step/agent để dùng. Thêm icon SVG "
               "của bạn ở dưới — dùng được ngay bằng tên."},
-    "icons_admin.search": {"en": "Search built-in icons…", "ja": "組込みアイコンを検索…", "vi": "Tìm icon có sẵn…"},
-    "icons_admin.builtin": {"en": "Built-in icons", "ja": "組込みアイコン", "vi": "Icon có sẵn"},
+    "icons_admin.search": {"en": "Search icons by name…", "ja": "名前でアイコンを検索…", "vi": "Tìm icon theo tên…"},
+    "icons_admin.builtin": {"en": "Built-in icons", "ja": "組込みアイコン", "vi": "Icon tích hợp"},
     "icons_admin.custom": {"en": "Custom icons", "ja": "カスタムアイコン", "vi": "Icon tùy chỉnh"},
     "icons_admin.add": {"en": "Add SVG file", "ja": "SVGファイルを追加", "vi": "Thêm tệp SVG"},
     "icons_admin.paste": {"en": "Paste SVG", "ja": "SVGを貼付", "vi": "Dán SVG"},
@@ -2431,9 +2494,6 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "icons_admin.select_custom": {"en": "Select a custom icon to delete.",
                                   "ja": "削除するカスタムアイコンを選択してください。",
                                   "vi": "Hãy chọn một icon tùy chỉnh để xóa."},
-    "tools_admin.col_name": {"en": "Tool", "ja": "ツール", "vi": "Tool"},
-    "tools_admin.col_desc": {"en": "Description", "ja": "説明", "vi": "Mô tả"},
-    "tools_admin.col_enabled": {"en": "Enabled", "ja": "有効", "vi": "Bật"},
     "tools_admin.jira_note": {
         "en": "Jira connection setup moved to the Connector tab → set it up there; here you only turn "
               "the jira_search / jira_get_issue tools on or off.",
@@ -2468,10 +2528,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Double-click to connect Jira (paste any Jira link — no per-request setup after that).",
         "ja": "ダブルクリックで Jira に接続（Jira リンクを貼るだけ、以降は設定不要）。",
         "vi": "Nhấp đúp để kết nối Jira (dán bất kỳ link Jira nào — sau đó không cần thiết lập gì thêm)."},
-    "connectors.dbl_configure": {
-        "en": "Double-click a connector to configure it.",
-        "ja": "コネクタをダブルクリックして設定します。",
-        "vi": "Nhấp đúp vào một connector để thiết lập."},
+    "connectors.builtin_auto": {
+        "en": "Built-in, connects automatically", "ja": "組み込み、自動接続",
+        "vi": "Tích hợp, tự kết nối"},
     "connectors.connect_external": {
         "en": "Connect to external connectors",
         "ja": "外部コネクタに接続する",
@@ -2624,6 +2683,19 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Chạy flow đã chọn ở nền — nhiều flow chạy song song"},
     "co4e.running_flows": {"en": "Running flows", "ja": "実行中のフロー", "vi": "Flow đang chạy"},
     "co4e.runs_tab": {"en": "Flow Status", "ja": "フロー状態", "vi": "Flow Status"},
+    # The flow tab strip was removed, so its pinned Flow Status tab became a
+    # toggle in the flow toolbar — and that page needs its own way back.
+    "co4e.tt_runs_tab": {
+        "en": "Show every flow run", "ja": "すべてのフロー実行を表示",
+        "vi": "Xem toàn bộ lần chạy flow"},
+    "co4e.back_to_flow": {"en": "Back to flow", "ja": "フローに戻る", "vi": "Về flow"},
+    "co4e.new_flow_ready": {
+        "en": "New flow — type a name, then drag agents onto the canvas",
+        "ja": "新しいフロー — 名前を入力し、エージェントをキャンバスへ",
+        "vi": "Flow mới — đặt tên rồi kéo agent vào canvas"},
+    "co4e.tt_back_to_flow": {
+        "en": "Back to the flow editor", "ja": "フローエディタに戻る",
+        "vi": "Quay lại màn dựng flow"},
     "co4e.runs_tab_n": {"en": "Flow Status ({n})", "ja": "フロー状態 ({n})", "vi": "Flow Status ({n})"},
     "co4e.runs_col_flow": {"en": "Flow", "ja": "フロー", "vi": "Flow"},
     "co4e.runs_col_status": {"en": "Status", "ja": "状態", "vi": "Trạng thái"},
@@ -2693,6 +2765,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "ja": "フローとチャット — /agent:<name> または /skill:<name>",
         "vi": "Chat với flow — dùng /agent:<name> hoặc /skill:<name>"},
     "co4e.send": {"en": "Send", "ja": "送信", "vi": "Gửi"},
+    "co4e.tab_basic": {"en": "Basic", "ja": "基本", "vi": "Cơ bản"},
+    "co4e.tab_model_perm": {"en": "Model & Permission", "ja": "モデルと権限", "vi": "Model & Quyền"},
+    "co4e.tab_skills_files": {"en": "Skills & Files", "ja": "スキルとファイル", "vi": "Skills & Tệp"},
     "co4e.f_label": {"en": "Label", "ja": "ラベル", "vi": "Nhãn"},
     "co4e.f_role": {"en": "Role", "ja": "ロール", "vi": "Vai trò"},
     "co4e.f_name": {"en": "Name", "ja": "名前", "vi": "Tên"},
@@ -2743,6 +2818,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Không tìm thấy agent '{name}'."},
 
     # ---- agents_admin_tab.py — Admin-only agent catalog -------------------
+    "agents_admin.page_title": {"en": "Agents Admin", "ja": "Agents Admin", "vi": "Agents Admin"},
+    "agents_admin.edit_row_tooltip": {"en": "Edit", "ja": "編集", "vi": "Sửa"},
+    "agents_admin.delete_row_tooltip": {"en": "Delete", "ja": "削除", "vi": "Xóa"},
     "agents_admin.hint": {
         "en": "System-management agents shared across every machine (stored in the shared accounts folder): the help agent and Schedule Task executors. These are NOT the agents you pick in Cowork or Co4E.",
         "ja": "全マシンで共有されるシステム管理用エージェント（共有フォルダーに保存）：ヘルプエージェントやスケジュールタスクの実行エージェントなど。CoworkやCo4Eで選択するエージェントではありません。",
@@ -2754,8 +2832,6 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Delete agent \"{name}\"?", "ja": "エージェント「{name}」を削除しますか？",
         "vi": "Xóa agent \"{name}\"?"},
     "agents_admin.add_btn": {"en": "Add", "ja": "追加", "vi": "Thêm"},
-    "agents_admin.edit_btn": {"en": "Edit", "ja": "編集", "vi": "Sửa"},
-    "agents_admin.delete_btn": {"en": "Delete", "ja": "削除", "vi": "Xóa"},
     "agents_admin.f_name": {"en": "Name", "ja": "名前", "vi": "Tên"},
     "agents_admin.f_kind": {"en": "App function", "ja": "アプリ機能", "vi": "Chức năng App"},
     "agents_admin.f_prompt": {"en": "Instructions", "ja": "指示", "vi": "Chỉ dẫn"},
@@ -2787,7 +2863,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "agents_admin.col_enabled": {"en": "Enabled", "ja": "有効", "vi": "Kích hoạt"},
     "agents_admin.col_status": {"en": "Status", "ja": "状態", "vi": "Trạng thái"},
     "agents_admin.col_updated": {"en": "Updated", "ja": "更新", "vi": "Cập nhật"},
-    "agents_admin.check_btn": {"en": "Check", "ja": "チェック", "vi": "Kiểm tra"},
+    "agents_admin.check_btn": {"en": "Check all", "ja": "すべてチェック", "vi": "Kiểm tra tất cả"},
     "agents_admin.check_tooltip": {
         "en": "Check each agent's effective provider/model connectivity",
         "ja": "各エージェントの実効プロバイダ/モデルの接続性を確認",
@@ -2835,12 +2911,67 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "AI turns your question into a filter keyword (e.g. \"which commands failed today?\").",
         "ja": "質問をAIがフィルターキーワードに変換します。",
         "vi": "AI chuyển câu hỏi thành từ khóa lọc (vd: \"hôm nay lệnh nào bị lỗi?\")."},
+    "monitoring.security_detail_title": {
+        "en": "Event details", "ja": "イベント詳細", "vi": "Chi tiết sự kiện"},
+    "monitoring.security_detail_close": {
+        "en": "Close", "ja": "閉じる", "vi": "Đóng"},
+    "monitoring.security_events_title": {
+        "en": "Security Events", "ja": "セキュリティイベント", "vi": "Sự kiện bảo mật"},
+    "monitoring.mcp_history_title": {
+        "en": "MCP Call History", "ja": "MCP 呼び出し履歴", "vi": "Lịch sử gọi MCP"},
+    "monitoring.action_logs_title": {
+        "en": "Action Logs", "ja": "アクションログ", "vi": "Nhật ký hành động"},
+    "monitoring.col_detail_block": {
+        "en": "Block detail", "ja": "ブロック詳細", "vi": "Chi tiết chặn"},
+
+    # ---- event-detail panel (ui-audit_v2.html openDetail()) --------------
+    "monitoring.detail_section_general": {
+        "en": "General info", "ja": "基本情報", "vi": "Thông tin chung"},
+    "monitoring.detail_section_action": {
+        "en": "Action", "ja": "アクション", "vi": "Hành động"},
+    "monitoring.detail_section_metadata": {
+        "en": "Metadata", "ja": "メタデータ", "vi": "Metadata"},
+    "monitoring.detail_type": {"en": "Type", "ja": "種類", "vi": "Loại"},
+    "monitoring.detail_status": {"en": "Status", "ja": "ステータス", "vi": "Trạng thái"},
+    "monitoring.detail_event_id": {"en": "Event ID", "ja": "イベントID", "vi": "Event ID"},
+    "monitoring.detail_policy": {"en": "Policy", "ja": "ポリシー", "vi": "Policy"},
+    "monitoring.detail_severity": {"en": "Severity", "ja": "重大度", "vi": "Severity"},
+    "monitoring.detail_copy": {"en": "Copy", "ja": "コピー", "vi": "Copy"},
+    "monitoring.detail_copied": {"en": "Copied", "ja": "コピー済み", "vi": "Đã copy"},
+
+    # Trạng thái pill — which rule fired, phrased as the enforcement outcome
+    # (distinct wording from the Loại/action_* labels below, matching
+    # ui-audit_v2.html's statusInfo() vs actionLabel).
+    "monitoring.status_blocked": {"en": "Blocked", "ja": "ブロック済み", "vi": "Đã chặn"},
+    "monitoring.status_path": {"en": "Path blocked", "ja": "パスをブロック", "vi": "Path chặn"},
+    "monitoring.status_network": {"en": "Network blocked", "ja": "ネットワークをブロック", "vi": "Mạng chặn"},
+    "monitoring.status_secret": {"en": "Secret leaked", "ja": "シークレット漏洩", "vi": "Bí mật lộ"},
+    "monitoring.status_ok": {"en": "Succeeded", "ja": "成功", "vi": "Thành công"},
+    "monitoring.status_failed": {"en": "Failed", "ja": "失敗", "vi": "Thất bại"},
+
+    "monitoring.severity_critical": {"en": "CRITICAL", "ja": "CRITICAL", "vi": "CRITICAL"},
+    "monitoring.severity_medium": {"en": "MEDIUM", "ja": "MEDIUM", "vi": "MEDIUM"},
+    "monitoring.severity_info": {"en": "INFO", "ja": "INFO", "vi": "INFO"},
+
+    # Loại field — a human label for the raw event name (audit_log ``name``).
+    "monitoring.action_prompt": {"en": "Risky prompt", "ja": "危険なプロンプト", "vi": "Prompt rủi ro"},
+    "monitoring.action_dangerous_command": {
+        "en": "Dangerous command", "ja": "危険なコマンド", "vi": "Lệnh nguy hiểm"},
+    "monitoring.action_install_package": {
+        "en": "Package install", "ja": "パッケージインストール", "vi": "Cài đặt gói"},
+    "monitoring.action_path_outside_sandbox": {
+        "en": "Path outside sandbox", "ja": "サンドボックス外のパス", "vi": "Path ngoài sandbox"},
+    "monitoring.action_network_blocked": {
+        "en": "Network blocked", "ja": "ネットワークブロック", "vi": "Mạng bị chặn"},
+    "monitoring.action_secret_in_output": {
+        "en": "Secret disclosed", "ja": "シークレット漏洩", "vi": "Tiết lộ bí mật"},
+
     "monitoring.overview_activity_title": {
-        "en": "Recent Activity", "ja": "最近のアクティビティ", "vi": "Hoạt động gần đây"},
+        "en": "Recent log", "ja": "最近のログ", "vi": "Nhật ký gần đây"},
     "monitoring.overview_no_activity": {
         "en": "No activity yet.", "ja": "まだアクティビティはありません。", "vi": "Chưa có hoạt động nào."},
     "monitoring.overview_resource_title": {
-        "en": "Resource Usage", "ja": "リソース使用状況", "vi": "Sử dụng tài nguyên"},
+        "en": "Resources", "ja": "リソース", "vi": "Tài nguyên"},
     "monitoring.overview_res_cpu": {"en": "CPU", "ja": "CPU", "vi": "CPU"},
     "monitoring.overview_res_mem": {"en": "Memory", "ja": "メモリ", "vi": "Bộ nhớ"},
     "monitoring.overview_res_disk": {"en": "Disk I/O", "ja": "ディスク I/O", "vi": "Disk I/O"},
@@ -2867,7 +2998,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "monitoring.pricing_col_input": {"en": "Input price", "ja": "入力単価", "vi": "Giá input"},
     "monitoring.pricing_col_output": {"en": "Output price", "ja": "出力単価", "vi": "Giá output"},
     "monitoring.overview_sandbox_details_title": {
-        "en": "Sandbox Details", "ja": "サンドボックス詳細", "vi": "Chi tiết Sandbox"},
+        # One section now, holding both the sandbox facts and the permissions.
+        "en": "Sandbox & Permissions", "ja": "サンドボックスと権限",
+        "vi": "Sandbox & Quyền"},
     "monitoring.overview_sandbox_id": {"en": "Sandbox ID", "ja": "サンドボックス ID", "vi": "Sandbox ID"},
     "monitoring.overview_status": {"en": "Status", "ja": "状態", "vi": "Trạng thái"},
     "monitoring.overview_status_running": {"en": "Running", "ja": "実行中", "vi": "Đang chạy"},

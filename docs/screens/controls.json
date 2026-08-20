@@ -1,0 +1,4208 @@
+[
+ {
+  "file": "ui\\accounts_tab.py",
+  "controls": [
+   {
+    "var": "self.user_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "account.username if account else ''",
+    "line": 108,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "account.display_name if account else ''",
+    "line": 111,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.email_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "account.email if account else ''",
+    "line": 113,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.dept_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "account.department if account else ''",
+    "line": 125,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 137,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.search_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "keyword",
+    "line": 176,
+    "signals": [
+     "textChanged → self._apply_tree_filter"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.ai_search_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.ai_search_btn')",
+    "line": 178,
+    "signals": [
+     "clicked → self._ai_search"
+    ],
+    "object_name": "",
+    "label_vi": "AI"
+   },
+   {
+    "var": "self.group_filter_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 188,
+    "signals": [
+     "currentIndexChanged → lambda _i: self._apply_tree_filter()"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.add_btn')",
+    "line": 202,
+    "signals": [
+     "clicked → self._add_account"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm"
+   },
+   {
+    "var": "self.edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.edit_btn')",
+    "line": 205,
+    "signals": [
+     "clicked → self._edit_account"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "self.del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.delete_btn')",
+    "line": 208,
+    "signals": [
+     "clicked → self._delete_account"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "self.code_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.generate_code_btn')",
+    "line": 211,
+    "signals": [
+     "clicked → self._regenerate_code"
+    ],
+    "object_name": "",
+    "label_vi": "Tạo mã"
+   },
+   {
+    "var": "self.group_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.new_group_btn')",
+    "line": 221,
+    "signals": [
+     "clicked → self._add_group"
+    ],
+    "object_name": "",
+    "label_vi": "Nhóm mới"
+   },
+   {
+    "var": "self.excel_template_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.excel_template_btn')",
+    "line": 230,
+    "signals": [
+     "clicked → self._export_excel_template"
+    ],
+    "object_name": "",
+    "label_vi": "Mẫu Excel"
+   },
+   {
+    "var": "self.excel_import_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('accounts.excel_import_btn')",
+    "line": 233,
+    "signals": [
+     "clicked → self._import_excel"
+    ],
+    "object_name": "",
+    "label_vi": "Nhập từ Excel"
+   },
+   {
+    "var": "self.period_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 251,
+    "signals": [
+     "currentIndexChanged → self.refresh"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.refresh_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.refresh')",
+    "line": 256,
+    "signals": [
+     "clicked → self.refresh"
+    ],
+    "object_name": "",
+    "label_vi": "Làm mới"
+   },
+   {
+    "var": "self.usage_table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "0",
+    "line": 262,
+    "signals": [],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\agent_manager_tab.py",
+  "controls": [
+   {
+    "var": "del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agentmgr.delete_btn')",
+    "line": 52,
+    "signals": [
+     "clicked → self._delete"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "agent.name",
+    "line": 62,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.desc_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "agent.description",
+    "line": 63,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.provider_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 68,
+    "signals": [
+     "currentIndexChanged → self._reload_models"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self._gen_prompt_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agentmgr.gen_prompt_btn')",
+    "line": 88,
+    "signals": [
+     "clicked → self._gen_prompt"
+    ],
+    "object_name": "",
+    "label_vi": "Tạo prompt từ mô tả"
+   },
+   {
+    "var": "new_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agentmgr.new_btn')",
+    "line": 107,
+    "signals": [
+     "clicked → self._new_agent"
+    ],
+    "object_name": "",
+    "label_vi": "Agent mới"
+   },
+   {
+    "var": "save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agentmgr.save_btn')",
+    "line": 110,
+    "signals": [
+     "clicked → self._save"
+    ],
+    "object_name": "primary",
+    "label_vi": "Lưu agent"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\agents_admin_tab.py",
+  "controls": [
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "agent.name if agent else ''",
+    "line": 55,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.prompt_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "agent.prompt if agent else ''",
+    "line": 65,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.provider_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 70,
+    "signals": [
+     "currentIndexChanged → self._refresh_model_combo"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.load_models_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agents_admin.load_models_tooltip')",
+    "line": 89,
+    "signals": [
+     "clicked → self._load_live_models"
+    ],
+    "object_name": "",
+    "label_vi": "Lấy danh sách model thực tế của provider này để chọn từ dropdown."
+   },
+   {
+    "var": "self.enabled_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('agents_admin.f_enabled')",
+    "line": 98,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Kích hoạt"
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 101,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "0",
+    "line": 169,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agents_admin.add_btn')",
+    "line": 178,
+    "signals": [
+     "clicked → self._add"
+    ],
+    "object_name": "primary",
+    "label_vi": "Thêm"
+   },
+   {
+    "var": "self.edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agents_admin.edit_btn')",
+    "line": 182,
+    "signals": [
+     "clicked → self._edit"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "self.del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agents_admin.delete_btn')",
+    "line": 185,
+    "signals": [
+     "clicked → self._delete"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "self.check_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('agents_admin.check_btn')",
+    "line": 188,
+    "signals": [
+     "clicked → self._check_all"
+    ],
+    "object_name": "",
+    "label_vi": "Kiểm tra"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\calendar_view.py",
+  "controls": [
+   {
+    "var": "self.add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "'+'",
+    "line": 43,
+    "signals": [
+     "clicked → lambda: self.add_requested.emit(self._date_str)"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.list",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "",
+    "line": 49,
+    "signals": [
+     "itemClicked → self._on_item_clicked"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.prev_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.cal_prev')",
+    "line": 100,
+    "signals": [
+     "clicked → lambda: self._shift(-1)"
+    ],
+    "object_name": "",
+    "label_vi": "Trước"
+   },
+   {
+    "var": "self.today_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.cal_today')",
+    "line": 103,
+    "signals": [
+     "clicked → self._go_today"
+    ],
+    "object_name": "",
+    "label_vi": "Hôm nay"
+   },
+   {
+    "var": "self.next_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.cal_next')",
+    "line": 105,
+    "signals": [
+     "clicked → lambda: self._shift(1)"
+    ],
+    "object_name": "",
+    "label_vi": "Sau"
+   },
+   {
+    "var": "self.granularity_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 110,
+    "signals": [
+     "currentIndexChanged → self._on_granularity_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "lst",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "",
+    "line": 213,
+    "signals": [
+     "itemClicked → lambda item: self.show_month(self.anchor.year, item.data(Qt.UserRole))"
+    ],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\chat_panel.py",
+  "controls": [
+   {
+    "var": "self.agent_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('chatpanel.agent_tooltip')",
+    "line": 165,
+    "signals": [
+     "currentIndexChanged → self._on_agent_changed"
+    ],
+    "object_name": "",
+    "label_vi": "Model/agent riêng cho tab này — độc lập với tab kia"
+   },
+   {
+    "var": "self.compress_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('chatpanel.compress_btn')",
+    "line": 177,
+    "signals": [
+     "clicked → self._compress_messages"
+    ],
+    "object_name": "",
+    "label_vi": "Nén"
+   },
+   {
+    "var": "self._io_collapse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('chatpanel.collapse_files_tooltip')",
+    "line": 239,
+    "signals": [
+     "clicked → lambda: self._set_io_collapsed(True)"
+    ],
+    "object_name": "",
+    "label_vi": "Thu gọn bảng Files"
+   }
+  ],
+  "menu_actions": [
+   {
+    "menu": "menu",
+    "label": "app_icon('link')",
+    "line": 439
+   },
+   {
+    "menu": "menu",
+    "label": "app_icon('edit')",
+    "line": 440
+   }
+  ]
+ },
+ {
+  "file": "ui\\chat_view.py",
+  "controls": [
+   {
+    "var": "self._head",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "title",
+    "line": 228,
+    "signals": [
+     "clicked → self._toggle_body"
+    ],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\co4e_agent_dialog.py",
+  "controls": [
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "agent.name",
+    "line": 32,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.role_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "agent.role or 'AGENT'",
+    "line": 34,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.instructions_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "agent.instructions",
+    "line": 42,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.gen_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.ai_draft')",
+    "line": 46,
+    "signals": [
+     "clicked → self._ai_draft"
+    ],
+    "object_name": "",
+    "label_vi": "Soạn bằng AI"
+   },
+   {
+    "var": "self.context_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "getattr(agent, 'context', '')",
+    "line": 59,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.load_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.load_models_tooltip')",
+    "line": 68,
+    "signals": [
+     "clicked → self._load_models"
+    ],
+    "object_name": "",
+    "label_vi": "Tải danh sách model"
+   },
+   {
+    "var": "attach_add",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.attach_add')",
+    "line": 99,
+    "signals": [
+     "clicked → self._add_attachment"
+    ],
+    "object_name": "",
+    "label_vi": "Đính kèm tệp"
+   },
+   {
+    "var": "attach_del",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.attach_remove')",
+    "line": 102,
+    "signals": [
+     "clicked → self._del_attachment"
+    ],
+    "object_name": "",
+    "label_vi": "Bỏ"
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 113,
+    "signals": [],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\co4e_canvas.py",
+  "controls": [],
+  "menu_actions": [
+   {
+    "menu": "menu",
+    "label": "'＋ Add next step'",
+    "line": 188
+   },
+   {
+    "menu": "menu",
+    "label": "'→ Connect from here'",
+    "line": 189
+   },
+   {
+    "menu": "menu",
+    "label": "'🗑 Delete step'",
+    "line": 190
+   },
+   {
+    "menu": "menu",
+    "label": "'🗑 Delete connection'",
+    "line": 368
+   }
+  ]
+ },
+ {
+  "file": "ui\\co4e_config_panel.py",
+  "controls": [
+   {
+    "var": "self.label_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "step.label",
+    "line": 44,
+    "signals": [
+     "textChanged → self._on_edit"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.role_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "step.role",
+    "line": 48,
+    "signals": [
+     "textChanged → self._on_edit"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.instructions_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "",
+    "line": 60,
+    "signals": [
+     "textChanged → self._on_edit"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.gen_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.ai_draft')",
+    "line": 63,
+    "signals": [
+     "clicked → self._ai_draft"
+    ],
+    "object_name": "",
+    "label_vi": "Soạn bằng AI"
+   },
+   {
+    "var": "self.context_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "tr('co4e.f_context_placeholder')",
+    "line": 77,
+    "signals": [
+     "textChanged → self._on_edit"
+    ],
+    "object_name": "",
+    "label_vi": "Thông tin/ngữ cảnh bổ sung cho agent hoặc step này (thêm vào prompt khi chạy)."
+   },
+   {
+    "var": "self.load_models_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.load_models_tooltip')",
+    "line": 87,
+    "signals": [
+     "clicked → self._load_models"
+    ],
+    "object_name": "",
+    "label_vi": "Tải danh sách model"
+   },
+   {
+    "var": "self.perm_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 97,
+    "signals": [
+     "currentIndexChanged → self._on_edit"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.verify_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('co4e.f_self_verify')",
+    "line": 104,
+    "signals": [
+     "toggled → self._on_edit"
+    ],
+    "object_name": "",
+    "label_vi": "Tự kiểm tra"
+   },
+   {
+    "var": "self.rounds_spin",
+    "type": "QSpinBox",
+    "kind": "ô số",
+    "label": "",
+    "line": 106,
+    "signals": [
+     "valueChanged → self._on_edit"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.attach_add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.attach_add')",
+    "line": 125,
+    "signals": [
+     "clicked → self._add_attachment"
+    ],
+    "object_name": "",
+    "label_vi": "Đính kèm tệp"
+   },
+   {
+    "var": "self.attach_del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.attach_remove')",
+    "line": 128,
+    "signals": [
+     "clicked → self._del_attachment"
+    ],
+    "object_name": "",
+    "label_vi": "Bỏ"
+   },
+   {
+    "var": "self.sub_list",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "",
+    "line": 141,
+    "signals": [
+     "itemDoubleClicked → self._edit_subagent"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.sub_add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.add_subagent')",
+    "line": 144,
+    "signals": [
+     "clicked → self._add_subagent"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm"
+   },
+   {
+    "var": "self.sub_del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.del_subagent')",
+    "line": 147,
+    "signals": [
+     "clicked → self._del_subagent"
+    ],
+    "object_name": "",
+    "label_vi": "Bỏ"
+   },
+   {
+    "var": "self.run_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.run')",
+    "line": 159,
+    "signals": [
+     "clicked → lambda: self.run_node.emit(self._node_id)"
+    ],
+    "object_name": "",
+    "label_vi": "Chạy"
+   },
+   {
+    "var": "self.run_from_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.run_from_here')",
+    "line": 163,
+    "signals": [
+     "clicked → lambda: self.run_from.emit(self._node_id)"
+    ],
+    "object_name": "",
+    "label_vi": "Chạy từ đây"
+   },
+   {
+    "var": "self.del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.delete_step')",
+    "line": 166,
+    "signals": [
+     "clicked → lambda: self.delete_node.emit(self._node_id)"
+    ],
+    "object_name": "danger",
+    "label_vi": "Xóa bước"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\co4e_tab.py",
+  "controls": [
+   {
+    "var": "self._popup",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "",
+    "line": 144,
+    "signals": [
+     "itemClicked → lambda _i: self._accept()"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "'×'",
+    "line": 341,
+    "signals": [
+     "clicked → lambda: self._close_flow_tab_button(btn)"
+    ],
+    "object_name": "flowTabClose"
+   },
+   {
+    "var": "self.wf_runbg_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.run_bg')",
+    "line": 459,
+    "signals": [
+     "clicked → self._run_selected_in_background"
+    ],
+    "object_name": "",
+    "label_vi": "Chạy"
+   },
+   {
+    "var": "self.ag_new_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.new')",
+    "line": 476,
+    "signals": [
+     "clicked → self._new_agent"
+    ],
+    "object_name": "",
+    "label_vi": "Mới"
+   },
+   {
+    "var": "self.sk_manage_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.manage_skills')",
+    "line": 493,
+    "signals": [
+     "clicked → self._manage_skills"
+    ],
+    "object_name": "",
+    "label_vi": "Quản lý skill…"
+   },
+   {
+    "var": "b",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr(tip_key)",
+    "line": 502,
+    "signals": [
+     "clicked → slot"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.flow_bar",
+    "type": "QTabBar",
+    "kind": "dải tab",
+    "label": "",
+    "line": 556,
+    "signals": [
+     "currentChanged → self._on_flow_tab_changed",
+     "tabCloseRequested → self._close_flow_tab"
+    ],
+    "object_name": "flowTabs"
+   },
+   {
+    "var": "self.flow_add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "'＋'",
+    "line": 582,
+    "signals": [
+     "clicked → self._new_workflow"
+    ],
+    "object_name": "flowAddBtn"
+   },
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "self._wf.name",
+    "line": 631,
+    "signals": [
+     "textChanged → self._on_name_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.add_step_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.add')",
+    "line": 636,
+    "signals": [
+     "clicked → self._add_blank_step"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm"
+   },
+   {
+    "var": "self.save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.save')",
+    "line": 639,
+    "signals": [
+     "clicked → lambda: self._save(as_template=False)"
+    ],
+    "object_name": "primary",
+    "label_vi": "Lưu"
+   },
+   {
+    "var": "self.mode_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('co4e.tt_mode')",
+    "line": 645,
+    "signals": [
+     "currentIndexChanged → self._on_mode_changed"
+    ],
+    "object_name": "",
+    "label_vi": "Auto = mỗi bước tự lập kế hoạch rồi chạy · Plan = chỉ lập kế hoạch (chỉ đọc) · Manual = từng bước (bấm Bước tiếp)"
+   },
+   {
+    "var": "self.run_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.run')",
+    "line": 650,
+    "signals": [
+     "clicked → self._on_run_clicked"
+    ],
+    "object_name": "primary",
+    "label_vi": "Chạy"
+   },
+   {
+    "var": "self.ws_folder_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "short",
+    "line": 693,
+    "signals": [
+     "clicked → self._open_workspace_folder"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.run_stop_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.stop')",
+    "line": 701,
+    "signals": [
+     "clicked → self._stop_selected_run"
+    ],
+    "object_name": "danger",
+    "label_vi": "Dừng"
+   },
+   {
+    "var": "self.run_rename_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.rename_run')",
+    "line": 706,
+    "signals": [
+     "clicked → self._rename_selected_run"
+    ],
+    "object_name": "",
+    "label_vi": "Đổi tên"
+   },
+   {
+    "var": "self.run_del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.delete_run')",
+    "line": 710,
+    "signals": [
+     "clicked → self._delete_selected_run"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "self.run_clear_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.clear_done')",
+    "line": 714,
+    "signals": [
+     "clicked → lambda: self.manager.clear_finished()"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa đã xong"
+   },
+   {
+    "var": "self.runs_table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "0",
+    "line": 722,
+    "signals": [
+     "itemDoubleClicked → self._open_run_from_table",
+     "customContextMenuRequested → self._runs_context_menu"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.config_toggle_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.tt_collapse_config')",
+    "line": 747,
+    "signals": [
+     "clicked → self._toggle_config"
+    ],
+    "object_name": "",
+    "label_vi": "Thu gọn bảng cấu hình"
+   },
+   {
+    "var": "self.chat_toggle_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.tt_expand_msgs')",
+    "line": 841,
+    "signals": [
+     "clicked → self._toggle_messages"
+    ],
+    "object_name": "msgToggle",
+    "label_vi": "Mở rộng khung tin nhắn"
+   },
+   {
+    "var": "self.chat_send_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('co4e.send')",
+    "line": 873,
+    "signals": [
+     "clicked → self._chat_send"
+    ],
+    "object_name": "",
+    "label_vi": "Gửi"
+   }
+  ],
+  "menu_actions": [
+   {
+    "menu": "menu",
+    "label": "icon('edit')",
+    "line": 1014
+   },
+   {
+    "menu": "menu",
+    "label": "icon('edit')",
+    "line": 1015
+   },
+   {
+    "menu": "menu",
+    "label": "icon('branch')",
+    "line": 1016
+   },
+   {
+    "menu": "menu",
+    "label": "icon('play')",
+    "line": 1017
+   },
+   {
+    "menu": "menu",
+    "label": "icon('trash')",
+    "line": 1018
+   },
+   {
+    "menu": "menu",
+    "label": "tr('co4e.open_run')",
+    "line": 1400,
+    "label_vi": "Mở flow"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('co4e.open_output')",
+    "line": 1404,
+    "label_vi": "Mở thư mục output"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('co4e.rename_run')",
+    "line": 1405,
+    "label_vi": "Đổi tên"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('co4e.delete_run')",
+    "line": 1406,
+    "label_vi": "Xóa"
+   }
+  ]
+ },
+ {
+  "file": "ui\\composer.py",
+  "controls": [
+   {
+    "var": "self.queue_list",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "tr('composer.queue_tooltip')",
+    "line": 406,
+    "signals": [
+     "itemDoubleClicked → self._remove_queue_item"
+    ],
+    "object_name": "",
+    "label_vi": "Nhấp đúp để xoá một tin nhắn khỏi hàng đợi"
+   },
+   {
+    "var": "self.attach_list",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "tr('composer.attachments_tooltip')",
+    "line": 420,
+    "signals": [
+     "itemDoubleClicked → self._remove_attachment"
+    ],
+    "object_name": "",
+    "label_vi": "Bấm trên thẻ để gỡ tệp đính kèm nhầm"
+   },
+   {
+    "var": "self.attach_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "''",
+    "line": 443,
+    "signals": [
+     "clicked → self._pick_attachments"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.send_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('composer.queue_btn') if self._busy else tr('composer.send')",
+    "line": 446,
+    "signals": [
+     "clicked → self._on_submit"
+    ],
+    "object_name": "primary"
+   },
+   {
+    "var": "self.stop_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('composer.stop')",
+    "line": 450,
+    "signals": [
+     "clicked → self.stop_requested.emit"
+    ],
+    "object_name": "danger",
+    "label_vi": "Dừng"
+   },
+   {
+    "var": "remove",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('composer.remove_tooltip')",
+    "line": 599,
+    "signals": [
+     "clicked → lambda _=False, path=p: self._remove_attachment_path(path)"
+    ],
+    "object_name": "danger",
+    "label_vi": "Gỡ tệp này (đính kèm nhầm)"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\connectors_panel.py",
+  "controls": [
+   {
+    "var": "self.paste",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('connectors.jira_paste_placeholder')",
+    "line": 42,
+    "signals": [
+     "textChanged → self._on_paste"
+    ],
+    "object_name": "",
+    "label_vi": "Dán bất kỳ link Jira nào — tự điền Base URL"
+   },
+   {
+    "var": "self.url",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "jira.get('base_url', '')",
+    "line": 46,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.email",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "jira.get('email', '')",
+    "line": 48,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.token",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "jira.get('api_token', '')",
+    "line": 49,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.test_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('connectors.jira_test')",
+    "line": 58,
+    "signals": [
+     "clicked → self._test"
+    ],
+    "object_name": "",
+    "label_vi": "Kiểm tra kết nối"
+   },
+   {
+    "var": "self.save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('connectors.jira_save')",
+    "line": 60,
+    "signals": [
+     "clicked → self._save_close"
+    ],
+    "object_name": "primary",
+    "label_vi": "Lưu"
+   },
+   {
+    "var": "self.connect_external_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('connectors.connect_external')",
+    "line": 133,
+    "signals": [
+     "toggled → self._on_connect_external_toggled"
+    ],
+    "object_name": "",
+    "label_vi": "Kết nối tới connector bên ngoài"
+   },
+   {
+    "var": "self.ext_tree",
+    "type": "QTreeWidget",
+    "kind": "cây",
+    "label": "",
+    "line": 144,
+    "signals": [
+     "itemDoubleClicked → lambda *_: self._ext_edit()"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.ext_add_btn')",
+    "line": 155,
+    "signals": [
+     "clicked → self._ext_add"
+    ],
+    "object_name": "primary",
+    "label_vi": "Thêm connector…"
+   },
+   {
+    "var": "self.edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.ext_edit_btn')",
+    "line": 159,
+    "signals": [
+     "clicked → self._ext_edit"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "self.del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.ext_delete_btn')",
+    "line": 162,
+    "signals": [
+     "clicked → self._ext_delete"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\cowork_tab.py",
+  "controls": [
+   {
+    "var": "self.skills_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('cowork.skills_btn')",
+    "line": 30,
+    "signals": [
+     "clicked → self._open_skills_manager"
+    ],
+    "object_name": "",
+    "label_vi": "Skills"
+   },
+   {
+    "var": "self._new_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('cowork.new_chat')",
+    "line": 34,
+    "signals": [
+     "clicked → self.new_session"
+    ],
+    "object_name": "",
+    "label_vi": "Cuộc trò chuyện mới"
+   },
+   {
+    "var": "self.folder_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('cowork.pick_folder_btn')",
+    "line": 48,
+    "signals": [
+     "clicked → self._pick_output_folder"
+    ],
+    "object_name": "",
+    "label_vi": "Thư mục Local…"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\dashboard_tab.py",
+  "controls": [
+   {
+    "var": "self.chart_prev_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('dashboard.chart_prev')",
+    "line": 59,
+    "signals": [
+     "clicked → self._chart_prev"
+    ],
+    "object_name": "",
+    "label_vi": "Kỳ trước"
+   },
+   {
+    "var": "self.chart_next_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('dashboard.chart_next')",
+    "line": 67,
+    "signals": [
+     "clicked → self._chart_next"
+    ],
+    "object_name": "",
+    "label_vi": "Kỳ sau"
+   },
+   {
+    "var": "self.gran_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 71,
+    "signals": [
+     "currentIndexChanged → self._on_gran_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.metric_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 75,
+    "signals": [
+     "currentIndexChanged → self._refresh_chart"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.currency_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('dashboard.currency_tooltip')",
+    "line": 84,
+    "signals": [
+     "currentIndexChanged → self._on_currency_changed"
+    ],
+    "object_name": "",
+    "label_vi": "Tiền tệ hiển thị (tỉ giá USD→VND/JPY cố định, sửa được trong config)."
+   },
+   {
+    "var": "self.refresh_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "''",
+    "line": 91,
+    "signals": [
+     "clicked → self.refresh"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.ai_analyze_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('dashboard.ai_analyze_btn')",
+    "line": 145,
+    "signals": [
+     "clicked → self._ai_analyze"
+    ],
+    "object_name": "",
+    "label_vi": "AI phân tích"
+   },
+   {
+    "var": "self.apply_strategy_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('dashboard.strategy_btn')",
+    "line": 150,
+    "signals": [
+     "clicked → self._apply_saving_strategy"
+    ],
+    "object_name": "",
+    "label_vi": "Áp dụng chiến lược tiết kiệm"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\ext_connector_dialog.py",
+  "controls": [
+   {
+    "var": "self.preset_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 35,
+    "signals": [
+     "currentIndexChanged → self._apply_preset"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "connector.get('name', '')",
+    "line": 43,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.mode_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 47,
+    "signals": [
+     "currentIndexChanged → lambda i: self.stack.setCurrentIndex(self.mode_combo.currentData() != 'mcp_stdio')"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.command_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "connector.get('command', '')",
+    "line": 59,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.args_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "' '.join(connector.get('args', []) or [])",
+    "line": 62,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.base_url_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "connector.get('base_url', '')",
+    "line": 69,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.api_key_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "connector.get('api_key', '')",
+    "line": 72,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.auth_header_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "connector.get('auth_header', 'Authorization')",
+    "line": 75,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.auth_scheme_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "connector.get('auth_scheme', 'Bearer')",
+    "line": 77,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "test_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('ext.test_btn')",
+    "line": 90,
+    "signals": [
+     "clicked → self._test_connection"
+    ],
+    "object_name": "",
+    "label_vi": "Kiểm tra kết nối"
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 103,
+    "signals": [],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\file_edit_dialog.py",
+  "controls": [
+   {
+    "var": "self.path_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "str(p)",
+    "line": 66,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.browse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('fileedit.browse_tooltip')",
+    "line": 68,
+    "signals": [
+     "clicked → self._browse"
+    ],
+    "object_name": "",
+    "label_vi": "Mở file khác…"
+   },
+   {
+    "var": "self.reload_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('fileedit.reload_tooltip')",
+    "line": 73,
+    "signals": [
+     "clicked → self._reload"
+    ],
+    "object_name": "",
+    "label_vi": "Tải lại từ đĩa"
+   },
+   {
+    "var": "self.editor",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "tr('fileedit.pick_hint')",
+    "line": 84,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Mở một file để xem hoặc chỉnh sửa."
+   },
+   {
+    "var": "self.instruction_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('fileedit.instruction_placeholder')",
+    "line": 94,
+    "signals": [
+     "returnPressed → self._ai_edit"
+    ],
+    "object_name": "",
+    "label_vi": "Nói cho AI cách sửa file này (vd: 'sửa lỗi chính tả', 'dịch sang tiếng Anh')…"
+   },
+   {
+    "var": "self.ai_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('fileedit.ai_btn')",
+    "line": 97,
+    "signals": [
+     "clicked → self._ai_edit"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa bằng AI"
+   },
+   {
+    "var": "self.save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('fileedit.save_btn')",
+    "line": 106,
+    "signals": [
+     "clicked → self._save"
+    ],
+    "object_name": "primary",
+    "label_vi": "Lưu"
+   },
+   {
+    "var": "self.close_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('fileedit.close_btn')",
+    "line": 110,
+    "signals": [
+     "clicked → self.reject"
+    ],
+    "object_name": "",
+    "label_vi": "Đóng"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\flow_dialog.py",
+  "controls": [
+   {
+    "var": "self.tabs",
+    "type": "QTabWidget",
+    "kind": "dải tab",
+    "label": "",
+    "line": 50,
+    "signals": [
+     "currentChanged → lambda _i: self._reload_agent_picker()",
+     "currentChanged → lambda _i: self._reload_skill_combo()"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.tpl_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 57,
+    "signals": [
+     "activated → self._load_selected_template"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "tpl_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.load_builtin')",
+    "line": 60,
+    "signals": [
+     "clicked → self._load_builtin"
+    ],
+    "object_name": "",
+    "label_vi": "Tải template Req→Demo"
+   },
+   {
+    "var": "new_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.new')",
+    "line": 63,
+    "signals": [
+     "clicked → self._new_flow"
+    ],
+    "object_name": "",
+    "label_vi": "Mới"
+   },
+   {
+    "var": "del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.delete_template')",
+    "line": 66,
+    "signals": [
+     "clicked → self._delete_template"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa template"
+   },
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "flow.name",
+    "line": 75,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.desc_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "flow.description",
+    "line": 76,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "up",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "'↑'",
+    "line": 91,
+    "signals": [
+     "clicked → lambda: self._move(-1)"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "down",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "'↓'",
+    "line": 93,
+    "signals": [
+     "clicked → lambda: self._move(1)"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "rm",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.remove_stage')",
+    "line": 95,
+    "signals": [
+     "clicked → self._remove_step"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa bước"
+   },
+   {
+    "var": "self.step_name",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "step.name",
+    "line": 107,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.step_hint",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "step.hint",
+    "line": 108,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.step_agent",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 115,
+    "signals": [
+     "currentIndexChanged → self._reload_step_models"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self._gen_prompt_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.gen_task_from_hint')",
+    "line": 129,
+    "signals": [
+     "clicked → self._gen_prompt"
+    ],
+    "object_name": "",
+    "label_vi": "Tạo task từ gợi ý"
+   },
+   {
+    "var": "self.attach_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.attach_files')",
+    "line": 144,
+    "signals": [
+     "clicked → self._pick_attachments"
+    ],
+    "object_name": "",
+    "label_vi": "Đính kèm file…"
+   },
+   {
+    "var": "self.compact_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('flow.compact_after_run')",
+    "line": 150,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Compact after run (nén sau khi chạy)"
+   },
+   {
+    "var": "self.verify_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('flow.self_verify')",
+    "line": 153,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Self-verify trước khi bàn giao"
+   },
+   {
+    "var": "self.retries_spin",
+    "type": "QSpinBox",
+    "kind": "ô số",
+    "label": "tr('flow.review_retries_tooltip')",
+    "line": 156,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Nếu tự kiểm tra thấy chưa hoàn thành, chạy lại bước này tối đa số lần này (0 = tắt)"
+   },
+   {
+    "var": "self.sub_name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('flow.subagent_name_placeholder')",
+    "line": 173,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Tên (vd backend)"
+   },
+   {
+    "var": "self.sub_prompt_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('flow.subagent_task_placeholder')",
+    "line": 175,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Nhiệm vụ của sub-agent này (tùy chọn — bỏ trống thì dùng task của bước)"
+   },
+   {
+    "var": "sub_add",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.subagent_add')",
+    "line": 177,
+    "signals": [
+     "clicked → self._add_subagent"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm"
+   },
+   {
+    "var": "sub_remove",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.subagent_remove')",
+    "line": 180,
+    "signals": [
+     "clicked → self._remove_subagent"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "agent_add",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.subagent_add_from_agent')",
+    "line": 194,
+    "signals": [
+     "clicked → self._add_subagent_from_agent"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm từ Agent"
+   },
+   {
+    "var": "add_step",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.add_stage')",
+    "line": 207,
+    "signals": [
+     "clicked → self._add_step"
+    ],
+    "object_name": "primary",
+    "label_vi": "Thêm bước"
+   },
+   {
+    "var": "upd_step",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.update_stage')",
+    "line": 211,
+    "signals": [
+     "clicked → self._update_step"
+    ],
+    "object_name": "",
+    "label_vi": "Cập nhật bước"
+   },
+   {
+    "var": "save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.save_template')",
+    "line": 231,
+    "signals": [
+     "clicked → self._save_template"
+    ],
+    "object_name": "",
+    "label_vi": "Lưu làm template"
+   },
+   {
+    "var": "run_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.run')",
+    "line": 234,
+    "signals": [
+     "clicked → self._run"
+    ],
+    "object_name": "primary",
+    "label_vi": "Chạy flow"
+   },
+   {
+    "var": "close_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('flow.close')",
+    "line": 238,
+    "signals": [
+     "clicked → self.reject"
+    ],
+    "object_name": "",
+    "label_vi": "Đóng"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\folder_tab.py",
+  "controls": [
+   {
+    "var": "self.path_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "self._root",
+    "line": 265,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self._open_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.open_folder')",
+    "line": 267,
+    "signals": [
+     "clicked → self._pick_root"
+    ],
+    "object_name": "primary",
+    "label_vi": "Mở thư mục"
+   },
+   {
+    "var": "self.mode_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.edit') if not self.mode_btn.isChecked() else tr('folder.preview')",
+    "line": 299,
+    "signals": [
+     "clicked → self._toggle_edit_mode"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.ai_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.ai_edit')",
+    "line": 304,
+    "signals": [
+     "clicked → self._toggle_ai_panel"
+    ],
+    "object_name": "",
+    "label_vi": "AI Edit"
+   },
+   {
+    "var": "self.save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.save')",
+    "line": 309,
+    "signals": [
+     "clicked → self._save"
+    ],
+    "object_name": "primary",
+    "label_vi": "Lưu"
+   },
+   {
+    "var": "self.ext_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.open_external')",
+    "line": 315,
+    "signals": [
+     "clicked → self._open_external"
+    ],
+    "object_name": "",
+    "label_vi": "Mở bằng app ngoài"
+   },
+   {
+    "var": "table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "len(rows)",
+    "line": 534,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.ai_input",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('folder.ai_placeholder')",
+    "line": 736,
+    "signals": [
+     "returnPressed → self._ai_send"
+    ],
+    "object_name": "",
+    "label_vi": "Mô tả chỉnh sửa… (vd: thêm xử lý lỗi)"
+   },
+   {
+    "var": "self.ai_send_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.ai_send')",
+    "line": 740,
+    "signals": [
+     "clicked → self._ai_send"
+    ],
+    "object_name": "primary",
+    "label_vi": "Gửi"
+   },
+   {
+    "var": "self._ai_discard_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.ai_discard')",
+    "line": 752,
+    "signals": [
+     "clicked → self._ai_discard"
+    ],
+    "object_name": "",
+    "label_vi": "Hủy"
+   },
+   {
+    "var": "self._ai_apply_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('folder.ai_apply')",
+    "line": 755,
+    "signals": [
+     "clicked → self._ai_apply"
+    ],
+    "object_name": "primary",
+    "label_vi": "Áp dụng"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\help_agent_widget.py",
+  "controls": [
+   {
+    "var": "self.edge_tab",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "self",
+    "line": 169,
+    "signals": [
+     "clicked → self._show_launcher"
+    ],
+    "object_name": "helpEdgeTab"
+   },
+   {
+    "var": "self.collapse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "self",
+    "line": 178,
+    "signals": [
+     "clicked → self._hide_to_edge"
+    ],
+    "object_name": "helpCollapseBtn"
+   },
+   {
+    "var": "self.min_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "header",
+    "line": 214,
+    "signals": [
+     "clicked → self._collapse"
+    ],
+    "object_name": "helpMinBtn"
+   },
+   {
+    "var": "self.input",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "row",
+    "line": 236,
+    "signals": [
+     "returnPressed → self._send"
+    ],
+    "object_name": "helpInput"
+   },
+   {
+    "var": "self.send_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "row",
+    "line": 241,
+    "signals": [
+     "clicked → self._send"
+    ],
+    "object_name": "helpSendBtn"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\icons.py",
+  "controls": [],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\icons_admin_tab.py",
+  "controls": [
+   {
+    "var": "self.search",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('icons_admin.search')",
+    "line": 43,
+    "signals": [
+     "textChanged → self._reload_builtin"
+    ],
+    "object_name": "",
+    "label_vi": "Tìm icon có sẵn…"
+   },
+   {
+    "var": "self.add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('icons_admin.add')",
+    "line": 58,
+    "signals": [
+     "clicked → self._add_icon"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm tệp SVG"
+   },
+   {
+    "var": "self.paste_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('icons_admin.paste')",
+    "line": 60,
+    "signals": [
+     "clicked → self._add_from_svg_text"
+    ],
+    "object_name": "",
+    "label_vi": "Dán SVG"
+   },
+   {
+    "var": "self.del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('icons_admin.delete')",
+    "line": 62,
+    "signals": [
+     "clicked → self._delete_icon"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa tùy chỉnh"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\libreoffice_view.py",
+  "controls": [
+   {
+    "var": "self._open_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('libreoffice.open_btn')",
+    "line": 97,
+    "signals": [
+     "clicked → self._open_external"
+    ],
+    "object_name": "primary",
+    "label_vi": "Mở bằng LibreOffice"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\login_dialog.py",
+  "controls": [
+   {
+    "var": "exit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('login.exit_btn')",
+    "line": 87,
+    "signals": [
+     "clicked → self.reject"
+    ],
+    "object_name": "",
+    "label_vi": "Thoát"
+   },
+   {
+    "var": "self.bs_dir_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "self.ctx.config.shared_dir",
+    "line": 121,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "browse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('login.browse')",
+    "line": 122,
+    "signals": [
+     "clicked → self._bs_browse"
+    ],
+    "object_name": "",
+    "label_vi": "Chọn…"
+   },
+   {
+    "var": "create_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('login.create_admin')",
+    "line": 137,
+    "signals": [
+     "clicked → self._bs_create_admin"
+    ],
+    "object_name": "primary",
+    "label_vi": "Tạo tài khoản Admin"
+   },
+   {
+    "var": "self.code_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "cached_code",
+    "line": 186,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.department_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "self.ctx.config.auth.get('last_department', '')",
+    "line": 199,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "login_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('login.login_btn')",
+    "line": 209,
+    "signals": [
+     "clicked → lambda: self._do_login(shared_dir)"
+    ],
+    "object_name": "primary",
+    "label_vi": "Đăng nhập"
+   },
+   {
+    "var": "offline_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('login.offline_btn', role=role)",
+    "line": 256,
+    "signals": [
+     "clicked → lambda: self._finish_login(Account(username=username, role=role, code=''))"
+    ],
+    "object_name": "primary"
+   },
+   {
+    "var": "retry_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('login.retry_btn')",
+    "line": 263,
+    "signals": [
+     "clicked → self._retry"
+    ],
+    "object_name": "",
+    "label_vi": "Thử lại"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\mcp_servers_dialog.py",
+  "controls": [
+   {
+    "var": "self.name",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "server.get('name', '')",
+    "line": 25,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.command",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "server.get('command', '')",
+    "line": 30,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.args",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "' '.join(server.get('args', []) or [])",
+    "line": 35,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 39,
+    "signals": [],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\monitoring_tab.py",
+  "controls": [
+   {
+    "var": "self.refresh_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.refresh')",
+    "line": 149,
+    "signals": [
+     "clicked → self.refresh"
+    ],
+    "object_name": "",
+    "label_vi": "Làm mới"
+   },
+   {
+    "var": "self.status_table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "0",
+    "line": 175,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "search",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('monitoring.filter_placeholder')",
+    "line": 347,
+    "signals": [
+     "textChanged → table.apply_filter"
+    ],
+    "object_name": "",
+    "label_vi": "Lọc dòng (hoặc gõ câu hỏi rồi bấm )…"
+   },
+   {
+    "var": "ai_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.ai_filter_btn')",
+    "line": 350,
+    "signals": [
+     "clicked → lambda: self._ai_filter(search, ai_btn)"
+    ],
+    "object_name": "",
+    "label_vi": "AI"
+   },
+   {
+    "var": "self.ov_pricing_ccy",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 486,
+    "signals": [
+     "currentIndexChanged → self._reload_pricing_table"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.ov_price_import_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.pricing_import')",
+    "line": 496,
+    "signals": [
+     "clicked → self._import_pricing"
+    ],
+    "object_name": "",
+    "label_vi": "Nhập"
+   },
+   {
+    "var": "self.ov_price_export_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.pricing_export')",
+    "line": 498,
+    "signals": [
+     "clicked → self._export_pricing"
+    ],
+    "object_name": "",
+    "label_vi": "Mẫu"
+   },
+   {
+    "var": "self.ov_price_add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.pricing_add')",
+    "line": 500,
+    "signals": [
+     "clicked → self._add_pricing_row"
+    ],
+    "object_name": "",
+    "label_vi": "Thêm"
+   },
+   {
+    "var": "self.ov_price_link_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.pricing_autolink')",
+    "line": 502,
+    "signals": [
+     "clicked → self._autolink_pricing"
+    ],
+    "object_name": "",
+    "label_vi": "Tự lấy"
+   },
+   {
+    "var": "self.ov_price_del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.pricing_delete')",
+    "line": 504,
+    "signals": [
+     "clicked → self._delete_pricing_row"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "self.ov_pricing_table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "0",
+    "line": 510,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.ov_sbx_edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.overview_edit')",
+    "line": 547,
+    "signals": [
+     "clicked → self._open_settings_and_refresh"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "self.ov_perm_edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.overview_edit')",
+    "line": 573,
+    "signals": [
+     "clicked → self._open_settings_and_refresh"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "self.ov_view_all_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('monitoring.overview_view_all')",
+    "line": 586,
+    "signals": [
+     "clicked → lambda: self.tabs.setCurrentIndex(self.tabs.indexOf(self.action_page))"
+    ],
+    "object_name": "",
+    "label_vi": "Xem tất cả"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\osutil.py",
+  "controls": [],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\permission_dialog.py",
+  "controls": [],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\routing_toggle.py",
+  "controls": [
+   {
+    "var": "self._combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('routing.toggle_tooltip')",
+    "line": 66,
+    "signals": [
+     "currentIndexChanged → self._on_changed"
+    ],
+    "object_name": "",
+    "label_vi": "Tự động định tuyến model cho khung chat này.\nTắt: luôn dùng model đã chọn.\nTự động: tự chuyển sang model phù hợp nhất.\nThủ công: hỏi xác nhận trước khi chuyển."
+   },
+   {
+    "var": "self._chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('routing.autorun_label')",
+    "line": 133,
+    "signals": [
+     "toggled → self._on_toggled"
+    ],
+    "object_name": "",
+    "label_vi": "Tự chạy"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\schedule_task_tab.py",
+  "controls": [
+   {
+    "var": "self.add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.add_btn')",
+    "line": 88,
+    "signals": [
+     "clicked → self._add_task"
+    ],
+    "object_name": "primary",
+    "label_vi": "Thêm Task"
+   },
+   {
+    "var": "self.ai_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.ai_btn')",
+    "line": 92,
+    "signals": [
+     "clicked → self._ai_create"
+    ],
+    "object_name": "",
+    "label_vi": "AI tạo Task"
+   },
+   {
+    "var": "self.view_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 95,
+    "signals": [
+     "currentIndexChanged → self._on_view_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "len(runs)",
+    "line": 436,
+    "signals": [
+     "itemDoubleClicked → self._open_artifact"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Close",
+    "line": 461,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.workspace_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('schedtask.hint_workspace')",
+    "line": 523,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Project/workspace mà agent của task này sẽ chạy trong đó — áp dụng sandbox và hướng dẫn chung của project."
+   },
+   {
+    "var": "self.desc_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "tr('schedtask.ai_desc_ph')",
+    "line": 537,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "vd: Mỗi thứ 2 lúc 9h, dùng Code đọc dữ liệu CAE mới tạo báo cáo markdown, sau đó Cowork soạn email draft gửi team."
+   },
+   {
+    "var": "self.ai_files_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('schedtask.files_placeholder')",
+    "line": 544,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Đường dẫn tệp local, cách nhau bằng ;"
+   },
+   {
+    "var": "ai_pick_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.pick_files')",
+    "line": 546,
+    "signals": [
+     "clicked → self._ai_pick_files"
+    ],
+    "object_name": "",
+    "label_vi": "Chọn tệp…"
+   },
+   {
+    "var": "self.ai_links_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('schedtask.links_placeholder')",
+    "line": 553,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "https://…  các link, cách nhau bằng ;"
+   },
+   {
+    "var": "self.gen_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.ai_generate')",
+    "line": 557,
+    "signals": [
+     "clicked → self._generate"
+    ],
+    "object_name": "primary",
+    "label_vi": "Tạo kế hoạch"
+   },
+   {
+    "var": "tpl_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.export_template_btn')",
+    "line": 571,
+    "signals": [
+     "clicked → self._export_template"
+    ],
+    "object_name": "",
+    "label_vi": "Tạo template Excel…"
+   },
+   {
+    "var": "pick_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.import_pick_btn')",
+    "line": 576,
+    "signals": [
+     "clicked → self._pick_import_file"
+    ],
+    "object_name": "",
+    "label_vi": "Chọn file…"
+   },
+   {
+    "var": "self.buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Ok | QDialogButtonBox.Cancel",
+    "line": 592,
+    "signals": [],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": [
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_run')",
+    "line": 309,
+    "label_vi": "Chạy ngay"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_edit')",
+    "line": 310,
+    "label_vi": "Sửa task"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_duplicate')",
+    "line": 311,
+    "label_vi": "Nhân bản task"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_resume' if paused else 'schedtask.menu_pause')",
+    "line": 313
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_logs')",
+    "line": 314,
+    "label_vi": "Xem log"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_history')",
+    "line": 315,
+    "label_vi": "Lịch sử chạy…"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_create_next')",
+    "line": 316,
+    "label_vi": "Tạo task tiếp theo từ output"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_delete')",
+    "line": 318,
+    "label_vi": "Xóa task"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('schedtask.menu_delete_selected', n=len(selected))",
+    "line": 348
+   }
+  ]
+ },
+ {
+  "file": "ui\\settings_dialog.py",
+  "controls": [
+   {
+    "var": "self.tray_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('settings.tray_keep')",
+    "line": 56,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Giữ chạy nền trong khay hệ thống khi đóng cửa sổ"
+   },
+   {
+    "var": "self.notify_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('settings.tray_notify')",
+    "line": 59,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Hiện thông báo khay hệ thống khi tác vụ xong hoặc lỗi"
+   },
+   {
+    "var": "self.provider_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 70,
+    "signals": [
+     "currentIndexChanged → self._on_provider_edit_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.prov_base",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "conf.get('base_url', '')",
+    "line": 77,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.sandbox_pw_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "''",
+    "line": 103,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.sandbox_unlock_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "'Unlock'",
+    "line": 107,
+    "signals": [
+     "clicked → self._sandbox_unlock"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.sandbox_confirm",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('settings.sandbox_confirm_commands')",
+    "line": 121,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Xác nhận trước khi Cowork chạy lệnh"
+   },
+   {
+    "var": "self.sandbox_block_network",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('settings.sandbox_block_network')",
+    "line": 126,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Chặn mạng cho lệnh do agent chạy"
+   },
+   {
+    "var": "self.sec_enabled",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "'Enable Agent Security (command validation)'",
+    "line": 136,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.ai_check",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "'AI check commands'",
+    "line": 142,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.attach_files",
+    "type": "QSpinBox",
+    "kind": "ô số",
+    "label": "tr('settings.max_files_tooltip')",
+    "line": 178,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Số tệp tối đa đính kèm vào một tin nhắn."
+   },
+   {
+    "var": "self.attach_tokens",
+    "type": "QSpinBox",
+    "kind": "ô số",
+    "label": "tr('settings.max_per_file_tooltip')",
+    "line": 183,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Giới hạn nội dung mỗi tệp đính kèm đưa vào prompt; phần vượt sẽ bị cắt (giảm token, tránh lỗi vượt context)."
+   },
+   {
+    "var": "self.struct_nodes",
+    "type": "QSpinBox",
+    "kind": "ô số",
+    "label": "tr('settings.nodes_tooltip')",
+    "line": 194,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Giới hạn số node trong đồ thị Cấu trúc (0 = không giới hạn). Giá trị thấp hơn giúp quét/vẽ nhanh hơn với thư mục lớn."
+   },
+   {
+    "var": "self.struct_edges",
+    "type": "QSpinBox",
+    "kind": "ô số",
+    "label": "tr('settings.edges_tooltip')",
+    "line": 200,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Giới hạn số cạnh trong đồ thị Cấu trúc (0 = không giới hạn)."
+   },
+   {
+    "var": "self.routing_judge",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "routing.get('judge_model', '')",
+    "line": 279,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.routing_reassess_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('routing.settings_reassess_now')",
+    "line": 282,
+    "signals": [
+     "clicked → self._routing_reassess_now"
+    ],
+    "object_name": "",
+    "label_vi": "Đánh giá lại ngay"
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 299,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "value",
+    "line": 316,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.load')",
+    "line": 368,
+    "signals": [
+     "clicked → lambda: self._load_models(self.provider_combo.currentData(), combo, status)"
+    ],
+    "object_name": "",
+    "label_vi": "Tải"
+   },
+   {
+    "var": "test_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.test_connection')",
+    "line": 374,
+    "signals": [
+     "clicked → lambda: self._test_connection(self.provider_combo.currentData(), status)"
+    ],
+    "object_name": "",
+    "label_vi": "Test kết nối"
+   },
+   {
+    "var": "code_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "code",
+    "line": 496,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "copy_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.ms365_copy_code')",
+    "line": 503,
+    "signals": [
+     "clicked → lambda: QGuiApplication.clipboard().setText(code)"
+    ],
+    "object_name": "",
+    "label_vi": "Copy mã"
+   },
+   {
+    "var": "open_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.ms365_open_link')",
+    "line": 506,
+    "signals": [
+     "clicked → lambda: webbrowser.open(flow.get('verification_uri_complete') or url)"
+    ],
+    "object_name": "",
+    "label_vi": "Mở link"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\sidebar.py",
+  "controls": [
+   {
+    "var": "self._collapse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('sidebar.collapse_tooltip')",
+    "line": 104,
+    "signals": [
+     "clicked → self.collapse_requested.emit"
+    ],
+    "object_name": "",
+    "label_vi": "Thu gọn bảng Lịch sử"
+   },
+   {
+    "var": "self.search_box",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('sidebar.search_placeholder')",
+    "line": 119,
+    "signals": [
+     "textChanged → self.refresh",
+     "returnPressed → self.refresh"
+    ],
+    "object_name": "",
+    "label_vi": "Tìm theo tiêu đề hoặc nội dung…"
+   },
+   {
+    "var": "self.search_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "''",
+    "line": 123,
+    "signals": [
+     "clicked → self.refresh"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.tree",
+    "type": "QTreeWidget",
+    "kind": "cây",
+    "label": "",
+    "line": 132,
+    "signals": [
+     "itemClicked → self._on_item",
+     "customContextMenuRequested → self._context_menu"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self._refresh_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('sidebar.refresh')",
+    "line": 147,
+    "signals": [
+     "clicked → self.refresh_requested.emit"
+    ],
+    "object_name": "",
+    "label_vi": "Làm mới"
+   }
+  ],
+  "menu_actions": [
+   {
+    "menu": "menu",
+    "label": "tr('sidebar.menu.unpin') if pinned else tr('sidebar.menu.pin')",
+    "line": 305
+   },
+   {
+    "menu": "menu",
+    "label": "tr('sidebar.menu.rename')",
+    "line": 306,
+    "label_vi": "Đổi tên…"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('sidebar.menu.delete')",
+    "line": 307,
+    "label_vi": "Xóa"
+   },
+   {
+    "menu": "menu",
+    "label": "tr('sidebar.menu.delete_selected', n=len(selected))",
+    "line": 332
+   }
+  ]
+ },
+ {
+  "file": "ui\\skill_manager_tab.py",
+  "controls": [
+   {
+    "var": "self._auto_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.auto_generate')",
+    "line": 47,
+    "signals": [
+     "clicked → self._auto_generate"
+    ],
+    "object_name": "primary",
+    "label_vi": "Tự động tạo"
+   },
+   {
+    "var": "self._template_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.from_template')",
+    "line": 52,
+    "signals": [
+     "clicked → self._from_template"
+    ],
+    "object_name": "",
+    "label_vi": "Từ file template…"
+   },
+   {
+    "var": "import_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.import_btn')",
+    "line": 56,
+    "signals": [
+     "clicked → self._import"
+    ],
+    "object_name": "",
+    "label_vi": "Nhập…"
+   },
+   {
+    "var": "export_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.export_btn')",
+    "line": 60,
+    "signals": [
+     "clicked → self._export_md"
+    ],
+    "object_name": "",
+    "label_vi": "Xuất .md"
+   },
+   {
+    "var": "dup_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.duplicate_btn')",
+    "line": 64,
+    "signals": [
+     "clicked → self._duplicate"
+    ],
+    "object_name": "",
+    "label_vi": "Nhân bản"
+   },
+   {
+    "var": "edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.edit_btn')",
+    "line": 68,
+    "signals": [
+     "clicked → self._edit"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.delete_btn')",
+    "line": 71,
+    "signals": [
+     "clicked → self._delete"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\skills_dialog.py",
+  "controls": [
+   {
+    "var": "self.name",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "skill.name if skill else ''",
+    "line": 34,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.desc",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "skill.description if skill else ''",
+    "line": 39,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self._gen_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.gen_from_desc')",
+    "line": 44,
+    "signals": [
+     "clicked → self._gen_instructions"
+    ],
+    "object_name": "",
+    "label_vi": "Tạo từ mô tả"
+   },
+   {
+    "var": "self.instr",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "skill.instructions if skill else ''",
+    "line": 50,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 55,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self._auto_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.auto_generate')",
+    "line": 127,
+    "signals": [
+     "clicked → self._auto_generate"
+    ],
+    "object_name": "primary",
+    "label_vi": "Tự động tạo"
+   },
+   {
+    "var": "self._template_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.from_template')",
+    "line": 132,
+    "signals": [
+     "clicked → self._from_template"
+    ],
+    "object_name": "",
+    "label_vi": "Từ file template…"
+   },
+   {
+    "var": "import_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.import_btn')",
+    "line": 136,
+    "signals": [
+     "clicked → self._import"
+    ],
+    "object_name": "",
+    "label_vi": "Nhập…"
+   },
+   {
+    "var": "export_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.export_btn')",
+    "line": 140,
+    "signals": [
+     "clicked → self._export_md"
+    ],
+    "object_name": "",
+    "label_vi": "Xuất .md"
+   },
+   {
+    "var": "dup_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.duplicate_btn')",
+    "line": 144,
+    "signals": [
+     "clicked → self._duplicate"
+    ],
+    "object_name": "",
+    "label_vi": "Nhân bản"
+   },
+   {
+    "var": "edit_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.edit_btn')",
+    "line": 148,
+    "signals": [
+     "clicked → self._edit"
+    ],
+    "object_name": "",
+    "label_vi": "Sửa"
+   },
+   {
+    "var": "del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.delete_btn')",
+    "line": 151,
+    "signals": [
+     "clicked → self._delete"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "close_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('skills.close_btn')",
+    "line": 154,
+    "signals": [
+     "clicked → self.accept"
+    ],
+    "object_name": "",
+    "label_vi": "Đóng"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\spline_chart.py",
+  "controls": [],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\structure_graph_view.py",
+  "controls": [
+   {
+    "var": "self.path_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "str(ctx.config.cowork_output_dir())",
+    "line": 220,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self._pick_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('structure.browse')",
+    "line": 222,
+    "signals": [
+     "clicked → self._pick"
+    ],
+    "object_name": "primary",
+    "label_vi": "Browse…"
+   },
+   {
+    "var": "self.project_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('structure.project_tooltip')",
+    "line": 226,
+    "signals": [
+     "currentIndexChanged → self._on_project_changed"
+    ],
+    "object_name": "",
+    "label_vi": "Khóa phạm vi quét vào đúng thư mục sandbox của 1 project — path chuyển sang chỉ đọc và khung hỏi-đáp Agent bên dưới sẽ theo Instructions chung của project đó (an toàn hơn, câu trả lời bám sát ngữ cảnh, giảm bịa đặt)."
+   },
+   {
+    "var": "self._scan_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('structure.scan')",
+    "line": 228,
+    "signals": [
+     "clicked → self._scan"
+    ],
+    "object_name": "primary",
+    "label_vi": "Scan"
+   },
+   {
+    "var": "self._msgs_toggle_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('structure.msgs_tooltip')",
+    "line": 242,
+    "signals": [
+     "clicked → self._toggle_messages"
+    ],
+    "object_name": "",
+    "label_vi": "Xem mọi message hội thoại nhóm theo ngày (dạng JSON)."
+   },
+   {
+    "var": "self._export_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('structure.export_png')",
+    "line": 248,
+    "signals": [
+     "clicked → self._export"
+    ],
+    "object_name": "primary",
+    "label_vi": "Xuất PNG"
+   },
+   {
+    "var": "self._msgs_view",
+    "type": "QTreeWidget",
+    "kind": "cây",
+    "label": "",
+    "line": 268,
+    "signals": [
+     "itemClicked → self._show_msg_json"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self._ag_collapse",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('structure.collapse_agent_tooltip')",
+    "line": 288,
+    "signals": [
+     "clicked → lambda: self._set_agent_collapsed(True)"
+    ],
+    "object_name": "",
+    "label_vi": "Thu gọn bảng Agent"
+   },
+   {
+    "var": "self.ask_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "tr('structure.ask_placeholder')",
+    "line": 299,
+    "signals": [
+     "returnPressed → self._ask"
+    ],
+    "object_name": "",
+    "label_vi": "vd. cái gì gọi hàm main? file nào định nghĩa class?"
+   },
+   {
+    "var": "self._ask_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('structure.ask')",
+    "line": 301,
+    "signals": [
+     "clicked → self._ask"
+    ],
+    "object_name": "primary",
+    "label_vi": "Hỏi"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\task_editor_dialog.py",
+  "controls": [
+   {
+    "var": "self.title_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "self.task.get('title', '')",
+    "line": 96,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.desc_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "self.task.get('description', '')",
+    "line": 100,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.gen_desc_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "''",
+    "line": 102,
+    "signals": [
+     "clicked → self._gen_prompt_from_description"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.provider_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 135,
+    "signals": [
+     "currentIndexChanged → self._refresh_model_combo"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.load_models_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('schedtask.load_models_tooltip')",
+    "line": 147,
+    "signals": [
+     "clicked → self._load_live_models"
+    ],
+    "object_name": "",
+    "label_vi": "Tải danh sách model của provider này"
+   },
+   {
+    "var": "self.run_kind_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('schedtask.hint_run_kind')",
+    "line": 170,
+    "signals": [
+     "currentIndexChanged → self._on_run_kind_changed"
+    ],
+    "object_name": "",
+    "label_vi": "AI agent = chạy một agent Cowork với model đã chọn. Co4E flow = chạy cả một flow node-graph đã lưu, tuần tự, trong sandbox."
+   },
+   {
+    "var": "self.flow_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('schedtask.hint_flow')",
+    "line": 176,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Flow Co4E đã lưu mà task này sẽ chạy (có sẵn hoặc của bạn)."
+   },
+   {
+    "var": "self.task_mode_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('schedtask.hint_task_mode')",
+    "line": 188,
+    "signals": [
+     "currentIndexChanged → self._on_task_mode_changed"
+    ],
+    "object_name": "",
+    "label_vi": "Thông thường = chạy một lần (hoặc thủ công). Tự động = cronjob lặp theo lịch (ngày/tuần/tháng/cron). Chuyển sang Tự động sẽ hiện các tùy chọn lặp lại."
+   },
+   {
+    "var": "self.sched_enabled",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('schedtask.sched_enable')",
+    "line": 217,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Bật lịch chạy"
+   },
+   {
+    "var": "self.repeat_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 232,
+    "signals": [
+     "currentIndexChanged → self._on_repeat_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.cron_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "sched.get('cron_expression') or ''",
+    "line": 238,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.cron_sample",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "tr('schedtask.cron_sample_tooltip')",
+    "line": 242,
+    "signals": [
+     "currentIndexChanged → self._on_cron_sample"
+    ],
+    "object_name": "",
+    "label_vi": "Chọn một lịch mẫu — sẽ điền đúng cú pháp vào ô cron."
+   },
+   {
+    "var": "self.working_days_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('schedtask.workdays_only')",
+    "line": 258,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Chỉ ngày làm việc (bỏ T7/CN)"
+   },
+   {
+    "var": "self.skip_holidays_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('schedtask.skip_holidays')",
+    "line": 260,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Bỏ qua ngày nghỉ lễ"
+   },
+   {
+    "var": "self.holiday_country_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "sched.get('holiday_country', 'VN') or 'VN'",
+    "line": 262,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.notify_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 274,
+    "signals": [
+     "currentIndexChanged → self._on_notify_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.notify_email_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "ex_sched.get('notify_email', '') or ''",
+    "line": 280,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.manual_text",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "inp.get('manual_text') or ''",
+    "line": 313,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.files_add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "",
+    "line": 324,
+    "signals": [
+     "clicked → self._add_files"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.files_del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "",
+    "line": 328,
+    "signals": [
+     "clicked → lambda: self._remove_selected(self.files_list)"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.links_add_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "",
+    "line": 349,
+    "signals": [
+     "clicked → self._add_link"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.links_del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "",
+    "line": 353,
+    "signals": [
+     "clicked → lambda: self._remove_selected(self.links_list)"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.next_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 376,
+    "signals": [
+     "currentIndexChanged → self._check_chain"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.pass_output_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('schedtask.pass_output')",
+    "line": 385,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Dùng output task này làm input task sau"
+   },
+   {
+    "var": "self.approval_chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "tr('schedtask.requires_approval')",
+    "line": 421,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "Cần phê duyệt (không tự chạy theo lịch; chờ bấm Chạy ngay)"
+   },
+   {
+    "var": "buttons",
+    "type": "QDialogButtonBox",
+    "kind": "nút hộp thoại",
+    "label": "QDialogButtonBox.Save | QDialogButtonBox.Cancel",
+    "line": 430,
+    "signals": [],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\terminal_panel.py",
+  "controls": [
+   {
+    "var": "self._toggle_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('terminal.expand_tooltip') if self._collapsed else tr('terminal.collapse_tooltip')",
+    "line": 85,
+    "signals": [
+     "clicked → self.toggle"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.output",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "",
+    "line": 105,
+    "signals": [],
+    "object_name": "termOutput"
+   },
+   {
+    "var": "self._run_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('terminal.run')",
+    "line": 130,
+    "signals": [
+     "clicked → self._run_current"
+    ],
+    "object_name": "primary",
+    "label_vi": "Chạy"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\tools_admin_tab.py",
+  "controls": [
+   {
+    "var": "chk",
+    "type": "QCheckBox",
+    "kind": "ô tick",
+    "label": "",
+    "line": 32,
+    "signals": [
+     "toggled → on_toggle"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.table",
+    "type": "QTableWidget",
+    "kind": "bảng",
+    "label": "0",
+    "line": 57,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.test_internet_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('settings.test_internet')",
+    "line": 72,
+    "signals": [
+     "clicked → self._test_internet"
+    ],
+    "object_name": "",
+    "label_vi": "Kiểm tra Internet"
+   },
+   {
+    "var": "self.refresh_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('tools_admin.refresh')",
+    "line": 80,
+    "signals": [
+     "clicked → self.refresh"
+    ],
+    "object_name": "",
+    "label_vi": "Làm mới"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\widgets.py",
+  "controls": [
+   {
+    "var": "self.header",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "f'{arrow} {self._title} ({self._count})'",
+    "line": 254,
+    "signals": [
+     "toggled → self._toggle",
+     "toggled → self._toggle"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.list",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "",
+    "line": 261,
+    "signals": [
+     "itemClicked → self._emit"
+    ],
+    "object_name": ""
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "ui\\workspace_tab.py",
+  "controls": [
+   {
+    "var": "self._proj_collapse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('workspace.collapse_projects_tooltip')",
+    "line": 90,
+    "signals": [
+     "clicked → lambda: self._set_projects_collapsed(True)"
+    ],
+    "object_name": "",
+    "label_vi": "Thu gọn danh sách project"
+   },
+   {
+    "var": "self.project_list",
+    "type": "QListWidget",
+    "kind": "danh sách",
+    "label": "",
+    "line": 97,
+    "signals": [
+     "currentItemChanged → self._on_select"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self._new_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('workspace.new_project')",
+    "line": 101,
+    "signals": [
+     "clicked → self._create"
+    ],
+    "object_name": "primary",
+    "label_vi": "Project mới"
+   },
+   {
+    "var": "self._del_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('workspace.delete')",
+    "line": 105,
+    "signals": [
+     "clicked → self._delete"
+    ],
+    "object_name": "",
+    "label_vi": "Xóa"
+   },
+   {
+    "var": "self.tabs",
+    "type": "QTabWidget",
+    "kind": "dải tab",
+    "label": "",
+    "line": 129,
+    "signals": [
+     "currentChanged → self._on_tab_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.name_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "project.name",
+    "line": 193,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.desc_edit",
+    "type": "QLineEdit",
+    "kind": "ô nhập",
+    "label": "project.description",
+    "line": 194,
+    "signals": [],
+    "object_name": ""
+   },
+   {
+    "var": "self.instr_edit",
+    "type": "QPlainTextEdit",
+    "kind": "ô nhập nhiều dòng",
+    "label": "tr('workspace.instructions_placeholder')",
+    "line": 203,
+    "signals": [],
+    "object_name": "",
+    "label_vi": "vd: \"Trả lời bằng tiếng Việt. Team đang xây tool báo cáo X; luôn theo quy tắc đặt tên …\""
+   },
+   {
+    "var": "self._browse_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('workspace.browse')",
+    "line": 211,
+    "signals": [
+     "clicked → self._pick_folder"
+    ],
+    "object_name": "",
+    "label_vi": "Đổi thư mục…"
+   },
+   {
+    "var": "self._open_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('workspace.open_folder')",
+    "line": 214,
+    "signals": [
+     "clicked → self._open_workspace"
+    ],
+    "object_name": "",
+    "label_vi": "Mở thư mục"
+   },
+   {
+    "var": "self._save_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('workspace.save')",
+    "line": 223,
+    "signals": [
+     "clicked → self._save"
+    ],
+    "object_name": "primary",
+    "label_vi": "Lưu project"
+   }
+  ],
+  "menu_actions": []
+ },
+ {
+  "file": "app.py",
+  "controls": [
+   {
+    "var": "self.nav",
+    "type": "QTreeWidget",
+    "kind": "cây",
+    "label": "",
+    "line": 175,
+    "signals": [
+     "currentItemChanged → lambda cur, _prev: self._navigate(cur)",
+     "itemClicked → self._on_nav_click"
+    ],
+    "object_name": "navrail"
+   },
+   {
+    "var": "self._nav_toggle_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('app.nav.menu_label')",
+    "line": 218,
+    "signals": [
+     "clicked → self._toggle_nav"
+    ],
+    "object_name": "navMenuBtn",
+    "label_vi": "MENU"
+   },
+   {
+    "var": "self.provider_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 559,
+    "signals": [
+     "currentIndexChanged → self._on_provider_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.language_combo",
+    "type": "QComboBox",
+    "kind": "droplist",
+    "label": "",
+    "line": 568,
+    "signals": [
+     "currentIndexChanged → self._on_language_changed"
+    ],
+    "object_name": ""
+   },
+   {
+    "var": "self.settings_btn",
+    "type": "QPushButton",
+    "kind": "nút",
+    "label": "tr('app.settings')",
+    "line": 586,
+    "signals": [
+     "clicked → self._open_settings"
+    ],
+    "object_name": "",
+    "label_vi": "Cài đặt"
+   }
+  ],
+  "menu_actions": [
+   {
+    "menu": "menu",
+    "label": "self._tray_open_act",
+    "line": 329
+   },
+   {
+    "menu": "menu",
+    "label": "self._tray_quit_act",
+    "line": 330
+   },
+   {
+    "menu": "menu",
+    "label": "_icon(icon_name)",
+    "line": 625
+   }
+  ]
+ }
+]

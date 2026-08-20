@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..i18n import on_language_changed, tr
-from ..theme import ACCENT, resolve_theme
+from ..theme import palette, resolve_theme
 from ..config import CONFIG_DIR
 from .osutil import is_image, open_folder, open_path
 
@@ -28,11 +28,18 @@ def _app_theme() -> str:
         return "dark"
 
 
-# Timeline dot color per role (reads on both themes — small, saturated).
-_DOT = {
-    "user": "#48CAE4", "assistant": "#48D9A0", "tool": "#9B8FF7",
-    "error": "#E5484D", "success": "#48D9A0",
-}
+def _p():
+    """Design tokens for the theme in effect right now."""
+    return palette(_app_theme())
+
+
+def _dot_color(role: str) -> str:
+    """Timeline dot colour for a message role."""
+    p = _p()
+    return {
+        "user": p.role_user, "assistant": p.role_assistant, "tool": p.role_tool,
+        "error": p.role_error, "success": p.role_result,
+    }.get(role, p.text_faint)
 
 
 class _TimelineGutter(QWidget):
@@ -52,17 +59,17 @@ class _TimelineGutter(QWidget):
     def paintEvent(self, _e):  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        dark = _app_theme() == "dark"
+        tok = _p()
         x = 11.0
         cy = 15.0
         # connector line (faint) running the full height → continuous rail
-        p.setPen(QPen(QColor("#243a56" if dark else "#CBDDEC"), 2))
+        p.setPen(QPen(QColor(tok.border), 2))
         p.drawLine(int(x), 0, int(x), self.height())
         # a background ring lifts the dot off the line
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor("#0A1628" if dark else "#E8F4FD"))
+        p.setBrush(QColor(tok.bg))
         p.drawEllipse(QPointF(x, cy), 7.5, 7.5)
-        p.setBrush(QColor(_DOT.get(self._role, "#8FB2D4")))
+        p.setBrush(QColor(_dot_color(self._role)))
         p.drawEllipse(QPointF(x, cy), 4.5, 4.5)
 
 
@@ -72,18 +79,20 @@ def _diff_legend(diff_text: str) -> str:
     so the before/after distinction is explicit, not just implied by color."""
     has_add = any(ln.startswith("+") and not ln.startswith("+++") for ln in diff_text.splitlines())
     has_del = any(ln.startswith("-") and not ln.startswith("---") for ln in diff_text.splitlines())
-    before = (f'<span style="background:#3a1620; color:#ff9aa8; padding:1px 8px; '
-              f'border-radius:4px; font-weight:600;">{html.escape(tr("chat.diff_before"))}</span>')
-    after = (f'<span style="background:#0d3321; color:#7ee2a8; padding:1px 8px; '
-             f'border-radius:4px; font-weight:600;">{html.escape(tr("chat.diff_after"))}</span>')
+    p = _p()
+
+    def pill(bg: str, fg: str, key: str) -> str:
+        return (f'<span style="background:{bg}; color:{fg}; padding:1px 8px; '
+                f'border-radius:4px; font-weight:600;">{html.escape(tr(key))}</span>')
+
     if has_add and has_del:
-        badge = f'{before}<span style="color:#8b8d98;"> → </span>{after}'
+        badge = (pill(p.diff_del_bg, p.diff_del_fg, "chat.diff_before")
+                 + f'<span style="color:{p.text_muted};"> → </span>'
+                 + pill(p.diff_add_bg, p.diff_add_fg, "chat.diff_after"))
     elif has_add:
-        badge = (f'<span style="background:#0d3321; color:#7ee2a8; padding:1px 8px; '
-                  f'border-radius:4px; font-weight:600;">{html.escape(tr("chat.diff_added"))}</span>')
+        badge = pill(p.diff_add_bg, p.diff_add_fg, "chat.diff_added")
     elif has_del:
-        badge = (f'<span style="background:#3a1620; color:#ff9aa8; padding:1px 8px; '
-                  f'border-radius:4px; font-weight:600;">{html.escape(tr("chat.diff_removed"))}</span>')
+        badge = pill(p.diff_del_bg, p.diff_del_fg, "chat.diff_removed")
     else:
         return ""
     return f'<div style="margin-bottom:6px;">{badge}</div>'
@@ -97,21 +106,22 @@ def diff_to_html(diff_text: str) -> str:
     empty 'before') naturally renders as all-green, which is exactly what
     ``difflib.unified_diff`` already produces for it."""
     legend = _diff_legend(diff_text)
+    p = _p()
     rows = []
     for ln in diff_text.splitlines():
         esc = html.escape(ln) if ln else "&nbsp;"
         if ln.startswith(("+++", "---")):
-            rows.append(f'<div style="color:#8b8d98;">{esc}</div>')
+            rows.append(f'<div style="color:{p.text_muted};">{esc}</div>')
         elif ln.startswith("@@"):
-            rows.append(f'<div style="color:#7c8aff;">{esc}</div>')
+            rows.append(f'<div style="color:{p.accent};">{esc}</div>')
         elif ln.startswith("+"):
-            rows.append(f'<div style="background:#0d3321; color:#7ee2a8;">{esc}</div>')
+            rows.append(f'<div style="background:{p.diff_add_bg}; color:{p.diff_add_fg};">{esc}</div>')
         elif ln.startswith("-"):
-            rows.append(f'<div style="background:#3a1620; color:#ff9aa8;">{esc}</div>')
+            rows.append(f'<div style="background:{p.diff_del_bg}; color:{p.diff_del_fg};">{esc}</div>')
         else:
             rows.append(f"<div>{esc}</div>")
     body = "".join(rows) or "(no textual change)"
-    return (f'{legend}<div style="font-family:Consolas,\'Courier New\',monospace; font-size:12.5px; '
+    return (f'{legend}<div style="font-family:{p.font_mono}; font-size:12.5px; '
             f'white-space:pre-wrap;">{body}</div>')
 
 
@@ -219,12 +229,12 @@ class MessageBubble(QFrame):
                 self._head.setCursor(Qt.PointingHandCursor)
                 self._head.setStyleSheet(
                     "QPushButton { text-align:left; border:none; background:transparent;"
-                    " font-weight:600; color:#8b8d98; padding:0; }")
+                    f" font-weight:600; color:{_p().text_muted}; padding:0; }}")
                 self._head.clicked.connect(self._toggle_body)
                 lay.addWidget(self._head)
             else:
                 head = QLabel(title)
-                head.setStyleSheet("font-weight:600; color:#8b8d98;")
+                head.setStyleSheet(f"font-weight:600; color:{_p().text_muted};")
                 lay.addWidget(head)
 
         self.body = QTextBrowser()
@@ -265,36 +275,23 @@ class MessageBubble(QFrame):
 
     def _apply_theme_styles(self, role: str) -> None:
         """Apply text color to the body QTextBrowser based on current theme + role."""
-        theme = self._current_theme()
-        if theme == "light":
-            if role == "success":
-                text_color = "#1B7A3D"
-            elif role == "error":
-                text_color = "#C0392B"
-            elif role in ("tool",):
-                text_color = "#5C6B7A"          # muted (secondary) like Claude's steps
-            else:
-                text_color = "#1A2332"
-        else:
-            if role == "success":
-                text_color = "#7ee2a8"
-            elif role == "error":
-                text_color = "#ff9aa8"
-            elif role in ("tool",):
-                text_color = "#9aa6b8"
-            else:
-                text_color = "#eceef2"
+        p = _p()
+        text_color = {
+            "success": p.success,
+            "error": p.danger,
+            "tool": p.text_muted,       # secondary, like Claude's steps
+        }.get(role, p.text)
         self.body.setStyleSheet(f"background: transparent; border: none; color: {text_color};")
 
     def _apply_style(self, role: str) -> None:
         """Flat timeline row — no bubble box; the left dot/rail conveys role and
         structure (Claude-Code style). The user's own message gets a faint tint
         so questions are easy to pick out when scanning."""
-        theme = self._current_theme()
+        p = _p()
         if role == "user":
-            tint = "rgba(72,202,228,0.10)" if theme == "dark" else "rgba(72,202,228,0.14)"
             self.setStyleSheet(
-                f"QFrame {{ background: {tint}; border: none; border-radius: 10px; }}")
+                f"QFrame {{ background: {p.surface}; border: none; "
+                f"border-radius: {p.radius}px; }}")
         else:
             self.setStyleSheet("QFrame { background: transparent; border: none; }")
 
@@ -353,20 +350,20 @@ class MessageBubble(QFrame):
             existing.setText(text)
             return
         lbl = QLabel(text)
-        lbl.setObjectName("hint")
-        lbl.setStyleSheet("color: rgba(140,146,152,0.9); font-size: 11px;")
+        lbl.setObjectName("faint")
+        lbl.setStyleSheet(f"color: {_p().text_faint}; font-size: 11px;")
         self._usage_lbl = lbl
         self._content_layout.addWidget(lbl)
 
     def add_delete_link(self, callback) -> None:
-        link = QLabel(f'<a href="#del" style="color:#ef6368;">{tr("chat.delete_link")}</a>')
+        link = QLabel(f'<a href="#del" style="color:{_p().danger};">{tr("chat.delete_link")}</a>')
         link.setToolTip(tr("chat.delete_tooltip"))
         link.linkActivated.connect(lambda *_: callback())
         self._content_layout.addWidget(link)
 
     def add_folder_link(self, folder: str, label: str | None = None) -> None:
         label = label or tr("chat.open_workspace")
-        link = QLabel(f'<a href="#open" style="color:{ACCENT};">{label}</a>')
+        link = QLabel(f'<a href="#open" style="color:{_p().accent};">{label}</a>')
         link.setToolTip(str(folder))
         link.linkActivated.connect(lambda *_: open_folder(folder))
         self._content_layout.addWidget(link)
@@ -385,7 +382,7 @@ class MessageBubble(QFrame):
                     thumb.setCursor(Qt.PointingHandCursor)
                     self._content_layout.addWidget(thumb)
                     continue
-            file_link = QLabel(f'<a href="#open" style="color:{ACCENT};">{name}</a>')
+            file_link = QLabel(f'<a href="#open" style="color:{_p().accent};">{name}</a>')
             file_link.setToolTip(path)
             file_link.linkActivated.connect(lambda *_a, fp=path: open_path(fp))
             self._content_layout.addWidget(file_link)

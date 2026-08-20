@@ -32,12 +32,32 @@ from .osutil import open_folder
 from .widgets import CollapseStrip
 
 
+class _ProjectRow(QWidget):
+    """A project in the list: its name, and under it how much is in it.
+
+    The drawing gives every row a second line — "2 đoạn chat · 3 task" — which
+    is the only thing on this screen that says a project holds anything at all.
+    """
+
+    def __init__(self, name: str, counts: str):
+        super().__init__()
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(6, 4, 6, 4)
+        lay.setSpacing(0)
+        title = QLabel(name)
+        sub = QLabel(counts)
+        sub.setObjectName("hint")
+        lay.addWidget(title)
+        lay.addWidget(sub)
+
+
 class WorkspaceTab(QWidget):
     status_message = Signal(str)
     open_chat = Signal(str, dict)      # kind, conversation — open a thread in Cowork
     new_chat = Signal(str)             # project_id — start a new thread in this project
     projects_changed = Signal()        # created/edited/deleted → History regroups
     subtabs_changed = Signal()         # visible sub-tabs changed → left-nav children refresh
+    project_selected = Signal(str)     # project_id — the rail's picker follows this
 
     # ---- nav integration: the sub-tabs are driven from the left nav rail -----
     def nav_subtabs(self):
@@ -50,9 +70,36 @@ class WorkspaceTab(QWidget):
         return [(self.tabs.tabText(i), i, icons.get(i, "chevron-right"))
                 for i in range(self.tabs.count()) if self.tabs.isTabVisible(i)]
 
+    def nav_entries(self):
+        """(label, index, icon_name, enabled) for EVERY sub-tab, hidden ones
+        included.
+
+        The rail lists all five all the time and greys out the ones the project
+        gate is currently closing (Cowork, GraphRAG) instead of removing them —
+        same gate, shown rather than hidden, so the menu stops changing shape
+        under the user's hand. See nav_subtabs() for the visible-only view.
+        """
+        icons = {self._project_tab_idx: "folder", self._cowork_tab_idx: "chat",
+                 self._co4e_tab_idx: "flow", self._folder_tab_idx: "folder",
+                 self._graphrag_tab_idx: "graph"}
+        return [(self.tabs.tabText(i), i, icons.get(i, "chevron-right"),
+                 self.tabs.isTabVisible(i))
+                for i in range(self.tabs.count())]
+
+    def subtab_available(self, index: int) -> bool:
+        """False while the project gate is holding this sub-tab shut.
+
+        The rail greys those rows out, but that only guards the rail. This lets
+        every other route ask the same question of the same state.
+        """
+        return bool(0 <= index < self.tabs.count() and self.tabs.isTabVisible(index))
+
     def select_subtab(self, index: int) -> None:
         if 0 <= index < self.tabs.count():
             self.tabs.setCurrentIndex(index)
+
+    def current_subtab(self) -> int:
+        return self.tabs.currentIndex()
 
     def hide_tab_bar(self) -> None:
         """Hide the in-content tab strip (the nav rail drives the sub-tabs now),
@@ -63,6 +110,9 @@ class WorkspaceTab(QWidget):
         super().__init__()
         self.ctx = ctx
         self._current_id = ""
+        # True once the user asks for the full History panel; until then Cowork
+        # opens with it folded, as the drawing lays the screen out.
+        self._history_opened = False
         # Shared widgets embedded as per-project sub-tabs (None in unit tests
         # that only drive project management).
         self._cowork = cowork
@@ -70,12 +120,23 @@ class WorkspaceTab(QWidget):
         self._sidebar = sidebar
 
         root = QVBoxLayout(self)
+        # Title row — the drawing puts "+ Project mới" up here beside the title,
+        # not at the foot of the project list where it read as belonging to the
+        # list's own controls.
         self._header = QLabel()
         self._header.setStyleSheet("font-weight:700; font-size:15px;")
+        self._new_btn = QPushButton()
+        self._new_btn.setIcon(icon("plus"))
+        self._new_btn.setObjectName("primary")
+        self._new_btn.clicked.connect(self._create)
+        title_row = QHBoxLayout()
+        title_row.addWidget(self._header)
+        title_row.addStretch(1)
+        title_row.addWidget(self._new_btn)
+        root.addLayout(title_row)
         self._hint = QLabel()
         self._hint.setObjectName("hint")
         self._hint.setWordWrap(True)
-        root.addWidget(self._header)
         root.addWidget(self._hint)
 
         self._split = QSplitter(Qt.Horizontal)
@@ -87,6 +148,9 @@ class WorkspaceTab(QWidget):
         ll = QVBoxLayout(left)
         ll.setContentsMargins(0, 0, 0, 0)
         left_hdr = QHBoxLayout()
+        self._projects_hdr = QLabel()
+        self._projects_hdr.setObjectName("navSectionHdr")
+        left_hdr.addWidget(self._projects_hdr)
         self._proj_collapse_btn = QPushButton()
         self._proj_collapse_btn.setIcon(collapse_left_icon())
         self._proj_collapse_btn.setFixedWidth(28)
@@ -98,15 +162,13 @@ class WorkspaceTab(QWidget):
         self.project_list.currentItemChanged.connect(self._on_select)
         ll.addWidget(self.project_list, 1)
         btns = QHBoxLayout()
-        self._new_btn = QPushButton()
-        self._new_btn.setIcon(icon("plus"))
-        self._new_btn.setObjectName("primary")
-        self._new_btn.clicked.connect(self._create)
+        # Delete stays under the list it acts on. The drawing does not show it,
+        # but it does not show it moved either, and dropping a control is not
+        # something a layout pass gets to do.
         self._del_btn = QPushButton()
         self._del_btn.setIcon(icon("trash"))
         self._del_btn.clicked.connect(self._delete)
-        btns.addWidget(self._new_btn, 1)
-        btns.addWidget(self._del_btn)
+        btns.addWidget(self._del_btn, 1)
         ll.addLayout(btns)
         self._projects_panel = left
 
@@ -127,6 +189,13 @@ class WorkspaceTab(QWidget):
         # Project comes FIRST; Cowork + GraphRAG only appear once a project is
         # actually selected (see _update_tab_visibility).
         self.tabs = QTabWidget()
+        # A QTabWidget's minimum width is the MAXIMUM over every page, hidden
+        # ones included — so Co4E (the widest, ~1180px) was setting the floor for
+        # Project and Cowork as well, and through them for the whole window,
+        # which then refused to be smaller than 1453px on any screen. An explicit
+        # minimum overrides that: each page still gets whatever width is going,
+        # and the pages that are not on screen no longer vote.
+        self.tabs.setMinimumWidth(560)
         self._project_tab_idx = self.tabs.addTab(self._build_project_tab(), tr("workspace.tab_project"))
         self._cowork_tab_idx = -1
         self._graphrag_tab_idx = -1
@@ -205,9 +274,14 @@ class WorkspaceTab(QWidget):
         rl.addWidget(self._instr_lbl)
         rl.addWidget(self.instr_edit)
 
+        self._folder_hdr = QLabel()
+        rl.addWidget(self._folder_hdr)
         folder_row = QHBoxLayout()
-        self.folder_lbl = QLabel()
-        self.folder_lbl.setObjectName("hint")
+        # The drawing shows the path in a field, not as grey caption text. A
+        # read-only line edit looks like one and, unlike a label, lets the path
+        # be selected and copied.
+        self.folder_lbl = QLineEdit()
+        self.folder_lbl.setReadOnly(True)
         self._browse_btn = QPushButton()
         self._browse_btn.setIcon(icon("folder"))
         self._browse_btn.clicked.connect(self._pick_folder)
@@ -219,6 +293,7 @@ class WorkspaceTab(QWidget):
         folder_row.addWidget(self._open_btn)
         rl.addLayout(folder_row)
 
+        rl.addStretch(1)      # the drawing floats Lưu project at the bottom
         save_row = QHBoxLayout()
         self._save_btn = QPushButton()
         self._save_btn.setIcon(icon("save"))
@@ -239,10 +314,19 @@ class WorkspaceTab(QWidget):
         sb = self._sidebar
         sb.open_chat.connect(self._on_sidebar_open)
         sb.new_chat.connect(self._on_sidebar_new)
-        sb.collapse_requested.connect(lambda: self._set_sidebar_collapsed(True))
-        sb.expand_requested.connect(lambda: self._set_sidebar_collapsed(False))
+        sb.collapse_requested.connect(lambda: self._on_history_fold(True))
+        sb.expand_requested.connect(lambda: self._on_history_fold(False))
         sb.refresh_requested.connect(self._on_sidebar_refresh)
         sb.history_changed.connect(self._reload_threads)
+
+    def _on_history_fold(self, collapsed: bool) -> None:
+        """Its chevron closes the panel away, back to the drawn layout."""
+        self._history_opened = not collapsed
+        if collapsed:
+            self._sidebar.setVisible(False)
+            self._apply_pane_visibility()
+        else:
+            self._set_sidebar_collapsed(False)
 
     def _set_sidebar_collapsed(self, collapsed: bool) -> None:
         """Collapse/expand History sidebar and redistribute splitter space so
@@ -321,17 +405,44 @@ class WorkspaceTab(QWidget):
         on_project = idx == self._project_tab_idx
         on_cowork = self._cowork_tab_idx >= 0 and idx == self._cowork_tab_idx
         self._projects_pane.setVisible(on_project)
+        # "Workspace — Projects" and its three-line explanation describe the
+        # PROJECT screen, but were drawn above every sub-tab — ~90px of vertical
+        # space taken from Co4E's canvas and Folder's tree on every laptop
+        # screen. Shown where they apply; the text itself is unchanged.
+        self._header.setVisible(on_project)
+        # The title row sits above the sub-tabs, so everything on it has to
+        # follow the same rule the title does — moving + Project mới up here put
+        # it in the corner of Cowork, Co4E, Folder and GraphRAG as well.
+        self._new_btn.setVisible(on_project)
+        # ...and the explanation only while there is nothing to explain against:
+        # the drawing heads a populated screen with the title alone.
+        self._hint.setVisible(on_project and self.project_list.count() == 0)
+        narrow = getattr(self, "_is_narrow", False)
         if self._sidebar is not None:
-            self._sidebar.setVisible(on_cowork)
-            # Auto-expand History when entering Cowork tab so it's always usable
-            if on_cowork:
+            # Cowork is two columns in the drawing — transcript and files — with
+            # no history pane and no strip where one used to be. The relocation
+            # table is explicit: History moves to Sidebar ▸ RECENTS, "giữ, dễ
+            # tới hơn". So the panel is not on this screen at all until asked
+            # for: "Tất cả project…" in RECENTS brings it in, since search,
+            # filters, pin, rename and multi-select delete live only there.
+            self._sidebar.setVisible(on_cowork and self._history_opened)
+            if on_cowork and self._history_opened:
                 self._sidebar.set_collapsed(False)
         # QSplitter ignores hidden panes, but the freed width isn't handed to
         # the remaining panes deterministically — set explicit sizes after any
         # pane toggle (same lesson as _set_projects_collapsed).
         total = sum(self._split.sizes()) or 1300
-        proj_w = 260 if on_project else 0
-        hist_w = 240 if (on_cowork and self._sidebar is not None) else 0
+        # A collapsed pane must be given the STRIP width here, not its open
+        # width: this ran after every tab change and handed History a flat
+        # 240px even while it was folded to an 18px strip, leaving ~220px of
+        # dead space beside the chat on a small screen.
+        strip_w = CollapseStrip.WIDTH + 2
+        proj_w = 0
+        if on_project:
+            proj_w = strip_w if self._projects_strip.isVisible() else 260
+        hist_w = 0
+        if on_cowork and self._sidebar is not None:
+            hist_w = strip_w if self._sidebar.is_collapsed() else 240
         if self._split.count() >= 3:
             self._split.setSizes([proj_w, hist_w, max(1, total - proj_w - hist_w)])
         else:
@@ -341,6 +452,8 @@ class WorkspaceTab(QWidget):
     def _retranslate(self) -> None:
         self._header.setText(tr("workspace.header"))
         self._hint.setText(tr("workspace.hint"))
+        self._projects_hdr.setText(tr("workspace.projects_heading").upper())
+        self._folder_hdr.setText(tr("workspace.folder_label"))
         self._new_btn.setText(tr("workspace.new_project"))
         self._del_btn.setText(tr("workspace.delete"))
         self._name_lbl.setText(tr("workspace.name"))
@@ -365,6 +478,38 @@ class WorkspaceTab(QWidget):
             self.tabs.setTabText(self._graphrag_tab_idx, tr("workspace.tab_graphrag"))
 
     # ---- project list collapse (same pattern as History / GraphRAG Agent panel) --
+    # Below this window width the three panes (projects 260 + history 240 +
+    # the sub-page, which alone wants ~1245px on Cowork) no longer fit and Qt
+    # clips them instead of shrinking. Measured with tools/check_responsive.py.
+    _NARROW = 1500
+
+    def showEvent(self, e):  # noqa: N802 - Qt override
+        super().showEvent(e)
+        if getattr(self, "_narrow", None) is None:
+            from .widgets import narrow_guard
+            self._narrow = narrow_guard(self, self._NARROW, self._apply_narrow)
+        self._narrow.attach()
+
+    def _apply_narrow(self, narrow: bool) -> None:
+        """Fold the two side panes on a small screen so the sub-page keeps its
+        width; unfold them when the window grows back.
+
+        Nothing becomes unreachable: both panes leave their usual collapse strip
+        behind, and the project picker + RECENTS in the rail cover the same
+        ground while they are folded.
+        """
+        self._is_narrow = narrow
+        self._set_projects_collapsed(narrow)
+        if self._sidebar is not None:
+            self._set_sidebar_collapsed(narrow)
+        # The chat's Files pane (~300px) is the other thing that pushes Cowork
+        # past the window; it has the same collapse strip to come back from.
+        if self._cowork is not None and hasattr(self._cowork, "_set_io_collapsed"):
+            self._cowork._set_io_collapsed(narrow)
+        if not narrow:
+            # Re-apply the per-tab rules the two calls above just overrode.
+            self._apply_pane_visibility()
+
     def _set_projects_collapsed(self, collapsed: bool) -> None:
         strip_w = CollapseStrip.WIDTH + 2
         self._projects_panel.setVisible(not collapsed)
@@ -406,20 +551,47 @@ class WorkspaceTab(QWidget):
         from ..core.projects import list_projects
 
         keep = self._current_id
+        counts = self._project_counts()
         self.project_list.blockSignals(True)
         self.project_list.clear()
         row_to_select = 0
         for i, p in enumerate(list_projects()):
-            item = QListWidgetItem(p.name)
+            chats, tasks = counts.get(p.project_id, (0, 0))
+            # No text on the item: the row widget paints the name, and setting
+            # both drew it twice, one string ghosting the other.
+            item = QListWidgetItem()
             item.setData(Qt.UserRole, p.project_id)
             if p.description:
                 item.setToolTip(p.description)
             self.project_list.addItem(item)
+            row = _ProjectRow(p.name, tr("workspace.counts", chats=chats, tasks=tasks))
+            item.setSizeHint(row.sizeHint())
+            self.project_list.setItemWidget(item, row)
             if p.project_id == keep:
                 row_to_select = i
         self.project_list.blockSignals(False)
         self.project_list.setCurrentRow(row_to_select)
+        # The drawing heads a populated screen with the title alone; the
+        # explanation is what an EMPTY one says instead of showing nothing.
+        self._hint.setVisible(self.project_list.count() == 0)
         self._load_current()
+
+    @staticmethod
+    def _project_counts():
+        """{project_id: (chats, tasks)} — read once per refresh, not per row."""
+        from ..core.history import list_conversations
+        from ..core.tasks import list_tasks
+
+        out: dict = {}
+        for conv in list_conversations():
+            pid = conv.get("project_id") or "default"
+            chats, tasks = out.get(pid, (0, 0))
+            out[pid] = (chats + 1, tasks)
+        for task in list_tasks():
+            pid = task.get("project_id") or "default"
+            chats, tasks = out.get(pid, (0, 0))
+            out[pid] = (chats, tasks + 1)
+        return out
 
     def _selected_id(self) -> str:
         item = self.project_list.currentItem()
@@ -474,6 +646,94 @@ class WorkspaceTab(QWidget):
             self._bind_project(pid)
         finally:
             self._set_tabs_busy(False)
+        # The rail's project picker mirrors this selection — it is a second view
+        # of the same state, never a second source of truth.
+        self.project_selected.emit(pid)
+
+    # ---- rail integration -------------------------------------------------
+    def project_choices(self):
+        """(name, project_id) for the rail picker, in the list's own order.
+
+        Read from the store, which is what the list is built from — reading
+        item.text() coupled the picker to how a row happens to be drawn, and
+        when rows became widgets the picker went blank: every project showed
+        as a bare folder glyph with no name.
+        """
+        from ..core.projects import list_projects
+
+        return [(p.name, p.project_id) for p in list_projects()]
+
+    def selected_project_id(self) -> str:
+        return self._selected_id()
+
+    def choose_project(self, project_id: str) -> bool:
+        """Select a project by id — the same path the list row takes."""
+        return self._select_project_row(project_id)
+
+    def recent_threads(self, limit: int = 5):
+        """The active project's most recent conversations, newest first.
+
+        Scoped to the project on purpose: history is stored inside the project's
+        own folder (config.history_dir() follows the selection) and the History
+        pane groups by project. A flat, cross-project recents list would quietly
+        drop that scoping.
+        """
+        from ..core.history import list_conversations
+
+        pid = self._current_id
+        if not pid:
+            return []
+        try:
+            convos = list_conversations(self.ctx.config.history_dir())
+        except Exception:                                        # noqa: BLE001
+            return []
+        out = []
+        for meta in convos:
+            if (meta.get("project_id", "") or "default") != pid:
+                continue
+            out.append({
+                "title": meta.get("title") or tr("sidebar.empty"),
+                "path": str(meta["path"]),
+                "kind": meta.get("kind", "") or "cowork",
+                "pinned": bool(meta.get("pinned", False)),
+                "session_id": meta.get("session_id", ""),
+            })
+            if len(out) >= limit:
+                break
+        return out
+
+    def open_thread(self, path: str, kind: str = "cowork") -> bool:
+        """Open a conversation by file path — the same route the History pane's
+        own click takes (load_conversation → _on_sidebar_open)."""
+        from ..core.history import load_conversation
+
+        try:
+            conv = load_conversation(path)
+        except Exception:                                        # noqa: BLE001
+            return False
+        self._on_sidebar_open(kind, conv)
+        return True
+
+    def show_history_pane(self) -> None:
+        """Bring the full History panel into view (un-collapsing it if needed).
+
+        The rail's recents list is a shortcut, not a replacement: search,
+        filters, pin, rename, multi-select delete and the context menu all still
+        live in this panel.
+        """
+        self._history_opened = True
+        self._show_cowork_tab()
+        self._sidebar.setVisible(True)
+        self._set_sidebar_collapsed(False)
+
+    def start_new_chat(self) -> None:
+        """Start a new thread in the current project and show it.
+
+        Exactly what the History pane's own new-chat button does
+        (_on_sidebar_new); the rail button is a second door to the same room,
+        not a second implementation.
+        """
+        self._on_sidebar_new("cowork")
 
     def _set_tabs_busy(self, busy: bool) -> None:
         for idx in (self._cowork_tab_idx, self._graphrag_tab_idx):

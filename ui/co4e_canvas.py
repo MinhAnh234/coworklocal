@@ -27,13 +27,20 @@ from ..core.co4e import (
     STEP_DONE, STEP_ERROR, STEP_PLANNED, STEP_RUNNING, Edge, Node, Step,
     compute_waves, new_edge_id, new_node_id,
 )
+from ..theme import current_palette
+
+
+def _status_color(status: str) -> str:
+    """Accent colour for a step's run status. Resolved per paint so the canvas
+    follows a live theme switch."""
+    p = current_palette()
+    return {
+        "idle": p.text_muted, STEP_RUNNING: p.accent, STEP_DONE: p.success,
+        STEP_ERROR: p.danger, STEP_PLANNED: p.purple, "pending": p.text_faint,
+    }.get(status, p.text_muted)
 
 CO4E_MIME = "application/x-co4e-step"
 
-_STATUS_COLOR = {
-    "idle": "#5C8DB8", STEP_RUNNING: "#48CAE4", STEP_DONE: "#48D9A0",
-    STEP_ERROR: "#E5484D", STEP_PLANNED: "#9B8FF7", "pending": "#7A8DA8",
-}
 _NODE_W, _NODE_H = 210, 96
 _PORT_R = 6                 # output port radius (the drag-to-connect handle)
 _PORT_HIT = 15             # click tolerance around a port
@@ -63,24 +70,29 @@ class _NodeItem(QGraphicsObject):
         return QRectF(1, 1, _NODE_W - 2, _NODE_H - 2)
 
     def paint(self, p, _opt, _widget=None):
+        tok = current_palette()
         step = self.node.data
-        accent = QColor(_STATUS_COLOR.get(self.status, "#5C8DB8"))
-        body = QColor("#0D1F35")
-        border = QColor("#48CAE4") if self.isSelected() else QColor("#1A2D4A")
+        accent = QColor(_status_color(self.status))
+        body = QColor(tok.surface_raised)
+        border = QColor(tok.accent) if self.isSelected() else QColor(tok.border)
         p.setRenderHint(p.RenderHint.Antialiasing)
         rect = self._card_rect()
         path = QPainterPath()
-        path.addRoundedRect(rect, 10, 10)
+        radius = float(tok.radius_lg)
+        path.addRoundedRect(rect, radius, radius)
         p.fillPath(path, QBrush(body))
         p.setPen(QPen(border, 2 if self.isSelected() else 1))
         p.drawPath(path)
-        # header stripe
+        # header stripe — a tint of the status colour, not the status colour
+        # itself, so the card's own text stays the brightest thing on it.
         hdr = QRectF(rect.left(), rect.top(), rect.width(), 26)
         hpath = QPainterPath()
-        hpath.addRoundedRect(hdr, 10, 10)
-        p.fillPath(hpath, QBrush(accent.darker(160)))
+        hpath.addRoundedRect(hdr, radius, radius)
+        stripe = QColor(accent)
+        stripe.setAlpha(48)
+        p.fillPath(hpath, QBrush(stripe))
         # label
-        p.setPen(QColor("#E0F0FF"))
+        p.setPen(QColor(tok.text))
         f = p.font(); f.setBold(True); f.setPointSize(9); p.setFont(f)
         p.drawText(QRectF(10, 4, _NODE_W - 20, 20), Qt.AlignVCenter | Qt.AlignLeft,
                    _elide(step.label, 26))
@@ -89,7 +101,7 @@ class _NodeItem(QGraphicsObject):
         p.setPen(accent)
         p.drawText(QRectF(10, 30, _NODE_W - 20, 16), Qt.AlignLeft, step.role)
         # body: instructions preview OR sub-agent chips
-        p.setPen(QColor("#8FB2D4"))
+        p.setPen(QColor(tok.text_muted))
         if step.is_parallel:
             preview = "⇉ " + ", ".join(s.agent for s in step.sub_agents) if step.sub_agents else "⇉ (no sub-agents)"
         else:
@@ -97,7 +109,7 @@ class _NodeItem(QGraphicsObject):
         p.drawText(QRectF(10, 46, _NODE_W - 20, 30), Qt.TextWordWrap | Qt.AlignTop,
                    _elide(preview, 66))
         # footer: model + skills + status dot
-        p.setPen(QColor("#5C8DB8"))
+        p.setPen(QColor(tok.text_faint))
         foot = []
         if step.model:
             foot.append(step.model)
@@ -109,7 +121,7 @@ class _NodeItem(QGraphicsObject):
         # ---- ports ---------------------------------------------------------
         # input port (top-center): hollow. output port (bottom-center): filled —
         # the drag handle you pull to wire an edge to another step.
-        port_col = QColor("#48CAE4")
+        port_col = QColor(tok.accent)
         # input port (left-center): hollow. output port (right-center): filled —
         # the drag handle you pull to wire an edge to the next step (left→right).
         p.setBrush(QBrush(body)); p.setPen(QPen(port_col, 1.4))
@@ -298,12 +310,13 @@ class _EdgeItem(QGraphicsPathItem):
         self._apply_pen()
 
     def _apply_pen(self):
+        tok = current_palette()
         if self.isSelected():
-            color, w = QColor("#48CAE4"), 3
+            color, w = QColor(tok.accent), 3
         elif self._hover:
-            color, w = QColor("#6FA8C8"), 3
+            color, w = QColor(tok.text_muted), 3
         else:
-            color, w = QColor("#3A5A78"), 2
+            color, w = QColor(tok.border_strong), 2
         self.setPen(QPen(color, w, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
 
     def update_path(self, points):
@@ -491,7 +504,8 @@ class Co4ECanvas(QGraphicsView):
         self._port_src_pt = scene_pt
         self._temp_edge = QGraphicsPathItem()
         self._temp_edge.setZValue(3.5)      # above nodes + edges while connecting
-        self._temp_edge.setPen(QPen(QColor("#48CAE4"), 2, Qt.DashLine, Qt.RoundCap))
+        self._temp_edge.setPen(
+            QPen(QColor(current_palette().accent), 2, Qt.DashLine, Qt.RoundCap))
         self._scene.addItem(self._temp_edge)
 
     def update_port_drag(self, scene_pt: QPointF) -> None:
