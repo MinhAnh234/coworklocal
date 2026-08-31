@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
-from PySide6.QtCore import QCoreApplication, QObject, QTimer, Signal
+from PySide6.QtCore import QObject, Signal
 
 from .tasks import (
     advance_after_run, chain_action, dependencies_met, due_tasks, format_run_at,
@@ -31,6 +31,13 @@ STOP_WAIT_SECS = 10.0
 
 
 class TaskScheduler(QObject):
+    """Bộ chạy task theo lịch: cứ mỗi nhịp lại tìm task tới hạn và chạy chúng ở
+    luồng nền.
+
+    Đồng hồ được tiêm qua ``clock=`` (R07-T03) nên test chạy được mà không cần
+    ``QTimer`` thật, và các checker UI vô hiệu hoá được nó để việc dựng cửa sổ
+    không vô tình chạy task thật của người dùng.
+    """
     tasks_changed = Signal()           # any status/log change → UI refresh
     task_started = Signal(str)         # task_id
     task_finished = Signal(str, bool)  # task_id, ok
@@ -39,22 +46,38 @@ class TaskScheduler(QObject):
     # which fires before the worker thread has even begun).
     history_ready = Signal(str)        # task_id
 
-    def __init__(self, ctx, tasks_dir: Optional[Path] = None, parent=None):
+    def __init__(self, ctx, tasks_dir: Optional[Path] = None, parent=None, clock=None):
+        """``clock`` để None thì tự dựng ``QtSchedulerClock`` thật, nên mọi chỗ gọi cũ
+        không phải sửa; test tiêm ``FakeClock`` để điều khiển nhịp bằng tay.
+        """
         super().__init__(parent)
         self.ctx = ctx
         self.tasks_dir = tasks_dir            # None → default TASKS_DIR
         self._workers: Dict[str, AgentWorker] = {}   # task_id → running worker
         self._retries: Dict[str, int] = {}
         self._session_ids: Dict[str, str] = {}       # task_id → its run's History session id
-        self._timer = QTimer(self)
-        self._timer.setInterval(TICK_MS)
-        self._timer.timeout.connect(self.tick)
+        # R07-T03: the QTimer this class used to own directly is now behind a
+        # small clock interface (start/stop/pump) — see
+        # infrastructure/qt/qt_scheduler_clock.py::QtSchedulerClock. Defaulting to a
+        # real one here keeps every existing production call site (which
+        # never passes `clock=`) unchanged; tests inject
+        # tests/fakes/fake_clock.py::FakeClock to control ticks by hand with
+        # no Qt event loop running. Imported lazily so importing core.tasks/
+        # core.task_scheduler for the Qt-free logic doesn't require the Qt
+        # adapter module to even exist in a headless test context.
+        if clock is None:
+            from ..infrastructure.qt.qt_scheduler_clock import QtSchedulerClock
+            clock = QtSchedulerClock(self)
+        self._clock = clock
 
     # ---- lifecycle ----------------------------------------------------
     def start(self) -> None:
+        """Bắt đầu chạy: thu dọn task còn kẹt từ lần chạy trước, đuổi kịp task đã quá
+        hạn, rồi bật nhịp đếm.
+        """
         self._recover_orphans()
         self.tick()          # catch up overdue tasks right at app start
-        self._timer.start()
+        self._clock.start(TICK_MS, self.tick)
 
     def stop(self) -> None:
         """Request every running worker to stop, then WAIT (bounded) for them
@@ -67,15 +90,15 @@ class TaskScheduler(QObject):
         ``_on_done`` (the only place that writes the run into the task's
         history) never runs. The task's real output can already be sitting on
         disk while its history stays stuck on "running" forever. Pumping
-        ``processEvents()`` here lets that queued signal actually get
-        delivered before the app finishes quitting.
+        the clock here lets that queued signal actually get delivered before
+        the app finishes quitting.
         """
-        self._timer.stop()
+        self._clock.stop()
         deadline = time.monotonic() + STOP_WAIT_SECS
         while self._workers and time.monotonic() < deadline:
             for w in list(self._workers.values()):
                 w.request_stop()
-            QCoreApplication.processEvents()
+            self._clock.pump()
             for w in list(self._workers.values()):
                 w.wait(50)
         # Anything still alive past the deadline is abandoned here;
@@ -101,6 +124,7 @@ class TaskScheduler(QObject):
 
     # ---- tick / dispatch ----------------------------------------------
     def tick(self) -> None:
+        """Một nhịp: chạy mọi task đã tới hạn tại thời điểm này."""
         now = datetime.now()
         changed = False
         for task in due_tasks(list_tasks(self.tasks_dir), now):
@@ -137,6 +161,7 @@ class TaskScheduler(QObject):
         return True
 
     def is_running(self, task_id: str) -> bool:
+        """Task này có đang chạy không."""
         return task_id in self._workers
 
     def running_count(self) -> int:
@@ -153,6 +178,7 @@ class TaskScheduler(QObject):
 
     # ---- internals -----------------------------------------------------
     def _start(self, task: dict) -> None:
+        """Khởi động một task ở luồng nền và đánh dấu trạng thái 'running'."""
         tid = task["task_id"]
         run_id = new_run_id()
         task["status"] = "running"
@@ -160,6 +186,7 @@ class TaskScheduler(QObject):
         self.task_started.emit(tid)
 
         def job(worker: AgentWorker):
+            """Chạy nền: thực thi task, chuyển tiếp sự kiện tiến độ và cờ huỷ."""
             return execute_task(self.ctx, task, run_id,
                                 emit=worker.emit_event, cancel=worker.is_cancelled,
                                 tasks_dir=self.tasks_dir)
@@ -187,6 +214,7 @@ class TaskScheduler(QObject):
         self.history_ready.emit(task_id)
 
     def _on_done(self, task_id: str, run_id: str, result: dict) -> None:
+        """Task chạy xong: ghi kết quả, tính lần chạy kế tiếp, và kích hoạt task nối tiếp."""
         self._workers.pop(task_id, None)
         self._session_ids.pop(task_id, None)
         task = load_task(task_id, self.tasks_dir)
@@ -239,6 +267,11 @@ class TaskScheduler(QObject):
             self._start(task)
 
     def _apply_chain(self, task: dict, verb: str, next_id: str) -> None:
+        """Kích hoạt task nối tiếp theo luật ``run_next``.
+
+        Task kế đang tạm dừng thì BỎ QUA — trình sửa task có cảnh báo trước về
+        điều này.
+        """
         nxt = load_task(next_id, self.tasks_dir)
         if not nxt or nxt.get("status") == "paused":
             return   # paused next task is skipped (warned about in the editor)
@@ -255,6 +288,11 @@ class TaskScheduler(QObject):
         save_task(nxt, self.tasks_dir)
 
     def _notify(self, task: dict, ok: bool, error: str) -> None:
+        """Gửi nhắc việc qua Teams hoặc Outlook khi task kết thúc.
+
+        Đã chọn kênh thì báo cả khi chạy xong LẪN khi lỗi — im lặng lúc lỗi là
+        kiểu hỏng tệ nhất của một tác vụ chạy nền.
+        """
         ex = task["execution"]
         channel = ex.get("notify_channel", "none")
         # A chosen channel notifies on BOTH completion and error; the legacy

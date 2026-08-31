@@ -28,6 +28,12 @@ class GraphServer:
     """Lazy singleton-per-instance localhost server for the D3 graph page."""
 
     def __init__(self) -> None:
+        """Chuẩn bị máy chủ; chưa mở cổng nào.
+
+        Một token ngẫu nhiên được sinh ngay lúc này và mọi yêu cầu đều phải mang
+        nó: máy chủ nghe trên localhost, nhưng mọi tiến trình khác trên cùng máy đều
+        gọi được localhost.
+        """
         self._html = _PLACEHOLDER
         self._token = secrets.token_urlsafe(16)
         self._lock = threading.Lock()
@@ -37,6 +43,7 @@ class GraphServer:
 
     # ---- content / callbacks ----------------------------------------
     def set_html(self, html: str) -> None:
+        """Đặt nội dung HTML sẽ phục vụ; có khoá vì luồng nền ghi còn luồng HTTP đọc."""
         with self._lock:
             self._html = html
 
@@ -47,10 +54,12 @@ class GraphServer:
     # ---- lifecycle ----------------------------------------------------
     @property
     def running(self) -> bool:
+        """Máy chủ có đang chạy không."""
         return self._httpd is not None
 
     @property
     def url(self) -> str:
+        """URL đầy đủ kèm token; '' nếu chưa chạy."""
         if self._httpd is None:
             return ""
         port = self._httpd.server_address[1]
@@ -63,14 +72,22 @@ class GraphServer:
         server = self
 
         class Handler(BaseHTTPRequestHandler):
+            """Handler HTTP: chỉ phục vụ đúng trang đồ thị, và chỉ khi token khớp."""
             def log_message(self, *_a) -> None:  # keep the GUI console silent
+                """Tắt log của thư viện chuẩn — nếu không, console GUI bị ngập request."""
                 pass
 
             def _authorized(self, query: dict) -> bool:
+                """Kiểm token trong query, so sánh theo kiểu chống dò thời gian.
+
+                Máy chủ này nghe trên localhost nhưng vẫn cần token: mọi tiến trình khác
+                trên cùng máy đều gọi được nó.
+                """
                 supplied = (query.get("t") or [""])[0]
                 return secrets.compare_digest(supplied, server._token)
 
             def do_GET(self) -> None:  # noqa: N802 - stdlib naming
+                """Trả trang đồ thị khi token đúng; sai token thì trả 403."""
                 parsed = urlparse(self.path)
                 query = parse_qs(parsed.query)
                 if not self._authorized(query):
@@ -108,6 +125,7 @@ class GraphServer:
         return self.url
 
     def stop(self) -> None:
+        """Dừng máy chủ và giải phóng cổng."""
         httpd, self._httpd = self._httpd, None
         if httpd is not None:
             httpd.shutdown()

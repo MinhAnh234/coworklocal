@@ -11,7 +11,15 @@ from ..i18n import tr
 
 
 class PermissionDialog(QDialog):
+    """Hộp thoại xin phép chạy một tool có rủi ro: hiện xem trước hành động rồi hỏi
+    Đồng ý / Từ chối.
+    """
     def __init__(self, action: Dict[str, Any], parent=None):
+        """Hộp thoại xin phép trước khi agent chạy một hành động nhạy cảm.
+
+        Hiện nguyên văn thứ sắp chạy: người dùng phải thấy đúng cái mình đang đồng ý,
+        không phải một câu mô tả chung chung.
+        """
         super().__init__(parent)
         preview = action.get("preview", {})
         self.setWindowTitle(tr("permission.title"))

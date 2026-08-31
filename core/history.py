@@ -16,14 +16,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..config import HISTORY_DIR
-
 
 def new_session_id() -> str:
+    """Id phiên mới theo mốc thời gian, chính xác tới mili giây."""
     return datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
 
 def derive_title(messages: List[Dict[str, Any]]) -> str:
+    """Suy tiêu đề hội thoại từ tin nhắn đầu tiên của người dùng.
+
+    Dùng khi người dùng chưa tự đặt tên — cắt gọn cho vừa một dòng danh sách.
+    """
     for m in messages:
         if m.get("role") == "user" and m.get("content"):
             text = " ".join(m["content"].split())
@@ -42,6 +45,12 @@ def save_conversation(
     outputs: List[str] | None = None,
     project_id: str = "",
 ) -> Path:
+    """Ghi một hội thoại xuống ``<kind>__<session_id>.json``.
+
+    Ghi nguyên tử (R06-T02). Cờ ghim và project_id của lần lưu trước được GIỮ
+    LẠI: hàm này bị gọi tự động sau mỗi lượt chat, ghi đè chúng sẽ âm thầm bỏ
+    ghim và đẩy hội thoại ra khỏi project của nó.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{kind}__{session_id}.json"
     pinned = False  # preserve pin flag + project across autosaves
@@ -66,11 +75,14 @@ def save_conversation(
         "outputs": list(outputs or []),
         "messages": messages,
     }
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    # R06-T02: atomic write - see infrastructure/persistence/json/atomic_write.py.
+    from ..infrastructure.persistence.json.atomic_write import write_json
+    write_json(path, payload)
     return path
 
 
 def delete_conversation(path) -> None:
+    """Xoá file hội thoại; không có thì bỏ qua."""
     try:
         Path(path).unlink()
     except OSError:
@@ -78,18 +90,27 @@ def delete_conversation(path) -> None:
 
 
 def rename_conversation(path, new_title: str) -> None:
+    """Đổi tiêu đề một hội thoại và ghi lại (nguyên tử)."""
+    from ..infrastructure.persistence.json.atomic_write import write_json
+
     data = load_conversation(path)
     data["title"] = new_title
-    Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json(Path(path), data)
 
 
 def set_pinned(path, pinned: bool) -> None:
+    """Ghim/bỏ ghim một hội thoại để nó nằm trên đầu danh sách."""
+    from ..infrastructure.persistence.json.atomic_write import write_json
+
     data = load_conversation(path)
     data["pinned"] = bool(pinned)
-    Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json(Path(path), data)
 
 
 def load_conversation(path: Path) -> Dict[str, Any]:
+    """Đọc một hội thoại; file hỏng hoặc không đọc được thì trả về dict rỗng thay
+    vì ném lỗi — một file hỏng không được phép làm chết cả danh sách lịch sử.
+    """
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -111,13 +132,16 @@ def _matches_query(query: str, title: str, messages: List[Dict[str, Any]]) -> bo
     return False
 
 
-def list_conversations(directory: Path = HISTORY_DIR, query: str = "") -> List[Dict[str, Any]]:
+def list_conversations(directory: Optional[Path] = None, query: str = "") -> List[Dict[str, Any]]:
     """List saved conversations, most recent first (pinned always on top).
 
     ``query`` (from the sidebar's search box), when non-empty, keeps only
     conversations whose title OR any message's content contains it
     (case-insensitive) — since every file is already parsed to build the
     metadata below, this search costs no extra I/O over listing alone."""
+    if directory is None:
+        from ..config import HISTORY_DIR
+        directory = HISTORY_DIR
     if not directory or not directory.exists():
         return []
     q = (query or "").strip().lower()

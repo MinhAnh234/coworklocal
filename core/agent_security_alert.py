@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Tuple
 
 from . import ms365_graph
-from .agent_security import SecurityVerdict
+from .agent_security_types import SecurityVerdict
 from .ms365_auth import Ms365AuthError, get_access_token
 
 

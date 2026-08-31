@@ -21,6 +21,7 @@ from .icons import icon
 
 
 def _grid() -> QListWidget:
+    """Dựng lưới hiển thị icon dạng ô vuông có nhãn."""
     g = QListWidget()
     g.setObjectName("iconGrid")   # accent border on hover/selection, see theme.py
     g.setViewMode(QListWidget.IconMode)
@@ -33,7 +34,13 @@ def _grid() -> QListWidget:
 
 
 class IconsAdminTab(QWidget):
+    """Tab "Icon" trong màn Giám sát: xem bộ icon hệ thống và thay icon bằng ảnh riêng."""
     def __init__(self, ctx: AppContext):
+        """Tab quản trị biểu tượng: bộ dựng sẵn và bộ tự thêm.
+
+        Ba nút thao tác nằm cạnh tiêu đề chứ không nằm dưới hai lưới — đặt dưới thì
+        chúng trông như chỉ áp cho lưới tự thêm.
+        """
         super().__init__()
         self.ctx = ctx
         root = QVBoxLayout(self)
@@ -81,6 +88,7 @@ class IconsAdminTab(QWidget):
 
     # ---- rendering --------------------------------------------------------
     def _reload_builtin(self, *_a) -> None:
+        """Nạp lại lưới icon dựng sẵn, lọc theo ô tìm kiếm."""
         q = self.search.text().strip().lower()
         self.builtin_grid.clear()
         for name in sorted(icons_mod._PATHS):
@@ -92,6 +100,7 @@ class IconsAdminTab(QWidget):
             self.builtin_grid.addItem(it)
 
     def _reload_custom(self) -> None:
+        """Nạp lại lưới icon do người dùng thêm."""
         self.custom_grid.clear()
         for name in custom_icons.list_custom():
             it = QListWidgetItem(icon(name), name)
@@ -102,6 +111,7 @@ class IconsAdminTab(QWidget):
 
     # ---- actions ----------------------------------------------------------
     def _add_icon(self) -> None:
+        """Thêm icon mới từ một tệp SVG."""
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getOpenFileName(self, tr("icons_admin.add"), "", "SVG (*.svg)")
         if not path:
@@ -118,6 +128,7 @@ class IconsAdminTab(QWidget):
         self._reload_custom()
 
     def _add_from_svg_text(self) -> None:
+        """Thêm icon bằng cách dán thẳng mã SVG."""
         name, ok = QInputDialog.getText(self, tr("icons_admin.name_prompt"),
                                         tr("icons_admin.name_prompt"))
         if not ok or not name.strip():
@@ -134,6 +145,7 @@ class IconsAdminTab(QWidget):
         self._reload_custom()
 
     def _delete_icon(self) -> None:
+        """Xoá icon tự thêm đang chọn; chưa chọn gì thì nhắc người dùng."""
         item = self.custom_grid.currentItem()
         if item is None:
             QMessageBox.information(self, tr("icons_admin.title"), tr("icons_admin.select_custom"))
@@ -142,6 +154,7 @@ class IconsAdminTab(QWidget):
         self._reload_custom()
 
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn."""
         self._title.setText(tr("monitoring.tab_icons"))
         self._hint.setText(tr("icons_admin.hint"))
         self.search.setPlaceholderText(tr("icons_admin.search"))

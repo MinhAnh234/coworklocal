@@ -57,10 +57,12 @@ SCOPES: List[str] = [
 
 
 class Ms365AuthError(Exception):
+    """Lỗi khi đăng nhập hoặc lấy token Microsoft 365."""
     pass
 
 
 def _load_cache():
+    """Nạp kho token đã lưu từ đĩa (nếu có)."""
     import msal
 
     cache = msal.SerializableTokenCache()
@@ -84,6 +86,7 @@ def _load_cache():
 
 
 def _save_cache(cache) -> None:
+    """Ghi kho token xuống đĩa, chỉ khi nó thật sự thay đổi."""
     if not cache.has_state_changed:
         return
     serialized = cache.serialize()
@@ -105,6 +108,9 @@ def _save_cache(cache) -> None:
 
 
 def _app(tenant_id: str, client_id: str):
+    """Dựng ứng dụng MSAL cho tenant/client đã cấu hình; thiếu ``msal`` thì báo lỗi
+    kèm hướng dẫn cài.
+    """
     try:
         import msal
     except ImportError as exc:
@@ -192,6 +198,7 @@ def get_access_token(tenant_id: str, client_id: str) -> str:
 # The UI calls these with no args for the "connect like Claude" flow; they read
 # the optional config overrides so a custom Azure app still works.
 def _ids(config=None):
+    """Cặp (tenant_id, client_id) đọc từ cấu hình MS365."""
     ms365 = (config.ms365 if config is not None else {}) or {}
     return ms365.get("tenant_id", ""), ms365.get("client_id", "")
 
@@ -203,6 +210,7 @@ def current_identity(config=None) -> str:
 
 
 def is_signed_in(config=None) -> bool:
+    """Đã có tài khoản MS365 đăng nhập sẵn hay chưa."""
     return signed_in_account(*_ids(config)) is not None
 
 
@@ -213,10 +221,12 @@ def sign_in(on_code: Callable[[dict], None], config=None) -> dict:
 
 
 def sign_out_default(config=None) -> None:
+    """Đăng xuất tài khoản MS365 theo cấu hình hiện tại."""
     sign_out(*_ids(config))
 
 
 def sign_out(tenant_id: str, client_id: str) -> None:
+    """Đăng xuất và xoá token của một tenant/client khỏi kho."""
     try:
         app, cache = _app(tenant_id, client_id)
         for acc in app.get_accounts():

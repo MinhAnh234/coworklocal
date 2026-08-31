@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from ..application.conversations.tool_policy_gateway import ToolPolicyGateway
+from ..domain.tools import ToolCapability, ToolDescriptor, ToolRegistry
 from ..providers.base import Provider
 from . import agent_roles
 from . import agent_security
@@ -29,6 +31,11 @@ _TOOL_LINE = re.compile(r"@@TOOL\s+(\w+)\s+(\{.*\})", re.DOTALL)
 
 def code_system_prompt(workdir: Path, has_memory: bool = False, plan: bool = False,
                        has_plan_tool: bool = False, has_ms365: bool = False) -> str:
+    """Prompt hệ thống cho Code agent, ghép theo năng lực thật của lượt chạy.
+
+    Chỉ liệt kê những tool đang BẬT, và thêm ghi chú chế độ lập kế hoạch khi cần —
+    nói với model về một tool nó không có sẽ khiến nó gọi rồi báo lỗi.
+    """
     names = ", ".join(t.name for t in TOOL_SPECS)
     plan_note = ("PLAN MODE: only analyze and propose a detailed plan; do NOT write files or run "
                  "commands. When the user asks to gencode/implement, the app switches to ACT.\n"
@@ -225,6 +232,14 @@ def run_code(
     # read/list ms365 tools count as "read-only, never confirm". Names are
     # the MCP-qualified "ms365__*" form the agent sees (see ms365_tools.py).
     gated_tools = WRITE_TOOLS | MS365_WRITE_TOOLS
+    # R05-T03/T04: ``gated_tools`` stays the authoritative name set (unchanged),
+    # but the actual confirm decision now goes through the same
+    # ToolPolicyGateway class run_cowork uses, instead of a separate
+    # hand-rolled ``if name in gated_tools`` + direct ``gate.request(...)``.
+    code_tool_policy = ToolPolicyGateway(
+        ToolRegistry(ToolDescriptor(n, "", {}, ToolCapability.WRITE) for n in gated_tools),
+        ToolCapability.WRITE,
+    )
     # In PLAN mode, don't advertise write/run tools (analysis only).
     advertised = [t for t in all_tools if t.name not in gated_tools] if plan else all_tools
     has_memory = any(t.name.startswith("cmem_") for t in extra_tools)
@@ -297,10 +312,11 @@ def run_code(
             agent_security.enforce_command(provider, name, args, security_config, emit,
                                            agent_kind="code")
 
-            if name in gated_tools:
-                approved = gate.request({"id": tc_id, "name": name, "args": args, "preview": preview})
-            else:
-                approved = True  # read-only tools (incl. codebase memory) never confirm
+            # read-only tools (incl. codebase memory) never consult the gate —
+            # code_tool_policy.requires_confirmation(name) is False for them.
+            approved = code_tool_policy.allow(
+                name, gate, {"id": tc_id, "name": name, "args": args, "preview": preview}
+            )
 
             if cancel():
                 return messages

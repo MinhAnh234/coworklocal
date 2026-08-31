@@ -12,6 +12,10 @@ from ..foundation import ContractModel, SourceCitation, ToolTemplate
 
 
 class ChangeContextInput(ContractModel):
+    """Tham số vào của ``get_project_change_context``: project và mã thay đổi.
+
+    ``detail`` chọn độ dài kết quả, ``cursor`` để lấy trang tiếp khi bị cắt bớt.
+    """
     project_id: str = Field(min_length=1, max_length=128)
     change_id: str = Field(min_length=1, max_length=128)
     detail: Literal["summary", "standard", "full"] = "standard"
@@ -19,6 +23,11 @@ class ChangeContextInput(ContractModel):
 
 
 class ChangeContextOutput(ContractModel):
+    """Kết quả trả về: mô tả một commit/PR/MR kèm file, commit và issue liên quan.
+
+    ``source`` là trích dẫn nguồn bắt buộc; ``truncated``/``next_cursor`` cho
+    Agent biết còn dữ liệu chưa lấy hết.
+    """
     correlation_id: str
     project_id: str
     change_id: str
@@ -38,6 +47,7 @@ class ChangeContextOutput(ContractModel):
 
 
 def _handle(arguments: ContractModel, provider: Any) -> dict[str, Any]:
+    """Kiểm tham số theo schema rồi chuyển sang provider đã được cấp cho lượt gọi này."""
     request = ChangeContextInput.model_validate(arguments)
     return provider.get_change_context(**request.model_dump())
 

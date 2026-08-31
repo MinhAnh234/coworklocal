@@ -30,6 +30,7 @@ class AgentManagerTab(QWidget):
     own, independent of any single Flow."""
 
     def __init__(self, ctx=None, parent=None):
+        """Dựng danh sách agent và form sửa."""
         super().__init__(parent)
         self.ctx = ctx               # for the AI "generate prompt from description" button
         self._gen_worker = None
@@ -124,6 +125,11 @@ class AgentManagerTab(QWidget):
 
     # ---- Agent (model) list, fetched live from the selected provider -----
     def _reload_models(self) -> None:
+        """Nạp danh sách model của provider đang chọn.
+
+        Model đang chọn được đưa vào danh sách trước, ngay trong lúc chờ: không thì
+        ô model trống trơn vài giây và người dùng tưởng lựa chọn của mình đã mất.
+        """
         if self.ctx is None:
             return
         provider_key = self.provider_combo.currentData() or self.ctx.config.active_provider
@@ -136,6 +142,7 @@ class AgentManagerTab(QWidget):
         ctx = self.ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: hỏi provider danh sách model. Lỗi thì trả danh sách rỗng."""
             try:
                 return {"models": ctx.build_provider_for(provider_key).list_models() or [],
                         "provider": provider_key}
@@ -143,6 +150,9 @@ class AgentManagerTab(QWidget):
                 return {"models": [], "provider": provider_key}
 
         def done(result: dict) -> None:
+            """Đổ danh sách model vào bộ chọn; bỏ qua nếu provider đã bị đổi lần nữa trong
+            lúc chờ.
+            """
             if result.get("provider") != (self.provider_combo.currentData()
                                           or ctx.config.active_provider):
                 return   # provider changed again while fetching
@@ -166,6 +176,7 @@ class AgentManagerTab(QWidget):
 
     # ---- AI: draft the prompt from the short name/description -----------
     def _gen_prompt(self) -> None:
+        """Nhờ model viết nội dung prompt cho agent từ tên và mô tả."""
         name = self.name_edit.text().strip()
         desc = self.desc_edit.text().strip()
         if not name and not desc:
@@ -178,6 +189,7 @@ class AgentManagerTab(QWidget):
         ctx = self.ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: gọi model sinh prompt cho agent."""
             return {"prompt": generate_agent_prompt(
                 ctx.build_active_provider(), name, desc, worker.is_cancelled)}
 
@@ -188,17 +200,22 @@ class AgentManagerTab(QWidget):
         w.start()
 
     def _on_gen_prompt(self, result) -> None:
+        """Đổ prompt model vừa sinh vào ô soạn."""
         text = (result or {}).get("prompt", "")
         if text:
             self.prompt_edit.setPlainText(text)
         self._reset_gen_prompt_btn()
 
     def _reset_gen_prompt_btn(self) -> None:
+        """Bật lại nút sinh prompt và trả chữ về như cũ."""
         self._gen_prompt_btn.setEnabled(True)
         self._gen_prompt_btn.setText(tr("agentmgr.gen_prompt_btn"))
 
     # ---- list <-> editor ------------------------------------------------
     def _reload_list(self, select_name: str = "") -> None:
+        """Nạp lại danh sách agent, chọn lại đúng agent theo tên nếu có yêu cầu — dùng
+        sau khi lưu để con trỏ không nhảy về đầu danh sách.
+        """
         self.list.blockSignals(True)
         self.list.clear()
         agents = list_agents()
@@ -217,6 +234,7 @@ class AgentManagerTab(QWidget):
             self._clear_editor()
 
     def _current_agent(self) -> Optional[CustomAgent]:
+        """Agent đang chọn; ``None`` nếu chưa chọn dòng nào."""
         row = self.list.currentRow()
         agents = list_agents()
         if 0 <= row < len(agents):
@@ -224,6 +242,11 @@ class AgentManagerTab(QWidget):
         return None
 
     def _load_into_editor(self, _row: int) -> None:
+        """Đổ agent đang chọn vào form.
+
+        Model được nhớ riêng vào ``_pending_model`` vì danh sách model nạp bất đồng
+        bộ — không giữ lại thì lựa chọn biến mất khi danh sách về tới nơi.
+        """
         agent = self._current_agent()
         if agent is None:
             self._clear_editor()
@@ -240,6 +263,7 @@ class AgentManagerTab(QWidget):
         self.model_combo.setCurrentIndex(max(0, self.model_combo.findData(agent.model)))
 
     def _clear_editor(self) -> None:
+        """Xoá trắng form và bỏ tên đang mở."""
         self._loaded_name = ""
         self.name_edit.clear()
         self.desc_edit.clear()
@@ -249,11 +273,13 @@ class AgentManagerTab(QWidget):
         self.model_combo.setCurrentIndex(0)
 
     def _new_agent(self) -> None:
+        """Bỏ chọn trong danh sách và mở một form trống để tạo agent mới."""
         self.list.setCurrentRow(-1)
         self._clear_editor()
         self.name_edit.setFocus()
 
     def _save(self) -> None:
+        """Lưu agent đang soạn. Chưa nhập tên thì con trỏ nhảy vào ô tên, không lưu."""
         name = self.name_edit.text().strip()
         if not name:
             self.name_edit.setFocus()
@@ -270,6 +296,7 @@ class AgentManagerTab(QWidget):
         self._reload_list(select_name=agent.name)
 
     def _delete(self) -> None:
+        """Xoá agent đang chọn, có hỏi lại."""
         agent = self._current_agent()
         if agent is None:
             return

@@ -1,31 +1,47 @@
-"""Settings dialog: AI provider, Sandbox, the unified Connectors (MCP) group
-(CAD / CAE / MS365 / Other — MCP servers + REST connectors in one place),
-and the merged "Parameter" group (Cowork / Attachments / GraphRAG caps)."""
-from __future__ import annotations
+"""Hộp thoại Cài đặt — khung lắp ráp.
 
-from typing import Dict
+Năm mục, mỗi mục một trang: Chung, AI Provider, Bảo mật sandbox, Tham số,
+Auto Model Routing. Bốn mục đầu... đúng hơn: bốn trong năm mục đã bóc sang
+``presentation/settings/`` (R08-T07); file này còn giữ mục Bảo mật sandbox,
+phần lắp ráp danh sách mục bên trái, và ``_save`` gọi ``apply_to`` của từng
+widget con.
+
+Không còn phần Connector nào ở đây: nó đã dời sang Monitoring → Tools →
+Connector từ trước. Ngày 25/08 dọn nốt 108 dòng MS365 chết còn sót lại của
+lần dời đó — năm hàm gọi lẫn nhau, không đường vào, và đọc ba thuộc tính
+chưa từng được gán nên gọi vào là AttributeError.
+"""
+from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox, QTreeWidget,
+    QMessageBox, QPushButton, QScrollArea, QSpinBox,
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
-from ..config import PROVIDER_LABELS
-from ..core.ext_connectors import CATEGORIES as EXT_CATEGORIES
-from ..core.worker import AgentWorker
-from ..i18n import LANGUAGES, tr
-from ..state import AppContext
-from .icons import icon, IconLabel
-from .widgets import SegmentedControl, ToggleSwitch
-from .ext_connector_dialog import ExtConnectorEditDialog
+from ..i18n import tr
+from .icons import IconLabel
+from .widgets import ToggleSwitch
 
+
+from ..presentation.settings.general_settings_widget import GeneralSettingsWidget
+from ..presentation.settings.provider_settings_widget import ProviderSettingsWidget
+from ..presentation.settings.parameter_settings_widget import ParameterSettingsWidget
+from ..presentation.settings.routing_settings_widget import RoutingSettingsWidget
 
 class SettingsDialog(QDialog):
+    """Hộp thoại Cài đặt: cột mục lục bên trái, các trang bên phải
+    (Nhà cung cấp · Connectors · Định tuyến · Tham số · Chung).
+    """
     def __init__(self, ctx, parent=None):
+        """Hộp thoại Cài đặt, ghép các nhóm thiết lập.
+
+        Có nút thu nhỏ (không phải mặc định của hộp thoại Qt) vì màn này hay được để
+        mở trong lúc người dùng làm việc ở cửa sổ chính.
+        """
         super().__init__()
         self.ctx = ctx
         self.setWindowTitle(tr("settings.title"))
@@ -50,63 +66,17 @@ class SettingsDialog(QDialog):
         self._content = QWidget()
         root = QVBoxLayout(self._content)
 
-        # --- language + tray ---
-        top = QFormLayout()
-        self.language_combo = SegmentedControl()
-        for key, label in LANGUAGES.items():
-            self.language_combo.addItem(label, key)
-        self._select_combo(self.language_combo, ctx.config.language)
-        top.addRow(tr("settings.language"), self.language_combo)
-
-        # Theme belongs with the other per-account settings. It is also on the
-        # rail's account row (one click for the common flip); this is the same
-        # value, named and explained, for people who come looking in Settings.
-        self.theme_combo = SegmentedControl()
-        for key in ("system", "dark", "light"):
-            self.theme_combo.addItem(tr(f"settings.theme_{key}"), key)
-        self._select_combo(self.theme_combo, getattr(ctx.config, "theme", "system"))
-        top.addRow(tr("settings.theme"), self.theme_combo)
-
-        self.tray_chk = ToggleSwitch(tr("settings.tray_keep"))
-        self.tray_chk.setChecked(bool(data.get("tray", {}).get("minimize_on_close", True)))
-        top.addRow("", self.tray_chk)
-        self.notify_chk = ToggleSwitch(tr("settings.tray_notify"))
-        self.notify_chk.setChecked(bool(data.get("tray", {}).get("notify_on_done", True)))
-        top.addRow("", self.notify_chk)
-        # Zero-height anchor so the index can scroll to this section, which is a
-        # bare form rather than a group box.
-        self._anchor_general = QWidget()
-        self._anchor_general.setFixedHeight(0)
-        root.addWidget(self._anchor_general)
-        root.addLayout(top)
+        # --- Chung: ngôn ngữ, giao diện, khay ---
+        # Đã bóc sang presentation/settings/general_settings_widget.py (R08-T07).
+        self._general_box = GeneralSettingsWidget(self.ctx)
+        root.addWidget(self._general_box)
 
         self._load_workers = []
 
         # --- AI Provider ---
-        self._prov_staging: Dict[str, dict] = {
-            key: dict(conf) for key, conf in data["providers"].items()
-        }
-        self.provider_combo = QComboBox()
-        for key, label in PROVIDER_LABELS.items():
-            self.provider_combo.addItem(label, key)
-        self._select_combo(self.provider_combo, ctx.config.active_provider)
-        self._prov_current_key = self.provider_combo.currentData()
-
-        conf = self._prov_staging.get(self._prov_current_key, {})
-        self.prov_base = QLineEdit(conf.get("base_url", ""))
-        self.prov_key = self._secret(conf.get("api_key", ""))
-        self.prov_model = self._model_combo(conf.get("model", ""))
-        self.prov_status = QLabel("")
-        self.prov_status.setObjectName("hint")
-        self.prov_status.setWordWrap(True)
-        prov_group = self._group(tr("settings.group.provider"), [
-            (tr("settings.active_provider"), self.provider_combo),
-            (tr("settings.base_url"), self.prov_base),
-            (tr("settings.api_key"), self.prov_key),
-            (tr("settings.model"), self._with_load(self.prov_model, self.prov_status)),
-        ])
-        prov_group.layout().addRow("", self.prov_status)
-        self.provider_combo.currentIndexChanged.connect(self._on_provider_edit_changed)
+        # Đã bóc sang presentation/settings/provider_settings_widget.py (R08-T07).
+        prov_group = ProviderSettingsWidget(self.ctx)
+        self._provider_page = prov_group
         root.addWidget(prov_group)
 
         # --- Sandbox Security Layer ---
@@ -177,141 +147,20 @@ class SettingsDialog(QDialog):
         root.addWidget(self.sandbox_group)
 
         # Connectors (MCP / REST API) are managed entirely in Monitoring → Tools
-        # → Connector now — no connector UI in Settings. (_ms365_workers is kept
         # for the dead-but-retained MS365 OAuth sign-in handlers below.)
-        self._ms365_workers = []
 
         # --- Parameter ---
-        param_group = QGroupBox(tr("settings.group.parameter"))
-        pgl = QFormLayout(param_group)
-
-        def _param_section(key: str) -> None:
-            lbl = QLabel(tr(key))
-            lbl.setStyleSheet("font-weight:600; margin-top:6px;")
-            pgl.addRow(lbl)
-
-        # Parallel-conversation limit removed — conversations and flows now run
-        # unlimited in parallel (no cap, no Settings row).
-        att = data.get("attachments", {})
-        _param_section("settings.group.attachments")
-        self.attach_files = QSpinBox()
-        self.attach_files.setRange(1, 50)
-        self.attach_files.setSuffix(tr("settings.max_files_suffix"))
-        self.attach_files.setValue(max(1, int(att.get("max_files", 20))))
-        self.attach_files.setToolTip(tr("settings.max_files_tooltip"))
-        self.attach_tokens = QSpinBox()
-        self.attach_tokens.setRange(1, 1000)
-        self.attach_tokens.setSingleStep(5)
-        self.attach_tokens.setSuffix(tr("settings.max_per_file_suffix"))
-        self.attach_tokens.setValue(max(1, int(att.get("max_tokens", 500000)) // 1000))
-        self.attach_tokens.setToolTip(tr("settings.max_per_file_tooltip"))
-        pgl.addRow(tr("settings.max_files"), self.attach_files)
-        pgl.addRow(tr("settings.max_per_file"), self.attach_tokens)
-
-        st = data.get("structure", {})
-        _param_section("settings.group.structure")
-        self.struct_nodes = QSpinBox()
-        self.struct_nodes.setRange(0, 100000)
-        self.struct_nodes.setSpecialValueText(tr("settings.unlimited"))
-        self.struct_nodes.setSuffix(tr("settings.nodes_suffix"))
-        self.struct_nodes.setValue(max(0, int(st.get("max_nodes", 500))))
-        self.struct_nodes.setToolTip(tr("settings.nodes_tooltip"))
-        self.struct_edges = QSpinBox()
-        self.struct_edges.setRange(0, 200000)
-        self.struct_edges.setSpecialValueText(tr("settings.unlimited"))
-        self.struct_edges.setSuffix(tr("settings.edges_suffix"))
-        self.struct_edges.setValue(max(0, int(st.get("max_edges", 500))))
-        self.struct_edges.setToolTip(tr("settings.edges_tooltip"))
-        pgl.addRow(tr("settings.max_nodes"), self.struct_nodes)
-        pgl.addRow(tr("settings.max_edges"), self.struct_edges)
-
-        # Sandbox resource limits (CPU / Memory / Disk I/O) — moved here from
-        # the Sandbox Security group; still stored under agent_security.*.
-        _param_section("settings.group.sandbox_limits")
-        self.sandbox_cpu = QSpinBox()
-        self.sandbox_cpu.setRange(0, 100_000)
-        self.sandbox_cpu.setSuffix(" %")
-        self.sandbox_cpu.setSpecialValueText(tr("settings.sandbox_unlimited"))
-        self.sandbox_cpu.setValue(int(sec.get("resource_limit_cpu_percent", 0) or 0))
-        pgl.addRow(tr("settings.sandbox_cpu_label"), self.sandbox_cpu)
-
-        self.sandbox_memory = QSpinBox()
-        self.sandbox_memory.setRange(0, 1_000_000)
-        self.sandbox_memory.setSuffix(" MB")
-        self.sandbox_memory.setSpecialValueText(tr("settings.sandbox_unlimited"))
-        self.sandbox_memory.setValue(int(sec.get("resource_limit_memory_mb", 2048) or 2048))
-        pgl.addRow(tr("settings.sandbox_memory_label"), self.sandbox_memory)
-
-        self.sandbox_disk = QSpinBox()
-        self.sandbox_disk.setRange(0, 1_000_000)
-        self.sandbox_disk.setSuffix(" MB")
-        self.sandbox_disk.setSpecialValueText(tr("settings.sandbox_unlimited"))
-        self.sandbox_disk.setValue(int(sec.get("resource_limit_disk_mb", 2048) or 2048))
-        pgl.addRow(tr("settings.sandbox_disk_label"), self.sandbox_disk)
-
+        # Đã bóc sang presentation/settings/parameter_settings_widget.py (R08-T07).
+        param_group = ParameterSettingsWidget(self.ctx)
+        self._param_page = param_group
         root.addWidget(param_group)
 
         # ---- Auto Model Routing ------------------------------------------
-        routing = self.ctx.config.routing
-        routing_group = QGroupBox(tr("routing.settings_group"))
-        rgl = QFormLayout(routing_group)
-
-        self.routing_mode = QComboBox()
-        for value, key in (("off", "routing.mode_off"), ("auto", "routing.mode_auto"),
-                           ("manual", "routing.mode_manual")):
-            self.routing_mode.addItem(tr(key), value)
-        self._select_combo(self.routing_mode, routing.get("switch_mode", "off"))
-        rgl.addRow(tr("routing.settings_mode"), self.routing_mode)
-
-        self.routing_policy = QComboBox()
-        for value, key in (("quality", "routing.policy_quality"), ("cost", "routing.policy_cost"),
-                           ("latency", "routing.policy_latency"), ("balanced", "routing.policy_balanced")):
-            self.routing_policy.addItem(tr(key), value)
-        self._select_combo(self.routing_policy, routing.get("policy", "balanced"))
-        rgl.addRow(tr("routing.settings_policy"), self.routing_policy)
-
-        # Min score gain stored as a fraction (0..1); shown as a percentage.
-        self.routing_min_gain = QSpinBox()
-        self.routing_min_gain.setRange(0, 100)
-        self.routing_min_gain.setSuffix(" %")
-        self.routing_min_gain.setValue(int(round(float(routing.get("min_score_gain", 0.05)) * 100)))
-        rgl.addRow(tr("routing.settings_min_gain"), self.routing_min_gain)
-
-        self.routing_timeout = QSpinBox()
-        self.routing_timeout.setRange(5, 600)
-        self.routing_timeout.setSuffix(" s")
-        self.routing_timeout.setValue(int(routing.get("confirm_timeout_sec", 60) or 60))
-        rgl.addRow(tr("routing.settings_timeout"), self.routing_timeout)
-
-        self.routing_interval = QSpinBox()
-        self.routing_interval.setRange(0, 720)
-        self.routing_interval.setSpecialValueText(tr("routing.mode_off"))  # 0 = disabled
-        self.routing_interval.setSuffix(" h")
-        self.routing_interval.setValue(int(routing.get("reassess_interval_hours", 24) or 0))
-        rgl.addRow(tr("routing.settings_interval"), self.routing_interval)
-
-        self.routing_concurrency = QSpinBox()
-        self.routing_concurrency.setRange(1, 16)
-        self.routing_concurrency.setValue(int(routing.get("per_provider_concurrency", 2) or 2))
-        rgl.addRow(tr("routing.settings_concurrency"), self.routing_concurrency)
-
-        self.routing_judge = QLineEdit(routing.get("judge_model", ""))
-        rgl.addRow(tr("routing.settings_judge"), self.routing_judge)
-
-        self.routing_reassess_btn = QPushButton(tr("routing.settings_reassess_now"))
-        self.routing_reassess_btn.clicked.connect(self._routing_reassess_now)
-        rgl.addRow("", self.routing_reassess_btn)
-
-        rhint = QLabel(tr("routing.settings_hint"))
-        rhint.setObjectName("hint")
-        rhint.setWordWrap(True)
-        rgl.addRow(rhint)
+        # Đã bóc sang presentation/settings/routing_settings_widget.py (R08-T07).
+        routing_group = RoutingSettingsWidget(self.ctx)
+        self._routing_page = routing_group
         root.addWidget(routing_group)
 
-        note = QLabel(tr("settings.tip"))
-        note.setObjectName("hint")
-        note.setWordWrap(True)      # otherwise this one line sets the dialog's width
-        root.addWidget(note)
 
         # Left list + right panel: one group on screen at a time, the way the
         # audit page's mock-up shows it. The five rows are the five real group
@@ -319,15 +168,6 @@ class SettingsDialog(QDialog):
         # glance instead of by scrolling to find out.
         from .widgets import section_panels
 
-        self._general_box = QWidget()
-        gv = QVBoxLayout(self._general_box)
-        gv.setContentsMargins(0, 0, 0, 0)
-        root.removeWidget(self._anchor_general)
-        root.removeItem(top)
-        gv.addLayout(top)
-        gv.addWidget(note)          # the tip belongs with the general settings
-        gv.addStretch(1)
-        root.removeWidget(note)
 
         pages = []
         for label, widget in ((tr("settings.group.general"), self._general_box),
@@ -374,291 +214,67 @@ class SettingsDialog(QDialog):
             self.resize(640, min(740, avail.height() - 80))
             self.setMaximumHeight(avail.height())
 
-    # ---- helpers -----------------------------------------------------
-    @staticmethod
-    def _secret(value: str) -> QLineEdit:
-        edit = QLineEdit(value)
-        edit.setEchoMode(QLineEdit.Password)
-        return edit
+    # ---- cầu tương thích sau khi bóc Routing -----------------------------
+    # Năm checker trong tools/ và bài đặc tả đọc thẳng self.routing_*. Giữ tên
+    # cũ trỏ vào widget mới để việc bóc không kéo theo sửa chỗ khác — đây là
+    # đổi chỗ ở, không đổi hành vi. Bỏ được khi tools/ chuyển sang đọc
+    # self._routing_page.
+    provider_combo = property(lambda self: self._provider_page.provider_combo)
+    prov_base = property(lambda self: self._provider_page.prov_base)
+    prov_key = property(lambda self: self._provider_page.prov_key)
+    prov_model = property(lambda self: self._provider_page.prov_model)
+    prov_status = property(lambda self: self._provider_page.prov_status)
+    language_combo = property(lambda self: self._general_box.language_combo)
+    theme_combo = property(lambda self: self._general_box.theme_combo)
+    tray_chk = property(lambda self: self._general_box.tray_chk)
+    notify_chk = property(lambda self: self._general_box.notify_chk)
+    attach_files = property(lambda self: self._param_page.attach_files)
+    attach_tokens = property(lambda self: self._param_page.attach_tokens)
+    struct_nodes = property(lambda self: self._param_page.struct_nodes)
+    struct_edges = property(lambda self: self._param_page.struct_edges)
+    sandbox_cpu = property(lambda self: self._param_page.sandbox_cpu)
+    sandbox_memory = property(lambda self: self._param_page.sandbox_memory)
+    sandbox_disk = property(lambda self: self._param_page.sandbox_disk)
+    routing_mode = property(lambda self: self._routing_page.mode)
+    routing_policy = property(lambda self: self._routing_page.policy)
+    routing_min_gain = property(lambda self: self._routing_page.min_gain)
+    routing_timeout = property(lambda self: self._routing_page.timeout)
+    routing_interval = property(lambda self: self._routing_page.interval)
+    routing_concurrency = property(lambda self: self._routing_page.concurrency)
+    routing_judge = property(lambda self: self._routing_page.judge)
+    routing_reassess_btn = property(lambda self: self._routing_page.reassess_btn)
 
-    @staticmethod
-    def _select_combo(combo: QComboBox, value: str) -> None:
-        idx = combo.findData(value)
-        if idx >= 0:
-            combo.setCurrentIndex(idx)
+    # ---- helpers -----------------------------------------------------
+
 
     @staticmethod
     def _group(title: str, rows) -> QGroupBox:
+        """Dựng một nhóm có tiêu đề chứa các hàng nhãn–điều khiển."""
         box = QGroupBox(title)
         form = QFormLayout(box)
         for label, widget in rows:
             form.addRow(label, widget)
         return box
 
-    def _routing_reassess_now(self) -> None:
-        """Kick off a manual model reassessment in the background."""
-        try:
-            service = self.ctx.routing()
-            if service.is_reassessing():
-                return
-            self.routing_reassess_btn.setEnabled(False)
-            self.routing_reassess_btn.setText(tr("routing.reassessing"))
 
-            def _done(result) -> None:
-                # Re-enable from the (worker) callback; label reflects the count.
-                self.routing_reassess_btn.setEnabled(True)
-                self.routing_reassess_btn.setText(
-                    tr("routing.reassess_done", count=len(result or {})))
 
-            service.reassess_background(on_done=_done)
-        except Exception:  # noqa: BLE001 — a reassess click must never crash Settings
-            self.routing_reassess_btn.setEnabled(True)
-            self.routing_reassess_btn.setText(tr("routing.settings_reassess_now"))
 
-    @staticmethod
-    def _model_combo(value: str) -> QComboBox:
-        combo = QComboBox()
-        combo.setEditable(True)
-        # A combo sizes itself to its longest entry by default; model ids are
-        # long, so the row grew past the dialog and forced a sideways scrollbar
-        # (worse at 125%/150% display scaling). Let it shrink and use a popup
-        # wider than the closed box instead.
-        combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        combo.setMinimumContentsLength(8)
-        combo.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
-        if value:
-            combo.addItem(value)
-            combo.setCurrentText(value)
-        return combo
 
-    def _with_load(self, combo: QComboBox, status: QLabel) -> QWidget:
-        row = QWidget()
-        lay = QHBoxLayout(row)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(combo, 1)
-        btn = QPushButton(tr("settings.load"))
-        btn.setIcon(icon("download"))
-        btn.setToolTip(tr("settings.load_tooltip"))
-        btn.clicked.connect(
-            lambda: self._load_models(self.provider_combo.currentData(), combo, status))
-        lay.addWidget(btn)
-        test_btn = QPushButton(tr("settings.test_connection"))
-        test_btn.setIcon(icon("flask"))
-        test_btn.setToolTip(tr("settings.test_connection_tooltip"))
-        test_btn.clicked.connect(
-            lambda: self._test_connection(self.provider_combo.currentData(), status))
-        lay.addWidget(test_btn)
-        # The two buttons keep their natural size; the combo gives way. Without
-        # this the row's minimum was combo + both buttons and nothing could
-        # shrink, so the dialog scrolled sideways instead.
-        for b in (btn, test_btn):
-            b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        row.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
-        return row
-
-    def _stash_provider_fields(self) -> None:
-        staged = self._prov_staging.setdefault(self._prov_current_key, {})
-        staged.update({
-            "base_url": self.prov_base.text().strip(),
-            "api_key": self.prov_key.text(),
-            "model": self.prov_model.currentText().strip(),
-        })
-
-    def _on_provider_edit_changed(self) -> None:
-        self._stash_provider_fields()
-        self._prov_current_key = self.provider_combo.currentData()
-        conf = self._prov_staging.get(self._prov_current_key, {})
-        self.prov_base.setText(conf.get("base_url", ""))
-        self.prov_key.setText(conf.get("api_key", ""))
-        self.prov_model.clear()
-        if conf.get("model"):
-            self.prov_model.addItem(conf["model"])
-            self.prov_model.setCurrentText(conf["model"])
-        else:
-            self.prov_model.setCurrentText("")
-        self.prov_status.setText("")
-
-    def _current_conf(self, provider: str) -> dict:
-        if provider == self._prov_current_key:
-            return {"base_url": self.prov_base.text().strip(), "api_key": self.prov_key.text(),
-                    "model": self.prov_model.currentText().strip()}
-        conf = self._prov_staging.get(provider, {})
-        return {"base_url": conf.get("base_url", ""), "api_key": conf.get("api_key", ""),
-                "model": conf.get("model", "")}
 
     # ---- MS365 zero-config sign-in ("connect like Claude") ---------------
-    def _refresh_ms365_status(self) -> None:
-        from ..core.ms365_auth import current_identity
-        who = current_identity(self.ctx.config)
-        if who:
-            self.ms365_status.setText(tr("settings.ms365_signed_in", who=who))
-            self.ms365_signin_btn.setEnabled(False)
-            self.ms365_signout_btn.setEnabled(True)
-        else:
-            self.ms365_status.setText(tr("settings.ms365_signed_out"))
-            self.ms365_signin_btn.setEnabled(True)
-            self.ms365_signout_btn.setEnabled(False)
-        self.ms365_signin_btn.setText(tr("settings.ms365_signin_btn"))
-        self.ms365_signout_btn.setText(tr("settings.ms365_signout_btn"))
 
-    def _ms365_sign_in(self) -> None:
-        from ..core.ms365_auth import current_identity, sign_in
-        self.ms365_signin_btn.setEnabled(False)
-        self.ms365_status.setText(tr("settings.ms365_signing_in"))
-        cfg = self.ctx.config
 
-        def job(worker):
-            # on_code fires (worker thread) with the MSAL device-flow dict —
-            # marshal it to the UI thread via the worker's event signal.
-            return sign_in(lambda flow: worker.event.emit({"device_flow": flow}), cfg)
 
-        def on_event(ev: dict) -> None:
-            if "device_flow" in ev:
-                self._show_ms365_device_code(ev["device_flow"])
 
-        def done(_result) -> None:
-            self._close_ms365_code_dialog()
-            self.ctx.save()
-            self._refresh_ms365_status()
-            QMessageBox.information(
-                self, tr("settings.ms365_signin_btn"),
-                tr("settings.ms365_signed_in", who=current_identity(cfg)))
 
-        def failed(err: str) -> None:
-            self._close_ms365_code_dialog()
-            self._refresh_ms365_status()
-            QMessageBox.warning(self, tr("settings.ms365_signin_btn"), err)
 
-        w = AgentWorker(job)
-        w.event.connect(on_event)
-        w.finished_ok.connect(done)
-        w.failed.connect(failed)
-        self._ms365_workers.append(w)
-        w.start()
-
-    def _close_ms365_code_dialog(self) -> None:
-        dlg = getattr(self, "_ms365_code_dialog", None)
-        if dlg is not None:
-            dlg.close()
-            self._ms365_code_dialog = None
-
-    def _show_ms365_device_code(self, flow: dict) -> None:
-        """Auto-open the sign-in page + show the one-time code in a COPYABLE,
-        non-modal dialog (so the worker keeps polling and can auto-close it on
-        success). The code is also copied to the clipboard immediately."""
-        import webbrowser
-
-        code = flow.get("user_code", "")
-        url = flow.get("verification_uri", "https://microsoft.com/devicelogin")
-        # Auto-copy the code so the user can just paste it.
-        QGuiApplication.clipboard().setText(code)
-        # Auto-open the browser to the (code-prefilled, if available) sign-in page.
-        try:
-            webbrowser.open(flow.get("verification_uri_complete") or url)
-        except Exception:  # noqa: BLE001 — a headless box just shows the link to click
-            pass
-
-        self._close_ms365_code_dialog()
-        dlg = QDialog(self)
-        dlg.setWindowTitle(tr("settings.ms365_signin_btn"))
-        dlg.setMinimumWidth(420)
-        lay = QVBoxLayout(dlg)
-        info = QLabel(tr("settings.ms365_code_hint", url=url))
-        info.setWordWrap(True)
-        info.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextBrowserInteraction)
-        info.setOpenExternalLinks(True)
-        lay.addWidget(info)
-
-        code_row = QHBoxLayout()
-        code_edit = QLineEdit(code)
-        code_edit.setReadOnly(True)
-        f = code_edit.font()
-        f.setPointSize(f.pointSize() + 4)
-        f.setBold(True)
-        code_edit.setFont(f)
-        code_edit.setCursorPosition(0)
-        copy_btn = QPushButton(tr("settings.ms365_copy_code"))
-        copy_btn.setIcon(icon("document"))
-        copy_btn.clicked.connect(lambda: QGuiApplication.clipboard().setText(code))
-        open_btn = QPushButton(tr("settings.ms365_open_link"))
-        open_btn.setIcon(icon("link"))
-        open_btn.clicked.connect(lambda: webbrowser.open(flow.get("verification_uri_complete") or url))
-        code_row.addWidget(code_edit, 1)
-        code_row.addWidget(copy_btn)
-        code_row.addWidget(open_btn)
-        lay.addLayout(code_row)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        buttons.rejected.connect(dlg.reject)
-        lay.addWidget(buttons)
-
-        self._ms365_code_dialog = dlg
-        dlg.show()   # non-modal — sign-in polling continues; done() closes it
-
-    def _ms365_sign_out(self) -> None:
-        from ..core.ms365_auth import sign_out_default
-        sign_out_default(self.ctx.config)
-        self._refresh_ms365_status()
-
-    def _load_models(self, provider: str, combo: QComboBox, status: QLabel) -> None:
-        conf = self._current_conf(provider)
-
-        def job(worker):
-            from ..providers import build_provider
-            prov = build_provider(provider, conf)
-            models = prov.list_models()
-            return {"models": models, "error": getattr(prov, "last_error", "")}
-
-        def done(result):
-            models = result.get("models") or []
-            current = combo.currentText().strip()
-            combo.clear()
-            if current:
-                combo.addItem(current)
-            for m in models:
-                if m != current:
-                    combo.addItem(m)
-            combo.setCurrentText(current)
-            error = result.get("error", "")
-            if models:
-                status.setText(tr("settings.loaded_models", n=len(models),
-                    provider=PROVIDER_LABELS.get(provider, provider)))
-            else:
-                status.setText(tr("settings.load_models_error", err=error or
-                                  tr("settings.load_models_error_unknown")))
-
-        w = AgentWorker(job)
-        w.finished_ok.connect(done)
-        w.failed.connect(lambda e: status.setText(tr("settings.load_failed", err=e)))
-        self._load_workers.append(w)
-        status.setText(tr("settings.loading_models"))
-        w.start()
-
-    def _test_connection(self, provider: str, status: QLabel) -> None:
-        conf = self._current_conf(provider)
-
-        def job(worker):
-            from ..providers import build_provider
-            ok, message = build_provider(provider, conf).test_connection()
-            return {"ok": ok, "message": message}
-
-        def done(result):
-            ok = result.get("ok")
-            status.setText(result.get("message", ""))
-            status.setStyleSheet("color: #090;" if ok else "color: #c00;")
-
-        def failed(e):
-            status.setText(str(e))
-            status.setStyleSheet("color: #c00;")
-
-        w = AgentWorker(job)
-        w.finished_ok.connect(done)
-        w.failed.connect(failed)
-        self._load_workers.append(w)
-        status.setText(tr("settings.testing_connection"))
-        w.start()
 
     def _sandbox_unlock(self) -> None:
+        """Mở khoá nhóm cài đặt sandbox bằng mật khẩu.
+
+        Đây là khoá phía giao diện để chặn bấm nhầm vào một mục nhạy cảm, KHÔNG
+        phải cơ chế bảo mật thật.
+        """
         pw = self.sandbox_pw_edit.text()
         if pw == self._sandbox_pw:
             self._sandbox_unlocked = True
@@ -673,20 +289,11 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, "Wrong Password", "Password incorrect. Sandbox settings remain locked.")
 
     def _save(self) -> None:
+        """Gom cấu hình từ mọi trang con rồi ghi xuống đĩa."""
         data = self.ctx.config.data
-        data["active_provider"] = self.provider_combo.currentData()
-        data["language"] = self.language_combo.currentData()
-        # MainWindow._open_settings re-applies the theme after this returns, so
-        # writing the value here is enough to make it take effect.
-        data["theme"] = self.theme_combo.currentData()
+        self._provider_page.apply_to(data)
+        self._general_box.apply_to(data)
 
-        self._stash_provider_fields()
-        for key, staged in self._prov_staging.items():
-            data["providers"].setdefault(key, {}).update({
-                "base_url": staged.get("base_url", ""),
-                "api_key": staged.get("api_key", ""),
-                "model": staged.get("model", ""),
-            })
 
         # NOTE: allow_url_fetch is managed in Monitoring → Tools → Tool now
         # (persisted there directly), so it is intentionally not written here.
@@ -696,28 +303,11 @@ class SettingsDialog(QDialog):
             "block_network": self.sandbox_block_network.isChecked(),
             "command_ai_check": self.ai_check.isChecked(),
             "command_whitelist": [],
-            "resource_limit_cpu_percent": self.sandbox_cpu.value(),
-            "resource_limit_memory_mb": self.sandbox_memory.value(),
-            "resource_limit_disk_mb": self.sandbox_disk.value(),
         })
-        att = data.setdefault("attachments", {})
-        att["max_tokens"] = self.attach_tokens.value() * 1000
-        att["max_files"] = self.attach_files.value()
-        st = data.setdefault("structure", {})
-        st["max_nodes"] = self.struct_nodes.value()
-        st["max_edges"] = self.struct_edges.value()
-        tray = data.setdefault("tray", {})
-        tray["minimize_on_close"] = self.tray_chk.isChecked()
-        tray["notify_on_done"] = self.notify_chk.isChecked()
+        self._param_page.apply_limits_to(data["agent_security"])
+        self._param_page.apply_to(data)
 
-        r = data.setdefault("routing", {})
-        r["switch_mode"] = self.routing_mode.currentData()
-        r["policy"] = self.routing_policy.currentData()
-        r["min_score_gain"] = self.routing_min_gain.value() / 100.0
-        r["confirm_timeout_sec"] = self.routing_timeout.value()
-        r["reassess_interval_hours"] = self.routing_interval.value()
-        r["per_provider_concurrency"] = self.routing_concurrency.value()
-        r["judge_model"] = self.routing_judge.text().strip()
+        self._routing_page.apply_to(data)
 
         self.ctx.save()
 

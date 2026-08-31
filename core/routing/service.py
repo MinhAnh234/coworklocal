@@ -64,6 +64,7 @@ class RouteResult:
 
     @property
     def should_switch(self) -> bool:
+        """Có nên đổi sang model khác cho lượt này không."""
         return self.decision.should_switch
 
     @property
@@ -89,6 +90,9 @@ class RoutingService:
         client: Optional[ProbeClient] = None,
         clock: Optional[Callable[[], float]] = None,
     ) -> None:
+        """``store``/``client``/``clock`` đều tiêm được: test thay đồng hồ để tua thời
+        gian mà không phải chờ thật, và thay client để không gọi mạng.
+        """
         self.ctx = ctx
         self.store = store or AssessmentStore()
         self._client = client  # None → lazily build AppProbeClient(ctx)
@@ -100,6 +104,7 @@ class RoutingService:
     # -- config helpers ------------------------------------------------- #
     @property
     def _routing_cfg(self) -> Dict[str, Any]:
+        """Nhóm cấu hình định tuyến hiện tại."""
         return self.ctx.config.routing
 
     def get_routing_config(self) -> Dict[str, Any]:
@@ -125,6 +130,7 @@ class RoutingService:
         return dict(cfg)
 
     def _policy(self) -> Policy:
+        """Chính sách chấm điểm đang chọn; giá trị lạ thì rơi về 'balanced'."""
         raw = (self._routing_cfg.get("policy") or "balanced").lower()
         try:
             return Policy(raw)
@@ -132,6 +138,7 @@ class RoutingService:
             return Policy.BALANCED
 
     def _client_or_build(self) -> ProbeClient:
+        """Client dò model, dựng lười để chưa bật định tuyến thì không tốn gì."""
         if self._client is None:
             self._client = AppProbeClient(self.ctx)
         return self._client
@@ -160,6 +167,9 @@ class RoutingService:
         seen = set()
 
         def _add(provider: str, model_id: str, tier: Optional[str]) -> None:
+            """Thêm một ứng viên (provider, model) vào danh sách, bỏ qua mục thiếu thông tin
+            hoặc trùng.
+            """
             if not provider or not model_id:
                 return
             key = candidate_key(provider, model_id)
@@ -246,6 +256,11 @@ class RoutingService:
     ) -> threading.Thread:
         """Run :meth:`reassess` on a daemon thread (non-Qt, headless-safe)."""
         def _run() -> None:
+            """Chạy nền: chấm điểm lại danh mục model.
+
+            Nuốt mọi ngoại lệ có chủ ý — một lần chấm điểm hỏng không được phép làm
+            chết ứng dụng, vì đây là việc chạy ngầm người dùng không yêu cầu.
+            """
             try:
                 result = self.reassess(policy)
             except Exception:  # noqa: BLE001 — never let a reassess crash the app
@@ -262,10 +277,12 @@ class RoutingService:
         return t
 
     def is_reassessing(self) -> bool:
+        """Có đang chấm điểm lại danh mục model hay không."""
         return self._reassessing
 
     # -- query ---------------------------------------------------------- #
     def assessments(self) -> Dict[str, ModelAssessment]:
+        """Bảng điểm model đã lưu, đọc từ kho đánh giá."""
         return self.store.load()
 
     def status(self) -> Dict[str, Any]:
@@ -347,6 +364,7 @@ class RoutingService:
         return self.pending.resolve(request_id, approve, run)
 
     def get_pending(self, request_id: str) -> Optional[PendingSwitch]:
+        """Đề nghị đổi model đang chờ người dùng xác nhận; ``None`` nếu không có."""
         return self.pending.get(request_id)
 
     def sweep_pending(self) -> List[str]:

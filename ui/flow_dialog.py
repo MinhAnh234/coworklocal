@@ -32,7 +32,16 @@ from .skill_manager_tab import SkillManagerTab
 
 
 class FlowBuilderDialog(QDialog):
+    """Trình dựng luồng cũ: danh sách bước bên trái, form sửa bước bên phải.
+
+    Đã được Co4E Studio thay thế và không còn nơi nào mở nó ra; giữ lại làm bản
+    đối chiếu cho phần luồng nhiều bước.
+
+    Một luồng là danh sách ``FlowStep`` chạy tuần tự; mỗi bước có thể chọn
+    riêng skill, provider, model, tệp đính kèm và các sub-agent chạy kèm.
+    """
     def __init__(self, parent=None, ctx=None):
+        """Dựng hộp thoại và nạp sẵn luồng mẫu để người dùng có cái mà sửa ngay."""
         super().__init__(parent)
         self.setWindowTitle(tr("flow.title"))
         self.setMinimumSize(820, 560)
@@ -263,6 +272,10 @@ class FlowBuilderDialog(QDialog):
 
     # ---- AI: generate task prompt from the hint ---------------------
     def _gen_prompt(self) -> None:
+        """Nhờ model viết nội dung bước từ tên bước và câu gợi ý ngắn.
+
+        Không có ``ctx`` (mở hộp thoại ngoài ứng dụng) thì nút này không làm gì.
+        """
         hint = self.step_hint.text().strip()
         name = self.step_name.text().strip()
         if not hint and not name:
@@ -275,6 +288,7 @@ class FlowBuilderDialog(QDialog):
         ctx = self._ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: gọi model sinh nội dung cho bước."""
             from ..core.flows import generate_task_prompt
             return {"prompt": generate_task_prompt(
                 ctx.build_active_provider(), name, hint, worker.is_cancelled)}
@@ -286,23 +300,27 @@ class FlowBuilderDialog(QDialog):
         w.start()
 
     def _on_gen_prompt(self, result) -> None:
+        """Đổ nội dung model vừa sinh vào ô soạn, rồi trả nút về trạng thái thường."""
         text = (result or {}).get("prompt", "")
         if text:
             self.step_prompt.setPlainText(text)
         self._reset_gen_prompt_btn()
 
     def _reset_gen_prompt_btn(self) -> None:
+        """Bật lại nút sinh nội dung và trả chữ về như cũ."""
         self._gen_prompt_btn.setEnabled(True)
         self._gen_prompt_btn.setText(tr("flow.gen_task_from_hint"))
 
     # ---- attachments (per stage) -------------------------------------
     def _pick_attachments(self) -> None:
+        """Chọn tệp đính kèm cho bước đang sửa."""
         chosen, _ = QFileDialog.getOpenFileNames(self, tr("flow.attach_files"))
         if chosen:
             self._step_attachments = chosen
             self._refresh_attach_btn()
 
     def _refresh_attach_btn(self) -> None:
+        """Cập nhật nhãn nút đính kèm theo số tệp; tooltip liệt kê đủ đường dẫn."""
         n = len(self._step_attachments)
         label = tr("flow.attach_files_count", n=n) if n else tr("flow.attach_files")
         self.attach_btn.setText(label)
@@ -312,6 +330,7 @@ class FlowBuilderDialog(QDialog):
     # ``self._step_subagents`` is the source of truth; ``subagents_list`` is
     # just its display — avoids any lossy re-parsing of the list widget text.
     def _add_subagent(self) -> None:
+        """Thêm một sub-agent tự nhập (tên + nội dung) vào bước đang sửa."""
         name = self.sub_name_edit.text().strip()
         if not name:
             self.sub_name_edit.setFocus()
@@ -323,12 +342,14 @@ class FlowBuilderDialog(QDialog):
         self._refresh_subagents_list()
 
     def _remove_subagent(self) -> None:
+        """Gỡ sub-agent đang chọn khỏi bước."""
         row = self.subagents_list.currentRow()
         if 0 <= row < len(self._step_subagents):
             self._step_subagents.pop(row)
             self._refresh_subagents_list()
 
     def _refresh_subagents_list(self) -> None:
+        """Vẽ lại danh sách sub-agent của bước đang sửa."""
         self.subagents_list.clear()
         for sub in self._step_subagents:
             text = f"{sub.name}: {sub.prompt}" if sub.prompt else sub.name
@@ -336,6 +357,9 @@ class FlowBuilderDialog(QDialog):
 
     # ---- add a sub-agent from a saved custom Agent preset -------------
     def _reload_agent_picker(self) -> None:
+        """Nạp danh sách agent tự tạo vào bộ chọn; chưa có agent nào thì khoá bộ chọn
+        lại kèm dòng giải thích, thay vì để một ô rỗng bấm được mà không ra gì.
+        """
         self.agent_picker.clear()
         agents = list_agents()
         if not agents:
@@ -347,6 +371,9 @@ class FlowBuilderDialog(QDialog):
             self.agent_picker.addItem(a.name, a)
 
     def _add_subagent_from_agent(self) -> None:
+        """Thêm sub-agent bằng cách lấy nguyên một agent tự tạo (kèm provider và model
+        riêng của nó).
+        """
         agent = self.agent_picker.currentData()
         if agent is None:
             return
@@ -371,6 +398,7 @@ class FlowBuilderDialog(QDialog):
         self.step_skill.blockSignals(False)
 
     def _populate_combos(self) -> None:
+        """Nạp các bộ chọn của form bước: skill, provider và model."""
         self._reload_skill_combo()
         self.step_agent.blockSignals(True)
         self.step_agent.clear()
@@ -395,6 +423,9 @@ class FlowBuilderDialog(QDialog):
             self.step_model.setCurrentIndex(1)
 
         def job(worker: AgentWorker):
+            """Chạy nền: hỏi provider danh sách model. Lỗi thì trả danh sách rỗng — danh
+            sách model chỉ là tiện ích, không đáng làm vỡ hộp thoại.
+            """
             try:
                 provider = self._ctx.build_provider_for(provider_key)
                 return {"models": provider.list_models() or [], "provider": provider_key}
@@ -402,6 +433,11 @@ class FlowBuilderDialog(QDialog):
                 return {"models": [], "provider": provider_key}
 
         def done(result: dict) -> None:
+            """Đổ danh sách model vào bộ chọn.
+
+            Kết quả về mà provider đã bị đổi lần nữa thì bỏ — nếu không, danh sách của
+            provider cũ sẽ đè lên provider người dùng vừa chọn.
+            """
             if result.get("provider") != (self.step_agent.currentData()
                                           or self._ctx.config.active_provider):
                 return   # provider changed again while fetching — stale reply
@@ -425,6 +461,7 @@ class FlowBuilderDialog(QDialog):
         w.start()
 
     def _reload_templates(self) -> None:
+        """Nạp lại bộ chọn luồng đã lưu."""
         self.tpl_combo.blockSignals(True)
         self.tpl_combo.clear()
         self.tpl_combo.addItem(tr("flow.select_template"), None)
@@ -433,20 +470,28 @@ class FlowBuilderDialog(QDialog):
         self.tpl_combo.blockSignals(False)
 
     def _load_selected_template(self, _idx: int) -> None:
+        """Mở luồng vừa chọn trong bộ chọn.
+
+        Nạp một BẢN SAO SÂU: người dùng sửa rồi bỏ ngang thì luồng đã lưu vẫn
+        nguyên vẹn.
+        """
         flow = self.tpl_combo.currentData()
         if isinstance(flow, Flow):
             self._loaded_name = flow.name
             self._bind_flow(copy.deepcopy(flow))
 
     def _load_builtin(self) -> None:
+        """Nạp lại luồng mẫu dựng sẵn."""
         self._loaded_name = ""
         self._bind_flow(default_req_to_demo())
 
     def _new_flow(self) -> None:
+        """Bắt đầu một luồng trống mới."""
         self._loaded_name = ""
         self._bind_flow(Flow(name=tr("flow.new_flow_name"), description="", steps=[]))
 
     def _delete_template(self) -> None:
+        """Xoá luồng đang chọn khỏi danh sách đã lưu."""
         flow = self.tpl_combo.currentData()
         if isinstance(flow, Flow):
             delete_flow(flow.name)
@@ -454,6 +499,7 @@ class FlowBuilderDialog(QDialog):
 
     # ---- flow <-> widgets -------------------------------------------
     def _bind_flow(self, flow: Flow) -> None:
+        """Đổ một luồng vào toàn bộ giao diện và chọn sẵn bước đầu tiên."""
         self._flow = flow
         self.name_edit.setText(flow.name)
         self.desc_edit.setText(flow.description)
@@ -464,6 +510,7 @@ class FlowBuilderDialog(QDialog):
             self._clear_editor()
 
     def _refresh_steps(self) -> None:
+        """Vẽ lại danh sách bước, mỗi dòng kèm nhãn skill/provider/model của bước đó."""
         self.steps_list.blockSignals(True)
         self.steps_list.clear()
         for i, step in enumerate(self._flow.steps, 1):
@@ -485,6 +532,7 @@ class FlowBuilderDialog(QDialog):
         self.steps_list.blockSignals(False)
 
     def _clear_editor(self) -> None:
+        """Xoá trắng form sửa bước."""
         self.step_name.clear()
         self.step_prompt.clear()
         self.step_hint.clear()
@@ -501,6 +549,12 @@ class FlowBuilderDialog(QDialog):
         self._refresh_subagents_list()
 
     def _load_step_into_editor(self, row: int) -> None:
+        """Đổ một bước vào form sửa.
+
+        Model được nhớ riêng vào ``_pending_step_model`` vì danh sách model nạp bất
+        đồng bộ — không giữ lại thì lựa chọn của người dùng biến mất khi danh sách
+        về tới nơi.
+        """
         if not (0 <= row < len(self._flow.steps)):
             return
         step = self._flow.steps[row]
@@ -522,6 +576,9 @@ class FlowBuilderDialog(QDialog):
         self._refresh_subagents_list()
 
     def _editor_step(self) -> Optional[FlowStep]:
+        """Dựng ``FlowStep`` từ nội dung form; ``None`` nếu chưa nhập tên bước (con trỏ
+        nhảy vào ô tên thay vì hiện hộp lỗi).
+        """
         name = self.step_name.text().strip()
         if not name:
             self.step_name.setFocus()
@@ -541,6 +598,7 @@ class FlowBuilderDialog(QDialog):
         )
 
     def _add_step(self) -> None:
+        """Thêm bước đang soạn vào cuối luồng và chọn nó."""
         step = self._editor_step()
         if step:
             self._flow.steps.append(step)
@@ -548,6 +606,7 @@ class FlowBuilderDialog(QDialog):
             self.steps_list.setCurrentRow(len(self._flow.steps) - 1)
 
     def _update_step(self) -> None:
+        """Ghi đè bước đang chọn bằng nội dung form."""
         row = self.steps_list.currentRow()
         step = self._editor_step()
         if step and 0 <= row < len(self._flow.steps):
@@ -556,12 +615,16 @@ class FlowBuilderDialog(QDialog):
             self.steps_list.setCurrentRow(row)
 
     def _remove_step(self) -> None:
+        """Xoá bước đang chọn khỏi luồng."""
         row = self.steps_list.currentRow()
         if 0 <= row < len(self._flow.steps):
             self._flow.steps.pop(row)
             self._refresh_steps()
 
     def _move(self, delta: int) -> None:
+        """Đổi chỗ bước đang chọn lên/xuống một vị trí — thứ tự bước chính là thứ tự
+        chạy.
+        """
         row = self.steps_list.currentRow()
         new = row + delta
         if 0 <= row < len(self._flow.steps) and 0 <= new < len(self._flow.steps):
@@ -572,11 +635,15 @@ class FlowBuilderDialog(QDialog):
 
     # ---- result -----------------------------------------------------
     def _collect(self) -> Flow:
+        """Lấy tên và mô tả từ form vào luồng rồi trả về nó. Tên bỏ trống thì dùng tên
+        mặc định, không để luồng không tên.
+        """
         self._flow.name = self.name_edit.text().strip() or tr("flow.default_name")
         self._flow.description = self.desc_edit.text().strip()
         return self._flow
 
     def _save_template(self) -> None:
+        """Lưu luồng hiện tại. Truyền ``old_name`` để đổi tên không sinh ra bản thứ hai."""
         flow = self._collect()
         save_flow(flow, old_name=self._loaded_name)
         self._loaded_name = flow.name
@@ -586,6 +653,9 @@ class FlowBuilderDialog(QDialog):
             self.tpl_combo.setCurrentIndex(idx)
 
     def _run(self) -> None:
+        """Đóng hộp thoại kèm yêu cầu chạy luồng. Luồng chưa có bước nào thì không làm
+        gì.
+        """
         flow = self._collect()
         if not flow.steps:
             return
@@ -593,4 +663,5 @@ class FlowBuilderDialog(QDialog):
         self.accept()
 
     def result_flow(self) -> Flow:
+        """Luồng cuối cùng bên gọi nhận về sau khi hộp thoại đóng."""
         return self._collect()

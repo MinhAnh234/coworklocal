@@ -48,6 +48,9 @@ _DOC_SUFFIXES = {".pdf", ".doc", ".docx", ".docm", ".xls", ".xlsx", ".xlsm",
 
 
 def _html_to_text(html: str) -> str:
+    """Rút văn bản đọc được từ HTML: bỏ script/style, đổi thẻ thành xuống dòng rồi
+    gộp khoảng trắng thừa.
+    """
     text = _SCRIPT_STYLE_RE.sub(" ", html)
     text = _TAG_RE.sub("\n", text)
     text = _WS_RE.sub(" ", text)
@@ -81,6 +84,10 @@ _ONEDRIVE_HOSTS = {"1drv.ms", "onedrive.live.com"}
 
 
 def _is_share_link(url: str) -> bool:
+    """Link này có phải link chia sẻ SharePoint/OneDrive không.
+
+    Loại link đó cần đi qua đường xác thực MS365 thay vì tải HTTP thường.
+    """
     host = (urlparse(url).hostname or "").lower()
     return bool(_SHAREPOINT_HOST_RE.search(host)) or host in _ONEDRIVE_HOSTS
 

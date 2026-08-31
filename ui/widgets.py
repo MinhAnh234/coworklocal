@@ -18,6 +18,9 @@ from PySide6.QtWidgets import (
 from ..core.flows import STEP_DONE, STEP_ERROR, STEP_PENDING, STEP_RUNNING
 from ..theme import current_palette
 from .icons import DOT_BLUE, DOT_GREEN, DOT_GREY, DOT_RED, dot_icon, icon
+# Chuyen sang ui/segmented_control.py de file nay khong vuot tran no cu cua
+# cong LOC; noi lai duoi ten cu vi 2 cho goi dang import tu day.
+from .segmented_control import SegmentedControl  # noqa: F401
 
 
 def badge_pill_widget(text: str, object_name: str) -> QWidget:
@@ -59,6 +62,11 @@ class FlowLayout(QLayout):
     FlowLayout example, ported)."""
 
     def __init__(self, parent=None, margin: int = 0, h_spacing: int = 8, v_spacing: int = 8):
+        """Layout tự xuống dòng khi hết bề ngang.
+
+        Phải bật ``heightForWidth`` trên widget cha, nếu không Qt không hỏi lại chiều
+        cao và hàng tràn ra bị cắt mất.
+        """
         super().__init__(parent)
         self._h_spacing = h_spacing
         self._v_spacing = v_spacing
@@ -68,34 +76,44 @@ class FlowLayout(QLayout):
             enable_height_for_width(parent)
 
     def addItem(self, item) -> None:  # noqa: N802 - Qt override
+        """Thêm một item vào cuối dòng chảy."""
         self._items.append(item)
 
     def count(self) -> int:  # noqa: N802 - Qt override
+        """Số item đang có trong layout."""
         return len(self._items)
 
     def itemAt(self, index: int):  # noqa: N802 - Qt override
+        """Item ở vị trí ``index``; ``None`` nếu ngoài phạm vi."""
         return self._items[index] if 0 <= index < len(self._items) else None
 
     def takeAt(self, index: int):  # noqa: N802 - Qt override
+        """Lấy item ra khỏi layout và trả về; ``None`` nếu ngoài phạm vi."""
         return self._items.pop(index) if 0 <= index < len(self._items) else None
 
     def expandingDirections(self):  # noqa: N802 - Qt override
+        """Không tự bung theo hướng nào — chiều cao do ``heightForWidth`` quyết định."""
         return Qt.Orientations(Qt.Orientation(0))
 
     def hasHeightForWidth(self) -> bool:  # noqa: N802 - Qt override
+        """Luôn ``True``: chiều cao của layout phụ thuộc bề rộng được cấp."""
         return True
 
     def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt override
+        """Chiều cao cần có nếu chỉ được cấp ``width`` — tính bằng cách xếp thử, không vẽ thật."""
         return self._do_layout(QRect(0, 0, width, 0), test_only=True)
 
     def setGeometry(self, rect) -> None:  # noqa: N802 - Qt override
+        """Xếp lại các item vào vùng được cấp."""
         super().setGeometry(rect)
         self._do_layout(rect, test_only=False)
 
     def sizeHint(self):  # noqa: N802 - Qt override
+        """Kích thước mong muốn — bằng kích thước tối thiểu."""
         return self.minimumSize()
 
     def minimumSize(self):  # noqa: N802 - Qt override
+        """Kích thước tối thiểu: đủ chứa item lớn nhất cộng lề."""
         size = QSize()
         for item in self._items:
             size = size.expandedTo(item.minimumSize())
@@ -104,6 +122,11 @@ class FlowLayout(QLayout):
         return size
 
     def _do_layout(self, rect, test_only: bool) -> int:
+        """Xếp item thành nhiều dòng, xuống dòng khi hết bề rộng.
+
+        ``test_only=True`` chỉ TÍNH chiều cao mà không dời widget nào — dùng cho
+        ``heightForWidth``, vì Qt hỏi chiều cao trước khi thật sự cấp vùng.
+        """
         m = self.contentsMargins()
         effective = QRect(rect.x() + m.left(), rect.y() + m.top(),
                           rect.width() - m.left() - m.right(),
@@ -140,6 +163,7 @@ class StatCard(QFrame):
     shared by Dashboard and Monitoring's token/cost displays."""
 
     def __init__(self):
+        """Thẻ một con số kèm nhãn — viên gạch của Bảng điều khiển và Giám sát."""
         super().__init__()
         self.setFrameShape(QFrame.NoFrame)
         style_card(self)
@@ -164,6 +188,7 @@ class StatCard(QFrame):
         lay.addWidget(self.sub_lbl)
 
     def set(self, title: str, value: str, sub: str = "") -> None:
+        """Đặt tiêu đề, giá trị và dòng phụ cho thẻ."""
         self.title_lbl.setText(title)
         self.value_lbl.setText(value)
         self.sub_lbl.setText(sub)
@@ -191,6 +216,7 @@ class BudgetCard(QFrame):
     (the app turns the remaining balance red past 85% budget used)."""
 
     def __init__(self):
+        """Thẻ ngân sách: số đã dùng trên hạn mức, kèm thanh tiến độ."""
         super().__init__()
         self.setFrameShape(QFrame.NoFrame)
         style_card(self)
@@ -227,6 +253,7 @@ class BudgetCard(QFrame):
         lay.addLayout(row)
 
     def set(self, title: str, value: str, sub: str, warn: bool = False) -> None:
+        """Đặt nội dung thẻ; ``warn=True`` tô con số bằng màu cảnh báo."""
         self.title_lbl.setText(title)
         self.value_lbl.setText(value)
         self.value_lbl.setStyleSheet(
@@ -235,6 +262,7 @@ class BudgetCard(QFrame):
 
 
 def fmt_tokens(n: int) -> str:
+    """Rút gọn số token cho dễ đọc: ``1_500`` → '1.5K', ``2_000_000`` → '2.00M'."""
     if n >= 1_000_000:
         return f"{n / 1e6:.2f}M"
     if n >= 1_000:
@@ -249,6 +277,11 @@ class _WheelGuard(QObject):
     spin box the cursor happens to pass over, silently changing values."""
 
     def eventFilter(self, obj, event):  # noqa: N802
+        """Chặn lăn chuột trên widget chưa có focus.
+
+        Không chặn thì lăn qua một combo box giữa trang sẽ âm thầm đổi giá trị của
+        nó thay vì cuộn trang — nuốt sự kiện để vùng cuộn nhận được.
+        """
         if event.type() == QEvent.Wheel and not obj.hasFocus():
             event.ignore()
             return True   # eat it → the scroll area scrolls instead
@@ -324,6 +357,11 @@ class _NarrowGuard(QObject):
     """
 
     def __init__(self, owner: QWidget, threshold: int, apply):
+        """Tự gập một panel khi cửa sổ hẹp lại dưới ``threshold``.
+
+        ``_auto`` phân biệt "ta đang giữ nó gập" với "người dùng tự gập": không
+        phân biệt thì kéo rộng cửa sổ ra sẽ bung cả panel mà người dùng cố ý gập.
+        """
         super().__init__(owner)
         self._owner = owner
         self._threshold = threshold
@@ -332,6 +370,7 @@ class _NarrowGuard(QObject):
         self._window = None
 
     def attach(self) -> None:
+        """Bắt đầu theo dõi sự kiện đổi kích thước của cửa sổ chứa widget."""
         win = self._owner.window()
         if win is not None and win is not self._owner and win is not self._window:
             win.installEventFilter(self)
@@ -344,11 +383,17 @@ class _NarrowGuard(QObject):
         self.check()
 
     def eventFilter(self, obj, ev):  # noqa: N802 - Qt override
+        """Cửa sổ đổi kích thước thì kiểm lại xem có phải chuyển sang bố cục hẹp không."""
         if ev.type() == QEvent.Resize and obj is self._window:
             self.check()
         return super().eventFilter(obj, ev)
 
     def check(self) -> None:
+        """Áp bố cục hẹp/rộng theo bề rộng cửa sổ.
+
+        Ngưỡng được viết theo tỉ lệ hiển thị chuẩn và nhân lên theo tỉ lệ thật của
+        máy (xem ``ui_scale()``), nên màn 125%/150% không bị chuyển nhầm sớm.
+        """
         win = self._owner.window()
         width = win.width() if win is not None else self._owner.width()
         # The threshold is written for the baseline scale and grows with the
@@ -380,16 +425,19 @@ class ToggleSwitch(QCheckBox):
     _W, _H = 34, 18
 
     def __init__(self, text: str = "", parent=None):
+        """Công tắc gạt kiểu iOS, vẽ thay cho ô tick."""
         super().__init__(text, parent)
         self.setCursor(Qt.PointingHandCursor)
 
     def sizeHint(self):  # noqa: N802 - Qt override
+        """Chừa thêm chỗ cho phần gạt bên cạnh nhãn."""
         base = super().sizeHint()
         base.setWidth(base.width() + self._W)
         base.setHeight(max(base.height(), self._H + 4))
         return base
 
     def paintEvent(self, _e):  # noqa: N802 - Qt override
+        """Tự vẽ rãnh và núm gạt theo màu của theme đang dùng."""
         from ..theme import current_palette
         p = current_palette()
         painter = QPainter(self)
@@ -414,68 +462,6 @@ class ToggleSwitch(QCheckBox):
                 QRectF(self._W + 8, 0, self.width() - self._W - 8, self.height()),
                 int(Qt.AlignLeft | Qt.AlignVCenter), self.text())
         painter.end()
-
-
-class SegmentedControl(QWidget):
-    """Two-to-four choices shown side by side instead of hidden in a drop-list.
-
-    Exposes the slice of the QComboBox API this app's settings code uses
-    (addItem / findData / currentData / setCurrentIndex / currentIndexChanged),
-    so it drops into an existing form without touching the save/load paths.
-    """
-
-    currentIndexChanged = Signal(int)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._data: list = []
-        self._buttons: list = []
-        self._current = -1
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(0)
-        self._lay = lay
-        lay.addStretch(1)
-
-    def addItem(self, text: str, data=None) -> None:  # noqa: N802 - Qt-style name
-        from PySide6.QtWidgets import QPushButton
-        btn = QPushButton(text)
-        btn.setObjectName("segItem")
-        btn.setCheckable(True)
-        btn.setCursor(Qt.PointingHandCursor)
-        index = len(self._buttons)
-        btn.clicked.connect(lambda _c=False, i=index: self.setCurrentIndex(i))
-        self._lay.insertWidget(index, btn)
-        self._buttons.append(btn)
-        self._data.append(data)
-        if self._current < 0:
-            self.setCurrentIndex(0)
-
-    def findData(self, value) -> int:  # noqa: N802
-        return self._data.index(value) if value in self._data else -1
-
-    def currentData(self):  # noqa: N802
-        return self._data[self._current] if 0 <= self._current < len(self._data) else None
-
-    def currentIndex(self) -> int:  # noqa: N802
-        return self._current
-
-    def count(self) -> int:
-        return len(self._buttons)
-
-    def setItemText(self, index: int, text: str) -> None:  # noqa: N802
-        if 0 <= index < len(self._buttons):
-            self._buttons[index].setText(text)
-
-    def setCurrentIndex(self, index: int) -> None:  # noqa: N802
-        if not (0 <= index < len(self._buttons)) or index == self._current:
-            for i, b in enumerate(self._buttons):
-                b.setChecked(i == self._current)
-            return
-        self._current = index
-        for i, b in enumerate(self._buttons):
-            b.setChecked(i == index)
-        self.currentIndexChanged.emit(index)
 
 
 def section_panels(sections, width: int = 260):
@@ -544,6 +530,9 @@ def section_index(scroll, sections, width: int = 260):
     index.setFixedWidth(max(120, min(width, natural)))
 
     def _jump(item):
+        """Bấm một mục trong cột mục lục: cuộn sao cho mép trên của mục đó lên đúng
+        đỉnh vùng nhìn, chứ không chỉ "đâu đó trong tầm mắt".
+        """
         anchor = item.data(Qt.UserRole)
         if anchor is not None:
             # Scroll so the section's top edge lands at the top of the viewport,
@@ -583,6 +572,11 @@ class CollapseStrip(QWidget):
     WIDTH = 18  # click target width; wide enough to show the expand arrow
 
     def __init__(self, tooltip: str = "Click to expand", expand_dir: str = "right"):
+        """Dải mảnh còn lại sau khi gập một panel; bấm vào là bung ra.
+
+        ``expand_dir`` quyết định mũi tên chỉ hướng nào — panel gập ở mép trái bung
+        sang phải và ngược lại.
+        """
         super().__init__()
         self._hover = False
         self._dir = "left" if expand_dir == "left" else "right"
@@ -592,21 +586,25 @@ class CollapseStrip(QWidget):
         self.setToolTip(tooltip)
 
     def enterEvent(self, e) -> None:  # noqa: N802
+        """Rê chuột vào thì làm nổi dải lên."""
         self._hover = True
         self.update()
         super().enterEvent(e)
 
     def leaveEvent(self, e) -> None:  # noqa: N802
+        """Rời chuột thì trả dải về trạng thái thường."""
         self._hover = False
         self.update()
         super().leaveEvent(e)
 
     def mousePressEvent(self, e) -> None:  # noqa: N802
+        """Bấm trái vào dải thì phát tín hiệu mở lại panel."""
         if e.button() == Qt.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(e)
 
     def paintEvent(self, e) -> None:  # noqa: N802
+        """Vẽ dải: nền theo theme cộng mũi tên chỉ hướng sẽ bung ra."""
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         w = self.width()
@@ -661,6 +659,7 @@ class PlanSection(QWidget):
 
     @staticmethod
     def _step_icon(status: str):
+        """Icon tương ứng trạng thái một bước: đang chạy, xong, lỗi hay còn chờ."""
         if status == STEP_RUNNING:
             return icon("play", color=DOT_BLUE)
         if status == STEP_DONE:
@@ -670,6 +669,9 @@ class PlanSection(QWidget):
         return dot_icon(DOT_GREY)   # pending
 
     def __init__(self, title: str = "Plan", max_height: int = 150):
+        """Khối kế hoạch nhiều bước trong bong bóng chat, có giới hạn chiều cao để một
+        kế hoạch dài không đẩy phần trả lời ra khỏi màn hình.
+        """
         super().__init__()
         self._title = title
         self._count = 0
@@ -715,6 +717,7 @@ class PlanSection(QWidget):
         self._update_header()
 
     def clear(self) -> None:
+        """Xoá sạch kế hoạch và ẩn cả khối đi."""
         self.list.clear()
         self._count = 0
         self.setVisible(False)
@@ -726,10 +729,12 @@ class PlanSection(QWidget):
         self._update_header()
 
     def _toggle(self, on: bool) -> None:
+        """Gập/mở danh sách bước."""
         self.list.setVisible(on)
         self._update_header()
 
     def _update_header(self) -> None:
+        """Cập nhật dòng tiêu đề: mũi tên gập/mở kèm số bước."""
         arrow = "▾" if self.header.isChecked() else "▸"
         self.header.setText(f"{arrow} {self._title} ({self._count})")
 
@@ -773,6 +778,7 @@ class CollapsibleSection(QWidget):
         self._update_header()
 
     def add(self, path: str) -> None:
+        """Thêm một đường dẫn vào mục; đã có rồi thì bỏ qua."""
         if not path or path in self._paths:
             return
         self._paths.append(path)
@@ -787,6 +793,7 @@ class CollapsibleSection(QWidget):
         self._update_header()
 
     def remove(self, path: str) -> None:
+        """Gỡ một đường dẫn khỏi mục."""
         if path not in self._paths:
             return
         i = self._paths.index(path)
@@ -797,9 +804,11 @@ class CollapsibleSection(QWidget):
         self._update_header()
 
     def paths(self) -> list[str]:
+        """Bản sao danh sách đường dẫn đang hiện trong mục."""
         return list(self._paths)
 
     def clear(self) -> None:
+        """Xoá sạch mục."""
         self._paths.clear()
         self.list.clear()
         self.setVisible(False)
@@ -811,14 +820,17 @@ class CollapsibleSection(QWidget):
         self._update_header()
 
     def _toggle(self, on: bool) -> None:
+        """Gập/mở danh sách."""
         self.list.setVisible(on)
         self._update_header()
 
     def _update_header(self) -> None:
+        """Cập nhật dòng tiêu đề: mũi tên gập/mở kèm số mục."""
         arrow = "▾" if self.header.isChecked() else "▸"
         self.header.setText(f"{arrow} {self._title} ({len(self._paths)})")
 
     def _emit(self, item: QListWidgetItem) -> None:
+        """Bấm một dòng: phát đường dẫn lên để chỗ gọi mở tệp."""
         path = item.data(Qt.UserRole)
         if path:
             self.activated.emit(path)

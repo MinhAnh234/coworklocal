@@ -31,6 +31,7 @@ _CMD = re.compile(r"(?<!\S)/agent(?::([\w\-.]+))?(?=$|[\s.,;:!?)\]}»”’'\"�
 
 
 def _slug(name: str) -> str:
+    """Định danh an toàn suy từ tên agent (dùng chung hàm với Co4E)."""
     from .co4e import slugify
     return slugify(name)
 
@@ -45,6 +46,11 @@ def collect_agents(shared_dir: str = "") -> List[dict]:
     seen: set[str] = set()
 
     def _add(slug: str, name: str, desc: str, persona: str, source: str) -> None:
+        """Thêm một agent vào danh sách gộp; bỏ qua nếu trùng slug hoặc thiếu persona.
+
+        Agent không có persona thì không dùng được — thêm vào chỉ làm bảng gợi ý dài
+        ra mà chọn vào lại không chạy.
+        """
         if not slug or slug in seen or not persona.strip():
             return
         seen.add(slug)
@@ -69,6 +75,7 @@ def collect_agents(shared_dir: str = "") -> List[dict]:
 
 
 def _persona_block(agent: dict) -> str:
+    """Khối prompt mô tả một agent, chèn vào đầu lượt chat khi người dùng gõ ``/agent:``."""
     return f"## Agent: {agent['name']}\n{agent['persona']}"
 
 

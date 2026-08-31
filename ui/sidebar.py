@@ -26,6 +26,10 @@ class _SessionDelegate(QStyledItemDelegate):
     look."""
 
     def paint(self, painter, option, index):  # noqa: N802
+        """Vẽ một dòng hội thoại: tiêu đề, chấm trạng thái và nền của dòng đang mở.
+
+        Dòng tiêu đề nhóm (không mang dữ liệu hội thoại) để Qt vẽ mặc định.
+        """
         if not index.data(Qt.UserRole):       # group header → default
             super().paint(painter, option, index)
             return
@@ -58,6 +62,7 @@ class _SessionDelegate(QStyledItemDelegate):
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
 
     def sizeHint(self, option, index):  # noqa: N802
+        """Dòng hội thoại cao hơn dòng nhóm 16px để có chỗ cho dòng phụ."""
         size = super().sizeHint(option, index)
         if index.data(Qt.UserRole):
             size.setHeight(size.height() + 16)
@@ -65,6 +70,10 @@ class _SessionDelegate(QStyledItemDelegate):
 
 
 class HistorySidebar(QWidget):
+    """Cột lịch sử hội thoại: tìm kiếm, gom nhóm theo project, ghim, xoá hàng loạt.
+
+    Gập lại được thành một dải mỏng để nhường chỗ cho khung chat.
+    """
     new_chat = Signal(str)          # kind
     open_chat = Signal(str, dict)   # kind, conversation
     collapse_requested = Signal()   # in-header button: collapse to a strip
@@ -73,6 +82,11 @@ class HistorySidebar(QWidget):
     history_changed = Signal()      # a conversation was deleted — other views (Project tab) should re-sync
 
     def __init__(self, ctx: AppContext):
+        """Cột lịch sử hội thoại.
+
+        Nhúng trong tab Cowork của một dự án thì chỉ hiện hội thoại của dự án ấy;
+        ``_project_filter`` rỗng nghĩa là hiện tất cả, gom theo dự án.
+        """
         super().__init__()
         self.ctx = ctx
         self.current_session_id = ""     # conversation currently on screen (highlighted)
@@ -155,6 +169,7 @@ class HistorySidebar(QWidget):
         on_language_changed(self._retranslate)
 
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề, ô tìm và các tooltip."""
         self._strip.setToolTip(tr("sidebar.expand_tooltip"))
         self._collapse_btn.setToolTip(tr("sidebar.collapse_tooltip"))
         self._header.setText(tr("sidebar.header"))
@@ -165,6 +180,7 @@ class HistorySidebar(QWidget):
         self.refresh()   # re-render group headers / running suffix in the new language
 
     def is_collapsed(self) -> bool:
+        """Cột đang ở trạng thái gập (chỉ còn dải mỏng) hay không."""
         return self._strip.isVisible()
 
     def set_collapsed(self, collapsed: bool) -> None:
@@ -200,6 +216,7 @@ class HistorySidebar(QWidget):
         query = self.search_box.text() if hasattr(self, "search_box") else ""
 
         def _make_group(label: str) -> QTreeWidgetItem:
+            """Dựng một dòng tiêu đề nhóm (theo project) trong cây lịch sử."""
             node = QTreeWidgetItem([label])
             node.setIcon(0, icon("folder"))
             node.setFirstColumnSpanned(True)
@@ -271,6 +288,11 @@ class HistorySidebar(QWidget):
         # Shift/Ctrl-click means "extend the multi-selection", not "open this
         # conversation" — otherwise every click while multi-selecting for a
         # bulk-delete would also jump into that conversation.
+        """Bấm một dòng: mở hội thoại đó.
+
+        Giữ Shift/Ctrl thì KHÔNG mở — lúc đó người dùng đang chọn nhiều dòng để
+        xoá hàng loạt, mở hội thoại giữa chừng sẽ phá thao tác đang làm.
+        """
         if QApplication.keyboardModifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
             return
         path = item.data(0, Qt.UserRole)
@@ -281,6 +303,7 @@ class HistorySidebar(QWidget):
         self.open_chat.emit(kind, conv)
 
     def _selected_conversation_items(self):
+        """Các dòng đang chọn thật sự là hội thoại (bỏ qua dòng tiêu đề nhóm)."""
         return [it for it in self.tree.selectedItems() if it.data(0, Qt.UserRole)]
 
     @staticmethod
@@ -291,6 +314,7 @@ class HistorySidebar(QWidget):
         return len(selected) > 1 and item in selected
 
     def _context_menu(self, pos) -> None:
+        """Menu chuột phải: đổi tên, ghim, mở thư mục, xoá — hỗ trợ chọn nhiều dòng."""
         clicked = self.tree.itemAt(pos)
         if clicked is None:
             return

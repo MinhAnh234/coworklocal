@@ -21,7 +21,11 @@ from .icons import icon, icon_picker_combo
 
 
 class Co4EAgentDialog(QDialog):
+    """Hộp thoại tạo/sửa một agent tự tạo của Co4E: tên, vai trò, model, chỉ dẫn,
+    skill và tệp đính kèm.
+    """
     def __init__(self, ctx, agent: CustomAgent, skill_names: List[str], parent=None):
+        """Form thêm/sửa một agent Co4E: tên, prompt và các skill nó được dùng."""
         super().__init__(parent)
         self.ctx = ctx
         self._agent = agent
@@ -134,11 +138,13 @@ class Co4EAgentDialog(QDialog):
         ctx = self.ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: nhờ model soạn thử phần chỉ dẫn cho agent."""
             from ..core.ai_task_planner import generate_agent_prompt
             return {"text": generate_agent_prompt(ctx.build_active_provider(), name, role, hint,
                                                   cancel=worker.is_cancelled)}
 
         def done(result: dict):
+            """Đổ chỉ dẫn vừa soạn vào ô soạn thảo."""
             self.gen_btn.setEnabled(True)
             if result.get("text"):
                 self.instructions_edit.setPlainText(result["text"])
@@ -150,6 +156,7 @@ class Co4EAgentDialog(QDialog):
         w.start()
 
     def _refresh_attach_list(self) -> None:
+        """Vẽ lại danh sách tệp đính kèm (chỉ hiện tên tệp, đường dẫn để trong tooltip)."""
         from pathlib import Path as _P
         self.attach_list.clear()
         for p in self._attachments:
@@ -158,6 +165,7 @@ class Co4EAgentDialog(QDialog):
             self.attach_list.addItem(item)
 
     def _add_attachment(self) -> None:
+        """Thêm tệp đính kèm cho agent."""
         from PySide6.QtWidgets import QFileDialog
         files, _ = QFileDialog.getOpenFileNames(self, tr("co4e.attach_add"))
         for f in files:
@@ -166,12 +174,18 @@ class Co4EAgentDialog(QDialog):
         self._refresh_attach_list()
 
     def _del_attachment(self) -> None:
+        """Gỡ tệp đính kèm đang chọn."""
         row = self.attach_list.currentRow()
         if 0 <= row < len(self._attachments):
             self._attachments.pop(row)
             self._refresh_attach_list()
 
     def result_agent(self) -> CustomAgent:
+        """Bản ghi agent dựng từ nội dung đang có trên form.
+
+        Vai trò luôn viết HOA và không bao giờ rỗng — prompt của bước dùng thẳng
+        chuỗi này nên để trống sẽ sinh ra câu cụt.
+        """
         a = self._agent
         a.name = self.name_edit.text().strip() or "Agent"
         a.role = (self.role_edit.text().strip() or "AGENT").upper()
@@ -187,6 +201,7 @@ class Co4EAgentDialog(QDialog):
         return a
 
     def _load_models(self) -> None:
+        """Nạp danh sách model đang sống vào ô chọn, ở luồng nền."""
         if self.ctx is None:
             return
         from ..core import preview_ai
@@ -196,9 +211,11 @@ class Co4EAgentDialog(QDialog):
         ctx = self.ctx
 
         def job(_w):
+            """Chạy nền: hỏi mọi provider danh sách model đang dùng được."""
             return preview_ai.fetch_live_models(ctx)
 
         def done(result: dict):
+            """Gộp model của mọi provider vào ô chọn, giữ nguyên thứ đang chọn."""
             self.load_btn.setEnabled(True)
             models = []
             for lst in (result or {}).values():

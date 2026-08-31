@@ -73,6 +73,11 @@ LLMClassifier = Callable[[str], str]
 
 
 def _heuristic_scores(text: str) -> dict[TaskType, int]:
+    """Chấm điểm loại việc bằng từ khoá, không cần gọi model.
+
+    Bước lọc rẻ đứng trước bộ phân loại bằng AI: phần lớn câu hỏi phân loại được
+    ngay tại đây mà không tốn lượt gọi nào.
+    """
     low = (text or "").lower()
     scores: dict[TaskType, int] = {tt: 0 for tt in TaskType}
     for tt, entries in _COMPILED.items():

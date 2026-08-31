@@ -28,6 +28,11 @@ _PREFIX = "ms365_"
 
 
 def _strip(name: str) -> str:
+    """Bỏ tiền tố ``ms365_`` khỏi tên tool.
+
+    MCP đã gom tool theo tên máy chủ nên để tiền tố nữa thành thừa; bộ thực
+    thi cũ vẫn dispatch theo tên có tiền tố, nên gỡ lúc ra và gắn lại lúc vào.
+    """
     return name[len(_PREFIX):] if name.startswith(_PREFIX) else name
 
 
@@ -63,6 +68,7 @@ def _dispatch(name: str, args: Dict[str, Any]) -> str:
 
 
 def build_server():
+    """Dựng máy chủ MCP cho nhóm tool MS365 và đăng ký hai handler của giao thức."""
     import mcp.types as types
     from mcp.server.lowlevel import Server
 
@@ -70,22 +76,26 @@ def build_server():
 
     @app.list_tools()
     async def list_tools() -> List["types.Tool"]:
+        """Trả về danh sách tool MS365 hiện có, đọc từ cấu hình mới nhất."""
         return [types.Tool(**t) for t in _tool_list()]
 
     @app.call_tool()
     async def call_tool(name: str, arguments: Dict[str, Any]) -> List["types.TextContent"]:
+        """Chạy một tool MS365 và trả kết quả về dưới dạng văn bản."""
         return [types.TextContent(type="text", text=_dispatch(name, arguments or {}))]
 
     return app
 
 
 def main() -> None:
+    """Điểm vào khi chạy như tiến trình con: phục vụ MCP qua stdio."""
     import anyio
     from mcp.server.stdio import stdio_server
 
     app = build_server()
 
     async def _run() -> None:
+        """Vòng lặp phục vụ, đọc/ghi trên stdio cho tới khi tiến trình cha đóng."""
         async with stdio_server() as (read, write):
             await app.run(read, write, app.create_initialization_options())
 

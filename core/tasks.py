@@ -98,10 +98,12 @@ DEFAULT_TASK: Dict[str, Any] = {
 
 
 def _now_str() -> str:
+    """Mốc thời gian hiện tại theo đúng định dạng lưu trong file task."""
     return datetime.now().strftime(_TIME_FMT)
 
 
 def parse_run_at(value: Optional[str]) -> Optional[datetime]:
+    """Đọc chuỗi thời gian chạy thành ``datetime``; sai định dạng thì trả ``None``."""
     if not value:
         return None
     try:
@@ -111,6 +113,7 @@ def parse_run_at(value: Optional[str]) -> Optional[datetime]:
 
 
 def format_run_at(dt: datetime) -> str:
+    """Ghi ``datetime`` thành chuỗi thời gian chạy."""
     return dt.strftime(_TIME_FMT)
 
 
@@ -143,19 +146,29 @@ def _normalize(task: Dict[str, Any]) -> Dict[str, Any]:
 
 # ---- repository ----------------------------------------------------------
 def task_path(task_id: str, directory: Path = None) -> Path:
+    """Đường dẫn file JSON của một task."""
     return (directory or TASKS_DIR) / f"{task_id}.json"
 
 
 def save_task(task: Dict[str, Any], directory: Path = None) -> Path:
+    """Ghi task xuống đĩa (ghi nguyên tử) và cập nhật ``updated_at``."""
     directory = directory or TASKS_DIR
     directory.mkdir(parents=True, exist_ok=True)
     task["updated_at"] = datetime.now().isoformat(timespec="seconds")
     path = task_path(task["task_id"], directory)
-    path.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
+    # R07-T01: atomic write — same class of bug already fixed in
+    # core/projects.py and core/history.py at R06-T02 (plain write_text has a
+    # gap between truncate and write; a crash there leaves a half-written
+    # tasks/<id>.json that load_task() then silently treats as "missing",
+    # dropping the task). Lazy import to match the existing call sites and
+    # avoid a core -> infrastructure import at module load time.
+    from ..infrastructure.persistence.json.atomic_write import write_json
+    write_json(path, task)
     return path
 
 
 def load_task(task_id: str, directory: Path = None) -> Optional[Dict[str, Any]]:
+    """Đọc một task theo id và chuẩn hoá; không có hoặc hỏng thì trả ``None``."""
     path = task_path(task_id, directory)
     try:
         return _normalize(json.loads(path.read_text(encoding="utf-8")))
@@ -164,6 +177,7 @@ def load_task(task_id: str, directory: Path = None) -> Optional[Dict[str, Any]]:
 
 
 def list_tasks(directory: Path = None) -> List[Dict[str, Any]]:
+    """Liệt kê mọi task trong thư mục; thư mục chưa có thì trả list rỗng."""
     directory = directory or TASKS_DIR
     if not directory.exists():
         return []
@@ -178,6 +192,7 @@ def list_tasks(directory: Path = None) -> List[Dict[str, Any]]:
 
 
 def delete_task(task_id: str, directory: Path = None) -> None:
+    """Xoá file task; không có thì bỏ qua."""
     try:
         task_path(task_id, directory).unlink()
     except OSError:
@@ -287,36 +302,37 @@ def chain_error(tasks: List[Dict[str, Any]], task_id: str,
 
 
 # ---- schedule math --------------------------------------------------------
-def _is_excluded_day(dt: datetime, sched: Dict[str, Any]) -> bool:
-    """True when ``dt`` falls on a day this schedule must skip: a weekend
-    (working_days_only) or a public holiday of the configured country."""
-    if sched.get("working_days_only") and dt.weekday() >= 5:   # 5=Sat, 6=Sun
-        return True
-    if sched.get("skip_holidays"):
+# R07-T02: the actual date/cron math now lives in
+# domain/tasks/schedule_calculator.py::ScheduleCalculator (pure Python, unit
+# tested on its own — see tests/unit/test_schedule_calculator.py). Everything
+# below is a thin wrapper kept for backward compatibility: task_scheduler.py,
+# task_executors.py and ui/task_editor_dialog.py all still import these
+# module-level names from core.tasks, and core/holiday_calendar.py::is_holiday
+# / core/cron.py::Cron are only wired in HERE (lazily, matching the previous
+# lazy-import style) — domain/ is not allowed to import core/ (ADR-001 I2).
+_calculator: Optional[Any] = None
+
+
+def _get_calculator():
+    """Bộ tính lịch (:class:`ScheduleCalculator`), dựng một lần rồi dùng lại.
+
+    Dựng lười để ``core/tasks.py`` không kéo theo cả module cron ở mỗi lần
+    import.
+    """
+    global _calculator
+    if _calculator is None:
+        from .cron import Cron
         from .holiday_calendar import is_holiday
+        from ..domain.tasks.schedule_calculator import ScheduleCalculator
 
-        if is_holiday(dt.date(), sched.get("holiday_country", "")):
-            return True
-    return False
-
-
-def _add_month(dt: datetime) -> datetime:
-    import calendar
-
-    year = dt.year + (1 if dt.month == 12 else 0)
-    month = 1 if dt.month == 12 else dt.month + 1
-    day = min(dt.day, calendar.monthrange(year, month)[1])
-    return dt.replace(year=year, month=month, day=day)
+        _calculator = ScheduleCalculator(is_holiday=is_holiday, make_cron=Cron)
+    return _calculator
 
 
 def shift_off_excluded_days(dt: datetime, sched: Dict[str, Any]) -> datetime:
     """Push ``dt`` forward one day at a time until it lands on an allowed day
     (same time of day) — used for one-time schedules set on a weekend/holiday."""
-    guard = 0
-    while _is_excluded_day(dt, sched) and guard < 400:
-        dt += timedelta(days=1)
-        guard += 1
-    return dt
+    return _get_calculator().shift_off_excluded_days(dt, sched)
 
 
 def compute_next_run(task: Dict[str, Any], after: datetime) -> Optional[datetime]:
@@ -324,57 +340,12 @@ def compute_next_run(task: Dict[str, Any], after: datetime) -> Optional[datetime
     (daily / weekly / monthly / cron), or None for one-shot schedules.
     Occurrences on excluded days (weekends with working_days_only, public
     holidays with skip_holidays+holiday_country) are skipped forward."""
-    sched = task.get("schedule", {})
-    repeat = sched.get("repeat_type", "none")
-
-    if repeat == "cron":
-        from .cron import Cron, CronError
-
-        try:
-            cron = Cron(sched.get("cron_expression") or "")
-        except CronError:
-            return None
-        nxt = cron.next_after(after)
-        guard = 0
-        while nxt is not None and _is_excluded_day(nxt, sched) and guard < 400:
-            nxt = cron.next_after(nxt)
-            guard += 1
-        return nxt
-
-    base = parse_run_at(sched.get("run_at"))
-    if base is None:
-        return None
-    if repeat == "daily":
-        advance = lambda d: d + timedelta(days=1)          # noqa: E731
-    elif repeat == "weekly":
-        advance = lambda d: d + timedelta(weeks=1)         # noqa: E731
-    elif repeat == "monthly":
-        advance = _add_month
-    else:
-        return None
-    nxt = base
-    while nxt <= after:
-        nxt = advance(nxt)
-    guard = 0
-    while _is_excluded_day(nxt, sched) and guard < 400:
-        nxt = advance(nxt)
-        guard += 1
-    return nxt
+    return _get_calculator().compute_next_run(task, after)
 
 
 def due_tasks(tasks: List[Dict[str, Any]], now: datetime) -> List[Dict[str, Any]]:
     """Tasks that should start now: Scheduled + schedule enabled + run_at due."""
-    due = []
-    for t in tasks:
-        if t.get("status") != "scheduled":
-            continue
-        sched = t.get("schedule", {})
-        if not sched.get("enabled"):
-            continue
-        run_at = parse_run_at(sched.get("run_at"))
-        if run_at is not None and run_at <= now:
-            due.append(t)
-    return due
+    return _get_calculator().due_tasks(tasks, now)
 
 
 # ---- post-run bookkeeping (pure; scheduler applies + saves) ---------------

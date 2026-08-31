@@ -48,6 +48,7 @@ class AppContainerSandbox:
         display_name: str = "CoworkLocal Sandbox",
         description: str = "Isolated execution environment for Cowork Local agent",
     ):
+        """Đặt tên và mô tả cho hồ sơ AppContainer; chưa tạo gì trên máy."""
         self.profile_name = profile_name
         self.display_name = display_name
         self.description = description

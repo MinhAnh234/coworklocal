@@ -28,6 +28,10 @@ _IMAGE_MODEL_MARKERS = (
 
 
 def looks_like_image_model(name: str) -> bool:
+    """Đoán một model có sinh ảnh được không, dựa trên dấu hiệu trong tên.
+
+    Đoán theo tên vì không provider nào khai báo năng lực này qua API.
+    """
     n = (name or "").lower()
     return any(m in n for m in _IMAGE_MODEL_MARKERS)
 

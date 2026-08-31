@@ -168,6 +168,9 @@ _MAX_OUTPUT_CHARS = 20_000
 
 
 def _dump(data: Any) -> str:
+    """Kết quả tool dưới dạng JSON đã cắt ở ``_MAX_OUTPUT_CHARS`` — một hộp thư đầy
+    sẽ nuốt trọn cửa sổ ngữ cảnh nếu trả về nguyên vẹn.
+    """
     text = json.dumps(data, ensure_ascii=False, indent=2, default=str)
     if len(text) > _MAX_OUTPUT_CHARS:
         text = text[:_MAX_OUTPUT_CHARS] + f"\n…(truncated to {_MAX_OUTPUT_CHARS} chars)…"
@@ -197,6 +200,9 @@ def build_ms365_tools(config) -> Tuple[List[ToolSpec], Optional[Callable[[str, d
         return [], None
 
     def executor(name: str, args: dict) -> dict:
+        """Bộ thực thi các tool MS365 (mail, lịch, Teams, OneDrive, SharePoint), gói lỗi
+        thành kết quả thay vì ném ra.
+        """
         args = args or {}
         try:
             token = get_access_token(tenant_id, client_id)

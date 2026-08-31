@@ -19,7 +19,7 @@ sys.path.insert(0, str(REPO.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from capture_screens import _apply_theme, _isolate_home, _load_fonts  # noqa: E402
+from capture_screens import _apply_theme, _isolate_home, _load_fonts, control  # noqa: E402
 
 HEADER = ["_title", "chart_prev_btn", "_chart_period_lbl", "chart_next_btn",
           "gran_combo", "metric_combo", "currency_lbl", "currency_combo",
@@ -42,7 +42,11 @@ def main() -> int:
 
     from cowork_local.i18n import set_language
     from cowork_local.state import AppContext
-    from cowork_local.ui.dashboard_tab import DashboardTab
+    # R08-T13 moved the screen out of ui/ into presentation/dashboard/ and
+    # split its header controls across UsageChartWidget / HabitsWidget, so
+    # every control below is looked up through `control()` rather than as a
+    # direct attribute of the tab.
+    from cowork_local.presentation.dashboard.dashboard_tab import DashboardTab
 
     set_language("vi")
     tab = DashboardTab(AppContext(AppConfig.load()))
@@ -53,7 +57,7 @@ def main() -> int:
     app.processEvents()
 
     fails: list[str] = []
-    missing = [n for n in HEADER if getattr(tab, n, None) is None]
+    missing = [n for n in HEADER if control(tab, n) is None]
     print(f"control header con nguyen: {len(HEADER) - len(missing)}/{len(HEADER)}")
     if missing:
         fails.append(f"mat control: {missing}")
@@ -61,7 +65,7 @@ def main() -> int:
     # Two rows: everything in the header must sit at one of exactly two y bands.
     tops = {}
     for n in HEADER:
-        w = getattr(tab, n)
+        w = control(tab, n)
         tops.setdefault(round(w.mapTo(tab, w.rect().topLeft()).y() / 10), []).append(n)
     print(f"so hang cua header       : {len(tops)}")
     for band, names in sorted(tops.items()):
@@ -70,14 +74,15 @@ def main() -> int:
         fails.append(f"header co {len(tops)} hang, cho 2")
 
     # Still wired: changing the metric must not throw and must stick.
-    before = tab.metric_combo.currentData()
-    tab.metric_combo.setCurrentIndex(1 - tab.metric_combo.currentIndex())
+    metric = control(tab, "metric_combo")
+    before = metric.currentData()
+    metric.setCurrentIndex(1 - metric.currentIndex())
     app.processEvents()
-    after = tab.metric_combo.currentData()
+    after = metric.currentData()
     print(f"doi chi so bieu do       : {before} -> {after}")
     if after == before:
         fails.append("combo chi so khong doi duoc")
-    tab.refresh_btn.click()
+    control(tab, "refresh_btn").click()
     app.processEvents()
     print("bam Lam moi              : khong loi")
 

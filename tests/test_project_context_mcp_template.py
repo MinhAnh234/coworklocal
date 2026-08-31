@@ -14,7 +14,6 @@ from cowork_local.mcp_servers.project_context.registry import (
 )
 from cowork_local.mcp_servers.project_context.runtime import require_supported_python
 from cowork_local.mcp_servers.project_context.server import dispatch
-from mcp import types
 
 EXPECTED_TOOLS = {
     "get_project_issue_context",
@@ -88,6 +87,16 @@ def source() -> dict[str, str]:
 
 
 def test_template_exposes_exactly_three_provider_neutral_tools() -> None:
+    # Importing the MCP SDK at module scope aborted collection for the ENTIRE
+    # suite whenever the SDK was missing, so the guard lives here, inside the only
+    # test that touches it. Guarding per-test rather than per-module keeps the
+    # other cases -- pure-Python contract checks that need no SDK -- running
+    # instead of silently skipping with it.
+    #
+    # ``mcp`` is in requirements.txt, so a correctly installed checkout runs this
+    # test for real; the guard only covers an environment installed by hand.
+    types = pytest.importorskip("mcp.types")
+
     assert set(TOOL_NAMES) == EXPECTED_TOOLS
     declarations = tool_declarations()
     assert {item["name"] for item in declarations} == EXPECTED_TOOLS

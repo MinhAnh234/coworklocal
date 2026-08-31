@@ -126,6 +126,9 @@ def check_and_update(
     call_count = {"n": 0}
 
     def _tick() -> None:
+        """Một nhịp đếm trong lúc chờ người dùng xác nhận đổi model — đếm lùi và tự
+        quyết định khi hết giờ.
+        """
         call_count["n"] += 1
 
     pairs = [(p, m) for (p, m, _tier) in candidates]

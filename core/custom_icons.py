@@ -18,15 +18,18 @@ _MAX_BYTES = 200_000
 
 
 def icons_dir() -> Path:
+    """Thư mục chứa icon do người dùng thêm."""
     return ICONS_DIR
 
 
 def slugify(name: str) -> str:
+    """Định danh an toàn cho tên file icon; rỗng thì trả về 'icon'."""
     s = "".join(c if (c.isalnum() or c in "-_") else "-" for c in (name or "").strip().lower())
     return "-".join(filter(None, s.split("-"))) or "icon"
 
 
 def list_custom(directory: Optional[Path] = None) -> List[str]:
+    """Tên các icon tự thêm; thư mục chưa có thì trả list rỗng."""
     directory = directory or ICONS_DIR
     if not directory.exists():
         return []
@@ -69,6 +72,7 @@ def add_from_file(path, name: str = "", directory: Optional[Path] = None) -> str
 
 
 def delete_custom(name: str, directory: Optional[Path] = None) -> None:
+    """Xoá một icon tự thêm; không có thì bỏ qua."""
     directory = directory or ICONS_DIR
     path = directory / f"{slugify(name)}.svg"
     if path.exists():

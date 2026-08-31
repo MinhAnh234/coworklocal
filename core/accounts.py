@@ -35,6 +35,7 @@ _LAST_LOGIN_PATH = CONFIG_DIR / "last_login.json"
 
 
 def save_last_login(username: str, role: str) -> None:
+    """Nhớ tài khoản đăng nhập gần nhất để lần mở sau điền sẵn."""
     try:
         _LAST_LOGIN_PATH.parent.mkdir(parents=True, exist_ok=True)
         _LAST_LOGIN_PATH.write_text(
@@ -44,6 +45,7 @@ def save_last_login(username: str, role: str) -> None:
 
 
 def load_last_login() -> Optional[Tuple[str, str]]:
+    """Cặp (tên đăng nhập, vai trò) của lần đăng nhập gần nhất; ``None`` nếu chưa có."""
     try:
         data = json.loads(_LAST_LOGIN_PATH.read_text(encoding="utf-8"))
         username, role = data.get("username", ""), data.get("role", "")
@@ -61,6 +63,7 @@ CODE_LENGTH = 12
 
 @dataclass
 class Account:
+    """Một tài khoản người dùng: tên đăng nhập, vai trò, tên hiển thị và nhóm."""
     username: str
     role: str
     display_name: str = ""
@@ -73,6 +76,7 @@ class Account:
 
 
 def accounts_dir(shared_dir: str) -> Path:
+    """Thư mục chứa tài khoản, nằm trong thư mục chia sẻ của đội."""
     return Path(shared_dir).expanduser() / "accounts"
 
 
@@ -93,6 +97,7 @@ def generate_code(existing_codes: Optional[Set[str]] = None) -> str:
 
 
 def save_account(account: Account, directory: Path) -> Path:
+    """Ghi một tài khoản ra ``<username>.json`` (tên file đã được làm sạch)."""
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{_safe_username(account.username)}.json"
     path.write_text(json.dumps(asdict(account), ensure_ascii=False, indent=2), encoding="utf-8")
@@ -100,6 +105,7 @@ def save_account(account: Account, directory: Path) -> Path:
 
 
 def load_account(username: str, directory: Path) -> Optional[Account]:
+    """Đọc một tài khoản theo tên đăng nhập; không có thì trả ``None``."""
     path = directory / f"{_safe_username(username)}.json"
     if not path.exists():
         return None
@@ -112,6 +118,7 @@ def load_account(username: str, directory: Path) -> Optional[Account]:
 
 
 def list_accounts(directory: Path) -> List[Account]:
+    """Liệt kê mọi tài khoản trong thư mục; thư mục chưa có thì trả list rỗng."""
     if not directory.exists():
         return []
     out: List[Account] = []
@@ -124,6 +131,7 @@ def list_accounts(directory: Path) -> List[Account]:
 
 
 def delete_account(username: str, directory: Path) -> bool:
+    """Xoá file tài khoản; trả về ``True`` nếu có file để xoá."""
     path = directory / f"{_safe_username(username)}.json"
     try:
         path.unlink()
@@ -133,6 +141,7 @@ def delete_account(username: str, directory: Path) -> bool:
 
 
 def find_by_username(username: str, directory: Path) -> Optional[Account]:
+    """Bí danh của :func:`load_account`, giữ cho mã cũ gọi theo tên này vẫn chạy."""
     return load_account(username, directory)
 
 

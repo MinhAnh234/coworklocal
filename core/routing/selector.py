@@ -27,6 +27,7 @@ class RankedCandidate:
 
     @property
     def key(self) -> str:
+        """Khoá định danh của ứng viên (provider + model)."""
         return self.assessment.key
 
 
@@ -40,6 +41,7 @@ class Ranking:
 
     @property
     def best(self) -> Optional[RankedCandidate]:
+        """Ứng viên đứng đầu; ``None`` nếu không có ứng viên nào."""
         return self.ranked[0] if self.ranked else None
 
     def score_of(self, key: str) -> float:
@@ -66,6 +68,7 @@ class Ranking:
 
 
 def _has_capabilities(assessment: ModelAssessment, required: Set[str]) -> bool:
+    """Model này có đủ mọi năng lực mà lượt chạy đòi hỏi không."""
     return required.issubset(assessment.metadata.capabilities)
 
 
@@ -99,6 +102,10 @@ def rank_models(
         scored.append(RankedCandidate(assessment=a, score=score))
 
     def _sort_key(c: RankedCandidate):
+        """Khoá sắp xếp ứng viên: điểm cao trước, cùng điểm thì rẻ hơn trước.
+
+        Model chưa biết giá bị xếp cuối (coi như vô cùng đắt) chứ không phải miễn phí.
+        """
         cost = c.assessment.metadata.avg_cost_per_1k
         cost = cost if cost is not None else float("inf")
         # score desc, then cheaper, then model id for determinism.

@@ -16,7 +16,8 @@ import io
 import os
 import runpy
 import subprocess
-import sys
+import sys
+
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
@@ -32,7 +33,9 @@ MUTATIONS = [
      "ui/help_agent_widget.py", "_DOT = 52", "_DOT = 104",
      "check_layout_geometry.py"),
     ("tra lane Running ve khong vien",
-     "ui/schedule_task_tab.py",
+     # R08-T11 doi cho: ScheduleTaskTab tach ra, phan ve Kanban (ke ca vien
+     # canh bao cua lane Running) nam o presentation/scheduling/.
+     "presentation/scheduling/kanban_board_widget.py",
      'if status == "running" and counts[status]:',
      'if False:',
      "check_design_parity.py"),
@@ -42,17 +45,20 @@ MUTATIONS = [
      "self.section_list, self.section_stack = section_panels(pages[:1])",
      "check_dialogs.py"),
     ("noi lai dai tab flow Co4E",
-     "ui/co4e_tab.py",
+     # R08-T09 doi cho: Co4ETab tach thanh 7 mixin duoi presentation/co4e/.
+     "presentation/co4e/co4e_layout.py",
      "self.flow_scroll.setVisible(False)",
      "self.flow_scroll.setVisible(True)",
      "check_co4e.py"),
     ("bo dong 'Tat ca project...' khoi GAN DAY",
-     "app.py",
+     # R08-T10 doi cho: MainWindow bi boc khoi app.py sang presentation/shell/,
+     # RECENTS nam o rail_project.py, cay dieu huong o nav_rail.py.
+     "presentation/shell/rail_project.py",
      'more.setData(0, Qt.UserRole, {"all": True})',
      'more.setData(0, Qt.UserRole, {})',
      "check_design_parity.py"),
     ("tra thanh menu ve accordion (bo nhom day)",
-     "app.py",
+     "presentation/shell/nav_rail.py",
      'rows.append((self.nav_bottom, self._ROW_DASHBOARD, None,',
      'rows.append((self.nav, self._ROW_DASHBOARD, None,',
      "check_layout_geometry.py"),

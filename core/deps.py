@@ -29,6 +29,7 @@ _ACTIVE_PIDS: set[int] = set()
 
 
 def active_pids() -> List[int]:
+    """Pid của các tiến trình con đang chạy — dùng để dọn sạch khi thoát app."""
     with _active_pids_lock:
         return sorted(_ACTIVE_PIDS)
 
@@ -142,6 +143,11 @@ def _run_cancellable_body(
     proc: "subprocess.Popen", cancel: CancelFn, timeout: Optional[float],
     on_output: Optional[Callable[[str], None]], limits: Optional[Dict[str, float]],
 ) -> Tuple[Optional[int], str, bool, bool, bool]:
+    """Chạy một tiến trình con có thể huỷ giữa chừng, có hạn giờ và có giới hạn tài nguyên.
+
+    Trên Windows gắn tiến trình vào một Job Object để khi giết là giết cả cây
+    tiến trình con — giết mỗi tiến trình cha sẽ để lại đám con mồ côi.
+    """
     job_handle = None
     if sys.platform == "win32":
         from .win_job import assign_process, create_job_object
@@ -158,6 +164,11 @@ def _run_cancellable_body(
     collected: Dict[str, list] = {"out": [], "err": []}
 
     def _read_stream(stream, key: str) -> None:
+        """Đọc một luồng đầu ra theo từng dòng ở luồng riêng.
+
+        Phải đọc song song stdout và stderr: đọc lần lượt sẽ kẹt khi tiến trình con
+        làm đầy bộ đệm của luồng còn lại.
+        """
         try:
             for line in iter(stream.readline, ""):
                 collected[key].append(line)
@@ -239,6 +250,7 @@ def network_blocked_env(base_env: Optional[Dict[str, str]] = None) -> Dict[str, 
 
 def _can_pip() -> bool:
     # A PyInstaller/py2exe build has no usable pip; don't attempt installs there.
+    """Bản đóng gói (PyInstaller) không có pip dùng được — đừng thử cài gì ở đó."""
     return not getattr(sys, "frozen", False)
 
 
@@ -267,6 +279,7 @@ def ensure_module(module: str, package: str | None = None):
 
 
 def venv_python_path(venv_dir: Path) -> Path:
+    """Đường dẫn tới ``python`` trong một virtualenv, khác nhau giữa Windows và POSIX."""
     return venv_dir / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 
 

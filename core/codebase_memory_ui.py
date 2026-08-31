@@ -33,6 +33,9 @@ class CmemUiError(RuntimeError):
     asset) — a different remedy than a generic startup/timeout failure."""
 
     def __init__(self, message: str, no_ui_build: bool = False):
+        """``no_ui_build`` đánh dấu trường hợp riêng: chạy được nhưng bản cài không kèm
+        phần giao diện — thông báo cho người dùng phải khác hẳn lỗi chạy thường.
+        """
         super().__init__(message)
         self.no_ui_build = no_ui_build
 
@@ -41,16 +44,21 @@ class CodebaseMemoryUiServer:
     """One ``codebase-memory-mcp --ui`` process, started on demand."""
 
     def __init__(self, binary_path: str = "", port: int = DEFAULT_PORT):
+        """Chuẩn bị chỗ chạy máy chủ giao diện; chưa khởi động tiến trình nào."""
         self.binary = resolve_binary(binary_path)
         self.port = port
         self._proc: Optional[subprocess.Popen] = None
 
     @property
     def url(self) -> str:
+        """Địa chỉ để mở giao diện. Chỉ nghe trên 127.0.0.1 — đây là công cụ cục bộ,
+        không mở ra mạng.
+        """
         return f"http://127.0.0.1:{self.port}/"
 
     @property
     def running(self) -> bool:
+        """Tiến trình máy chủ còn sống không."""
         return self._proc is not None and self._proc.poll() is None
 
     def start(self, repo_path: str = "") -> str:
@@ -75,6 +83,9 @@ class CodebaseMemoryUiServer:
         no_ui_event = threading.Event()
 
         def _reader() -> None:
+            """Chạy nền: đọc đầu ra của tiến trình, giữ lại để báo lỗi và bật cờ khi thấy
+            dấu hiệu bản cài không có phần giao diện.
+            """
             try:
                 stream = self._proc.stdout
                 if stream is None:
@@ -111,6 +122,11 @@ class CodebaseMemoryUiServer:
         raise CmemUiError(f"Hết thời gian chờ UI trên cổng {self.port}.")
 
     def stop(self) -> None:
+        """Dừng máy chủ. Xin dừng tử tế trước, quá 3 giây thì buộc tắt.
+
+        Mọi lỗi đều bị nuốt có chủ ý: đây là dọn dẹp lúc thoát, ném lỗi ở đây chỉ
+        làm kẹt đường thoát của cả ứng dụng.
+        """
         proc, self._proc = self._proc, None
         if proc is not None and proc.poll() is None:
             try:

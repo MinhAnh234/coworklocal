@@ -51,6 +51,11 @@ class FileEditDialog(QDialog):
     """Pick/view a file and apply AI edits to it (see module docstring)."""
 
     def __init__(self, ctx=None, path: str = "", parent=None):
+        """Hộp thoại xem/sửa một tệp.
+
+        Mở ở chế độ CHỈ ĐỌC; muốn sửa phải bật rõ ràng, và lần ghi đầu tiên tự sao
+        lưu bản gốc.
+        """
         super().__init__(parent)
         self.ctx = ctx
         self._worker: Optional[AgentWorker] = None
@@ -121,11 +126,13 @@ class FileEditDialog(QDialog):
 
     # ---- loading -----------------------------------------------------------
     def _browse(self) -> None:
+        """Chọn tệp cần sửa."""
         path, _ = QFileDialog.getOpenFileName(self, tr("fileedit.title"))
         if path:
             self.load_file(path)
 
     def _reload(self) -> None:
+        """Đọc lại tệp đang mở từ đĩa, bỏ mọi sửa đổi chưa lưu."""
         if self.path_edit.text():
             self.load_file(self.path_edit.text())
 
@@ -167,6 +174,7 @@ class FileEditDialog(QDialog):
                                 + (f" ({note})" if note else ""))
 
     def _set_editable(self, editable: bool) -> None:
+        """Bật/tắt chế độ sửa được (tệp nhị phân hoặc chỉ đọc thì tắt)."""
         self._editable = editable
         self.editor.setReadOnly(not editable)
         self.save_btn.setEnabled(editable)
@@ -175,6 +183,7 @@ class FileEditDialog(QDialog):
 
     # ---- AI edit -------------------------------------------------------------
     def _ai_edit(self) -> None:
+        """Nhờ AI sửa tệp theo yêu cầu; thiếu yêu cầu hoặc đang chạy dở thì bỏ qua."""
         instruction = self.instruction_edit.text().strip()
         if (not instruction or not self._editable or self.ctx is None
                 or self._worker is not None):
@@ -188,6 +197,7 @@ class FileEditDialog(QDialog):
         ctx = self.ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: gọi model sửa nội dung tệp theo yêu cầu."""
             provider = ctx.build_active_provider()
             messages = [
                 {"role": "system", "content": _SYSTEM_PROMPT},
@@ -199,6 +209,10 @@ class FileEditDialog(QDialog):
             return {"text": (a.get("content") or "").strip()}
 
         def done(result: dict) -> None:
+            """Đổ nội dung đã sửa vào ô soạn thảo, bỏ hàng rào code của model.
+
+            KHÔNG tự ghi đĩa: người dùng phải bấm Lưu.
+            """
             self._worker = None
             self.ai_btn.setEnabled(True)
             new_text = _strip_fences(result.get("text", ""))
@@ -209,6 +223,7 @@ class FileEditDialog(QDialog):
                 self.status_lbl.setText(tr("fileedit.ai_empty"))
 
         def failed(err: str) -> None:
+            """Sửa lỗi: hiện lý do (cắt ở 300 ký tự) và mở khoá lại nút."""
             self._worker = None
             self.ai_btn.setEnabled(True)
             self.status_lbl.setText(tr("fileedit.ai_failed", err=err[:300]))
@@ -221,6 +236,7 @@ class FileEditDialog(QDialog):
 
     # ---- save -----------------------------------------------------------------
     def _save(self) -> None:
+        """Ghi nội dung đang sửa xuống tệp."""
         path = self.path_edit.text()
         if not path or not self._editable:
             return

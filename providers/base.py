@@ -52,6 +52,9 @@ MODEL_NOT_FOUND_HINT = "\n→ Hãy chọn model khác trong ⚙ Settings rồi g
 
 
 def is_model_not_found_error(err: str) -> bool:
+    """``True`` khi thông báo lỗi là loại "không có model này" — chỗ gọi dựa vào
+    đây để gợi ý đổi model thay vì báo lỗi chung chung.
+    """
     return MODEL_NOT_FOUND_HINT in (err or "")
 
 
@@ -76,6 +79,7 @@ class CancelWatchdog:
     treats as a cancelled stream."""
 
     def __init__(self, resp, cancel: Optional[CancelFn], poll_secs: float = 0.15):
+        """Canh cờ huỷ trong lúc một lượt gọi HTTP đang chờ."""
         self._resp = resp
         self._cancel = cancel
         self._poll_secs = poll_secs
@@ -83,12 +87,21 @@ class CancelWatchdog:
         self._thread: Optional[threading.Thread] = None
 
     def __enter__(self) -> "CancelWatchdog":
+        """Bắt đầu canh. Không có hàm huỷ thì không dựng luồng nào — đây là đường đi
+        thường gặp nhất, không đáng tốn một luồng.
+        """
         if self._cancel is not None:
             self._thread = threading.Thread(target=self._watch, daemon=True)
             self._thread.start()
         return self
 
     def _watch(self) -> None:
+        """Luồng canh: thấy cờ huỷ là đóng thẳng response đang chờ.
+
+        Đóng socket là cách duy nhất cắt được một lượt stream đang treo — nếu chỉ
+        đặt cờ, ``iter_lines()`` vẫn chờ tới khi máy chủ gửi tiếp hoặc hết giờ.
+        Nhận cả ``Callable`` lẫn ``threading.Event`` để chỗ gọi khỏi phải đổi kiểu.
+        """
         while not self._done.is_set():
             # Support both Callable and threading.Event
             if hasattr(self._cancel, "is_set"):
@@ -104,6 +117,11 @@ class CancelWatchdog:
             self._done.wait(self._poll_secs)
 
     def __exit__(self, *exc_info) -> None:
+        """Dừng canh và chờ luồng thoát, tối đa 1 giây.
+
+        Có chờ, vì luồng canh còn giữ tham chiếu tới response; bỏ mặc nó thì đóng
+        kết nối xong luồng vẫn đang đọc.
+        """
         self._done.set()
         if self._thread is not None:
             self._thread.join(timeout=1.0)
@@ -130,24 +148,36 @@ class ThinkStreamSplitter:
     _CLOSE = "</think>"
 
     def __init__(self, on_text=None, on_reasoning=None):
+        """Tách dòng chữ model trả về thành phần suy nghĩ và phần trả lời.
+
+        Có bộ đệm riêng vì thẻ ``<think>`` có thể bị cắt làm đôi giữa hai gói dữ
+        liệu — xét từng gói rời rạc sẽ bỏ sót thẻ.
+        """
         self._on_text = on_text
         self._on_reasoning = on_reasoning
         self._buf = ""
         self._in_think = False
 
     def feed(self, piece: str) -> None:
+        """Đưa một mẩu vừa nhận từ luồng stream vào bộ tách."""
         if not piece:
             return
         self._buf += piece
         self._drain()
 
     def flush(self) -> None:
+        """Kết thúc luồng: đẩy nốt phần còn giữ lại trong bộ đệm.
+
+        Bắt buộc gọi khi stream đóng, nếu không phần đuôi đang giữ chờ ghép thẻ
+        ``<think>`` sẽ mất hẳn.
+        """
         if self._buf:
             self._emit(self._buf)
             self._buf = ""
 
     # -- internals -----------------------------------------------------
     def _emit(self, text: str) -> None:
+        """Gửi văn bản ra đúng callback tuỳ đang ở trong hay ngoài khối ``<think>``."""
         if not text:
             return
         cb = self._on_reasoning if self._in_think else self._on_text
@@ -163,6 +193,11 @@ class ThinkStreamSplitter:
         return 0
 
     def _drain(self) -> None:
+        """Rút bộ đệm, cắt tại mỗi thẻ mở/đóng và lật trạng thái.
+
+        Không tìm thấy thẻ thì vẫn giữ lại phần đuôi có thể là nửa thẻ viết dở
+        (``<thi``) — phát ra sớm là chữ rác lọt vào bong bóng trả lời.
+        """
         while self._buf:
             tag = self._CLOSE if self._in_think else self._OPEN
             idx = self._buf.lower().find(tag)
@@ -191,6 +226,7 @@ class ToolSpec:
     parameters: Dict[str, Any]
 
     def to_openai(self) -> Dict[str, Any]:
+        """Khai báo tool theo định dạng OpenAI function-calling."""
         return {
             "type": "function",
             "function": {
@@ -201,6 +237,7 @@ class ToolSpec:
         }
 
     def to_anthropic(self) -> Dict[str, Any]:
+        """Khai báo tool theo định dạng Anthropic — khác OpenAI ở tên khoá schema."""
         return {
             "name": self.name,
             "description": self.description,
@@ -218,12 +255,21 @@ class Provider:
     supports_vision = False
 
     def __init__(self, conf: Dict[str, Any]):
+        """``last_error`` được đặt khi ``list_models()`` hỏng, thay vì nuốt lỗi: màn Cài
+        đặt hiện nó ra để "không nạp được model" có một lý do cụ thể.
+        """
         self.conf = conf
         self.model = conf.get("model", "")
         # Set by list_models() on failure (network/auth/bad-response) instead of
         # silently swallowing the error — Settings' "Test connection" / "Load
         # models" surfaces this so "model won't load" has a concrete reason.
         self.last_error = ""
+        # Where this provider's token usage goes (R03-T06). None means "the
+        # process-wide default sink", resolved lazily in _emit_usage so that a
+        # test can swap the destination without rebuilding every provider.
+        # Set it per instance to bill one run somewhere else (a workflow, a
+        # scheduled task) without touching global state.
+        self.usage_sink = None
 
     def chat(
         self,
@@ -273,6 +319,24 @@ class Provider:
         if models:
             return True, f"OK — {len(models)} model(s) available."
         return False, "No models returned. Check base_url/API key and network access."
+
+    # -- telemetry -----------------------------------------------------
+    def _emit_usage(self, event) -> None:
+        """Hand one ``UsageEvent`` to this provider's usage sink.
+
+        Never raises: recording how many tokens a turn cost must not be able to
+        fail the turn itself. Falls back to the process-wide default sink so
+        existing call sites keep reporting to the Dashboard exactly as before
+        (see infrastructure/telemetry/usage_sink.py)."""
+        try:
+            sink = self.usage_sink
+            if sink is None:
+                from ..infrastructure.telemetry import usage_sink as telemetry
+
+                sink = telemetry.default_sink
+            sink.record(event)
+        except Exception:  # noqa: BLE001 — telemetry is never worth a failed turn
+            pass
 
     # -- shared helpers ------------------------------------------------
     @staticmethod
@@ -375,6 +439,7 @@ class Provider:
 
     @staticmethod
     def _friendly_context_error(err: str) -> str:
+        """Đổi lỗi tràn context thành câu tiếng Việt nói rõ phải làm gì tiếp."""
         return (
             "Nội dung quá dài cho model này ngay cả sau khi tự nén lịch sử/cắt bớt "
             "tin nhắn. Hãy xoá bớt file đính kèm, chia nhỏ yêu cầu, hoặc đổi sang một "
@@ -382,6 +447,7 @@ class Provider:
         )
 
     def describe(self) -> str:
+        """Chuỗi ``provider:model`` để ghi log và hiện lên thanh trạng thái."""
         return f"{self.name}:{self.model}"
 
     # -- TLS: auto-recover from a self-signed/internal-CA gateway ------

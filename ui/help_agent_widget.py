@@ -61,6 +61,7 @@ _HIDDEN, _LAUNCHER_ST, _PANEL = "hidden", "launcher", "panel"
 
 
 def _current_user() -> str:
+    """Tên đăng nhập hệ điều hành, dùng để chào người dùng; '' nếu không đọc được."""
     return (os.environ.get("USERNAME") or os.environ.get("USER") or "").strip()
 
 
@@ -84,11 +85,13 @@ class _HoverPill(QPushButton):
     """
 
     def __init__(self, owner):
+        """Nút tròn nổi ở góc màn hình, mở ra panel Trợ giúp khi bấm."""
         super().__init__(owner)
         self._owner = owner
         self.open = False
 
     def _set_open(self, value: bool) -> None:
+        """Đổi trạng thái bung/co và vẽ lại; đã đúng trạng thái thì bỏ qua."""
         if value == self.open:
             return
         self.open = value
@@ -96,19 +99,23 @@ class _HoverPill(QPushButton):
         self._owner._layout_launcher()
 
     def enterEvent(self, e):  # noqa: N802 - Qt override
+        """Rê chuột vào: bung ra."""
         self._set_open(True)
         super().enterEvent(e)
 
     def leaveEvent(self, e):  # noqa: N802 - Qt override
+        """Rời chuột: co lại — trừ khi đang giữ focus bàn phím."""
         if not self.hasFocus():
             self._set_open(False)
         super().leaveEvent(e)
 
     def focusInEvent(self, e):  # noqa: N802 - Qt override
+        """Nhận focus bàn phím: bung ra, để người dùng dùng Tab cũng thấy được nhãn."""
         self._set_open(True)
         super().focusInEvent(e)
 
     def focusOutEvent(self, e):  # noqa: N802 - Qt override
+        """Mất focus: co lại."""
         self._set_open(False)
         super().focusOutEvent(e)
 
@@ -120,6 +127,11 @@ class HelpAgentWidget(QWidget):
     status_message = Signal(str)
 
     def __init__(self, ctx, parent=None, user_name: str = ""):
+        """Trợ lý Trợ giúp trong ứng dụng.
+
+        Giữ lịch sử hội thoại riêng (không kèm prompt hệ thống — cái đó ghép vào ở
+        mỗi lượt gọi) để người dùng hỏi tiếp mà không phải nhắc lại bối cảnh.
+        """
         super().__init__(parent)
         self.ctx = ctx
         self._user_name = user_name or _current_user()
@@ -204,6 +216,7 @@ class HelpAgentWidget(QWidget):
 
     # ---- greeting / labels ------------------------------------------------
     def _greeting(self) -> str:
+        """Câu chào mở đầu, có tên người dùng nếu biết."""
         name = self._user_name or tr("help_agent.default_user")
         return tr("help_agent.greeting", name=name)
 
@@ -211,6 +224,7 @@ class HelpAgentWidget(QWidget):
     def _build_edge_tab(self) -> None:
         # Shown only while hidden: a thin tab at the right edge to bring the
         # assistant back (chevron points left = "slide out").
+        """Dựng thẻ mỏng ở mép phải — chỉ hiện khi trợ lý đang ẩn hẳn, bấm vào để gọi lại."""
         self.edge_tab = QPushButton(self)
         self.edge_tab.setObjectName("helpEdgeTab")
         self.edge_tab.setIcon(icon("chevron-left", color=_TEAL_TEXT))
@@ -222,6 +236,12 @@ class HelpAgentWidget(QWidget):
         # One control, one job: this opens the chat. The chevron that used to sit
         # beside it (a second 18px hit target for a second meaning of "closed")
         # is gone — hiding to the edge is now a line in the panel's ⋯ menu.
+        """Dựng nút mở chat.
+
+        Một nút, một việc: mở khung chat. Cái chevron từng đứng cạnh nó (thêm một
+        vùng bấm 18px cho một nghĩa "đóng" thứ hai) đã bỏ — muốn ẩn hẳn thì vào
+        menu ⋯ của panel.
+        """
         self.launcher = _HoverPill(self)
         self.launcher.setObjectName("helpLauncher")
         self.launcher.setIcon(icon("sparkle", size=_DOT_ICON, color=_SPARK_GOLD))
@@ -231,6 +251,7 @@ class HelpAgentWidget(QWidget):
         self.launcher.clicked.connect(self._expand)
 
     def _build_panel(self) -> None:
+        """Dựng panel chat: dòng thời gian, ô nhập, nút gửi và menu ⋯."""
         self.panel = QFrame(self)
         self.panel.setObjectName("helpPanel")
 
@@ -301,11 +322,13 @@ class HelpAgentWidget(QWidget):
 
     # ---- state transitions ------------------------------------------------
     def _expand(self) -> None:
+        """Mở panel chat đầy đủ và đưa con trỏ vào ô nhập."""
         self._state = _PANEL
         self._apply_state()
         self.input.setFocus()
 
     def _collapse(self) -> None:
+        """Thu panel về nút tròn."""
         self._state = _LAUNCHER_ST
         self._apply_state()
 
@@ -323,10 +346,12 @@ class HelpAgentWidget(QWidget):
         menu.exec(widget.mapToGlobal(pos))
 
     def _hide_to_edge(self) -> None:
+        """Ẩn hẳn trợ lý, chỉ chừa thẻ mỏng ở mép phải."""
         self._state = _HIDDEN
         self._apply_state()
 
     def _show_launcher(self) -> None:
+        """Gọi trợ lý trở lại từ trạng thái ẩn."""
         self._state = _LAUNCHER_ST
         self._apply_state()
 
@@ -346,6 +371,7 @@ class HelpAgentWidget(QWidget):
         self.raise_()
 
     def _apply_state(self) -> None:
+        """Áp trạng thái hiện tại lên ba thành phần: thẻ mép, nút tròn và panel."""
         st = self._state
         self.edge_tab.setVisible(st == _HIDDEN)
         self.launcher.setVisible(st == _LAUNCHER_ST)
@@ -412,6 +438,10 @@ class HelpAgentWidget(QWidget):
         )
 
     def _render(self, pending: bool = False) -> None:
+        """Dựng lại toàn bộ dòng thời gian dưới dạng HTML.
+
+        ``pending=True`` thêm một bong bóng "…" để báo đang chờ trả lời.
+        """
         parts = [self._bubble_html(m["role"], m["content"]) for m in self._history]
         if pending:
             parts.append(self._bubble_html("assistant", "…"))
@@ -420,6 +450,7 @@ class HelpAgentWidget(QWidget):
 
     # ---- send a message ---------------------------------------------------
     def _send(self) -> None:
+        """Gửi câu hỏi tới Help Agent ở luồng nền."""
         if self._busy:
             return
         text = self.input.text().strip()
@@ -435,6 +466,7 @@ class HelpAgentWidget(QWidget):
         history = list(self._history)
 
         def job(worker):
+            """Chạy nền: gọi provider của Help Agent kèm prompt hệ thống của nó."""
             provider = admin_agents.build_agent_provider(self.ctx, agent)
             messages = [{"role": "system", "content": agent.effective_prompt()}] + history
             result = provider.chat(messages, tools=None, cancel=worker.is_cancelled)
@@ -448,18 +480,21 @@ class HelpAgentWidget(QWidget):
         worker.start()
 
     def _on_reply(self, result: Dict[str, Any]) -> None:
+        """Nhận trả lời và vẽ vào dòng thời gian; rỗng thì hiện câu thay thế."""
         content = (result or {}).get("content", "").strip() or tr("help_agent.empty_reply")
         self._history.append({"role": "assistant", "content": content})
         self._set_busy(False)
         self._render()
 
     def _on_failed(self, err: str) -> None:
+        """Gọi lỗi: hiện thông báo lỗi ngay trong khung chat thay vì im lặng."""
         self._history.append({"role": "assistant",
                               "content": tr("help_agent.error", error=err)})
         self._set_busy(False)
         self._render()
 
     def _set_busy(self, busy: bool) -> None:
+        """Khoá/mở ô nhập và nút gửi trong lúc chờ trả lời."""
         self._busy = busy
         self.input.setEnabled(not busy)
         self.send_btn.setEnabled(not busy)
@@ -468,6 +503,12 @@ class HelpAgentWidget(QWidget):
         # The transcript is rendered HTML, so switching language left the
         # greeting — and every "AI Assistant" speaker label — in the language
         # the panel was built in.
+        """Áp lại chữ theo ngôn ngữ đang chọn.
+
+        Dòng thời gian là HTML đã dựng sẵn, nên đổi ngôn ngữ mà không dựng lại sẽ
+        để câu chào — và mọi nhãn người nói "AI Assistant" — nằm nguyên ở ngôn ngữ
+        lúc panel được tạo.
+        """
         if self._history and self._history[0] is self._greet_msg:
             self._greet_msg["content"] = self._greeting()
         self._render()

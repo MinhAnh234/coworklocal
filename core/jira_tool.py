@@ -20,11 +20,13 @@ _KEY_RE = re.compile(r"\b([A-Z][A-Z0-9]+-\d+)\b")
 
 
 def _conf(config: Dict[str, Any] | None) -> Dict[str, str]:
+    """Ba trường cấu hình Jira đã cắt khoảng trắng: base_url, email, api_token."""
     return {k: str((config or {}).get(k, "") or "").strip()
             for k in ("base_url", "email", "api_token")}
 
 
 def configured(config: Dict[str, Any] | None) -> bool:
+    """Đã cấu hình đủ ba trường để gọi Jira chưa."""
     c = _conf(config)
     return bool(c["base_url"] and c["email"] and c["api_token"])
 
@@ -82,6 +84,7 @@ def get_issue_by_url(config: Dict[str, Any] | None, url: str) -> str:
 
 
 def _get(config: Dict[str, Any], path: str, params: dict = None):
+    """Gọi Jira REST API bằng xác thực cơ bản, qua lớp TLS có ghim chứng chỉ nội bộ."""
     from . import tls_trust
 
     c = _conf(config)
@@ -97,6 +100,7 @@ def _get(config: Dict[str, Any], path: str, params: dict = None):
 
 
 def _fmt_issue(it: dict) -> str:
+    """Một dòng tóm tắt issue: mã, trạng thái và tiêu đề."""
     f = it.get("fields", {}) or {}
     status = (f.get("status") or {}).get("name", "?")
     assignee = (f.get("assignee") or {}).get("displayName", "unassigned")

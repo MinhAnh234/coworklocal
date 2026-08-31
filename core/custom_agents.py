@@ -21,6 +21,14 @@ AGENTS_DIR = CONFIG_DIR / "agents"
 
 @dataclass
 class CustomAgent:
+    """Một agent do người dùng tự tạo: tên, mô tả, prompt mặc định và tuỳ chọn
+    provider/model riêng.
+
+    Bỏ trống ``provider``/``model`` nghĩa là dùng theo bước gọi nó hoặc theo cấu
+    hình chung — nhờ vậy một agent viết một lần chạy được với mọi provider.
+
+    Đã được ``core/co4e.py`` thay thế; giữ lại làm bản đối chiếu.
+    """
     name: str
     description: str = ""
     prompt: str = ""     # default task; a Flow sub-agent can still override it
@@ -29,16 +37,25 @@ class CustomAgent:
 
     @property
     def slug(self) -> str:
+        """Tên rút gọn an toàn để đặt tên file, ví dụ "Trợ lý Code" -> "tro-ly-code".
+        Tên không còn ký tự hợp lệ nào thì rơi về "agent".
+        """
         keep = "-_"
         s = "".join(c if (c.isalnum() or c in keep) else "-" for c in self.name.strip().lower())
         return "-".join(filter(None, s.split("-"))) or "agent"
 
 
 def agents_dir() -> Path:
+    """Thư mục chứa file agent tự tạo."""
     return AGENTS_DIR
 
 
 def list_agents(directory: Path = AGENTS_DIR) -> List[CustomAgent]:
+    """Đọc mọi agent trong thư mục, sắp theo tên file.
+
+    File hỏng bị bỏ riêng lẻ chứ không làm hỏng cả danh sách — một file sai
+    không được phép làm mất hết agent còn lại.
+    """
     if not directory.exists():
         return []
     agents: List[CustomAgent] = []
@@ -58,6 +75,11 @@ def list_agents(directory: Path = AGENTS_DIR) -> List[CustomAgent]:
 
 
 def save_agent(agent: CustomAgent, directory: Path = AGENTS_DIR, old_name: str = "") -> Path:
+    """Ghi một agent xuống đĩa.
+
+    Truyền ``old_name`` khi đổi tên: file cũ bị xoá trước, nếu không sẽ có hai
+    file cùng nội dung với hai tên khác nhau.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     if old_name and old_name != agent.name:
         delete_agent(old_name, directory)
@@ -67,6 +89,9 @@ def save_agent(agent: CustomAgent, directory: Path = AGENTS_DIR, old_name: str =
 
 
 def delete_agent(name: str, directory: Path = AGENTS_DIR) -> None:
+    """Xoá file của một agent theo tên. Không có file thì thôi; lỗi xoá bị nuốt,
+    không chặn giao diện.
+    """
     path = directory / f"{CustomAgent(name=name).slug}.json"
     if path.exists():
         try:

@@ -11,7 +11,8 @@ Run:  python tools/check_layout_geometry.py
 from __future__ import annotations
 
 import os
-import sys
+import sys
+
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
@@ -21,7 +22,9 @@ sys.path.insert(0, str(REPO.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from capture_screens import _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts  # noqa: E402
+from capture_screens import (  # noqa: E402
+    _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts, control,
+)
 
 # The rail, top to bottom, as the audit page's rail() helper draws it.
 RAIL_ORDER = ["Project", "Cowork", "Co4E", "Thư mục", "GraphRAG", "Schedule Task"]
@@ -122,7 +125,9 @@ def main() -> int:
         app.processEvents()
     sched = win._page_widgets[win._ROW_SCHEDULE]
     from PySide6.QtWidgets import QScrollArea
-    lanes = list(sched.columns.values())
+    # R08-T11 moved the Kanban lanes onto KanbanBoardWidget; the shell only
+    # holds the header and the view switch.
+    lanes = list(control(sched, "columns").values())
     # The page holds more than one scroll area — take the one the lanes live in.
     board = next(sa for sa in sched.findChildren(QScrollArea)
                  if sa.isAncestorOf(lanes[0]))
@@ -141,15 +146,16 @@ def main() -> int:
     for _ in range(8):
         app.processEvents()
     dash = win._page_widgets[win._ROW_DASHBOARD]
-    hero, small = dash.card_cost, dash.card_total
+    # R08-T13 moved the stat cards onto TokenUsageCardWidget.
+    hero, small = control(dash, "card_cost"), control(dash, "card_total")
     print(f"the Chi phi : x={left_of(hero, dash)} cao={hero.height()} · "
           f"the phu x={left_of(small, dash)} cao={small.height()}")
     if left_of(hero, dash) >= left_of(small, dash):
         fails.append("the Chi phi khong nam ben trai cac the phu")
     if hero.height() < small.height() * 1.5:
         fails.append("the Chi phi khong cao gap ruoi the phu")
-    row1 = top_of(dash.card_total, dash)
-    row2 = top_of(dash.card_out, dash)
+    row1 = top_of(control(dash, "card_total"), dash)
+    row2 = top_of(control(dash, "card_out"), dash)
     print(f"the phu hang 1 y={row1} · hang 2 y={row2} (phai la 2 hang)")
     if row2 <= row1:
         fails.append("4 the phu khong xep 2x2")
@@ -159,7 +165,7 @@ def main() -> int:
     for _ in range(8):
         app.processEvents()
     dock = win.help_agent
-    comp = ws._cowork.composer
+    comp = control(ws._cowork, "composer")
     dock_bottom = top_of(dock, win) + dock.height()
     comp_top = top_of(comp, win)
     print(f"cham {dock.width()}x{dock.height()} · day y={dock_bottom} · o nhap dinh y={comp_top}")
@@ -183,11 +189,12 @@ def main() -> int:
         app.processEvents()
     import cowork_local.ui.co4e_tab as co4e_mod
     c4 = win.findChildren(co4e_mod.Co4ETab)[0]
-    xs = [c4._split.widget(i).x() for i in range(c4._split.count())]
+    c4_split = control(c4, "_split")
+    xs = [c4_split.widget(i).x() for i in range(c4_split.count())]
     print(f"Co4E 3 pane x = {xs}")
     if xs != sorted(xs):
         fails.append("thu tu 3 pane cua Co4E sai (trai → giua → phai)")
-    heads = [h.text() for h, _b, _s in c4._sections.values()]
+    heads = [h.text() for h, _b, _s in (control(c4, "_sections") or {}).values()]
     print(f"cot sidebar: {heads}")
     if len(heads) != 4:
         fails.append(f"cot sidebar co {len(heads)} muc, ban ve ve 4")

@@ -22,3 +22,29 @@ keyring>=24.0.0          # OS credential store (token cache)
 
 # --- MCP (Model Context Protocol) ---
 mcp>=1.0.0               # MCP client SDK (stdio transport)
+
+# --- Bắt buộc: import KHÔNG có try/except, thiếu là app chết lúc khởi động ---
+# Hai dòng dưới đây bị bỏ sót cho tới 30/08. Triệu chứng của việc thiếu chúng
+# không phải "tính năng đó không chạy" mà là ModuleNotFoundError ngay khi dựng
+# cửa sổ chính — cài đúng theo requirements.txt xong app vẫn không mở được.
+pygments>=2.15.0         # tô màu cú pháp — presentation/folder/code_editor.py
+pydantic>=2,<3           # kiểu dữ liệu định tuyến — core/routing/models.py
+
+# --- Tuỳ chọn: mỗi chỗ dùng đều bọc try/except, thiếu thì mất tính năng ---
+# Vẫn cài mặc định vì đều nhẹ và đều là tính năng người dùng nhìn thấy được.
+networkx>=3.0            # bố cục đồ thị đẹp hơn cho GraphRAG nhiều node
+holidays>=0.40           # lịch nghỉ theo quốc gia cho màn Lịch task
+pywin32>=306; sys_platform == "win32"   # Office -> PDF, thông báo Outlook
+
+# opendataloader-pdf     # bộ đọc PDF thay thế — KHÔNG cài sẵn có chủ ý:
+#                        # application/workspaces/graph_index_service.py tự cài
+#                        # khi cần, qua core/deps.py::ensure_module.
+
+# --- Chạy test ---
+# Gộp vào đây thay vì để riêng requirements-test.txt: file kia chỉ có đúng
+# `pytest`, mà 64/108 file test dựng widget thật nên nó vẫn phải kéo về gần
+# như toàn bộ danh sách trên. Hai file cho một danh sách gần trùng nhau chỉ
+# tạo thêm một chỗ để lệch phiên bản.
+#
+# Người dùng cuối cài thừa pytest vài MB — đổi lại chỉ còn MỘT file phải nhớ.
+pytest>=8,<10

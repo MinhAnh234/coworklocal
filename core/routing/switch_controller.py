@@ -141,6 +141,7 @@ class PendingSwitchRegistry:
     _RESOLVE_WAIT_SEC = 600.0
 
     def __init__(self, clock: Callable[[], float] = time.time) -> None:
+        """``clock`` tiêm được để test kiểm hết hạn mà không phải chờ thật."""
         self._items: Dict[str, PendingSwitch] = {}
         self._events: Dict[str, threading.Event] = {}
         self._running: Set[str] = set()
@@ -180,6 +181,7 @@ class PendingSwitchRegistry:
             return ps
 
     def _maybe_expire_locked(self, ps: PendingSwitch) -> None:
+        """Đánh dấu hết hạn nếu đã quá hạn chờ. Gọi trong lúc đang giữ khoá."""
         if ps.status == SwitchStatus.PENDING and self._clock() >= ps.expires_at:
             ps.status = SwitchStatus.EXPIRED
 
@@ -270,6 +272,7 @@ class PendingSwitchRegistry:
         return removed
 
     def pending_ids(self) -> List[str]:
+        """Id các đề nghị còn đang chờ (đã loại những cái vừa hết hạn)."""
         with self._lock:
             return [
                 rid for rid, ps in self._items.items()

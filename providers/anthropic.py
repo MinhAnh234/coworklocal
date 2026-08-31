@@ -15,14 +15,24 @@ _MAX_RETRIES = 6  # auto-retry on rate-limit (429) / overloaded
 
 
 class AnthropicProvider(Provider):
+    """Adapter cho API Messages của Anthropic.
+
+    Khác OpenAI ở ba chỗ: prompt hệ thống nằm ở tham số ``system`` riêng chứ
+    không phải một tin nhắn, xác thực bằng header ``x-api-key``, và khối
+    nội dung là danh sách block chứ không phải chuỗi.
+    """
     name = "anthropic"
     supports_vision = True
 
     def _url(self) -> str:
+        """Endpoint ``/v1/messages``; mặc định là api.anthropic.com nếu không đặt ``base_url``."""
         base = str(self.conf.get("base_url") or "https://api.anthropic.com").rstrip("/")
         return f"{base}/v1/messages"
 
     def _headers(self) -> Dict[str, str]:
+        """Header cho một lượt gọi. Thiếu khoá thì báo lỗi ngay — Anthropic không
+        có chế độ chạy cục bộ không cần khoá như Ollama.
+        """
         key = self.conf.get("api_key")
         if not key:
             raise ProviderError("Anthropic API key is not configured.")
@@ -35,6 +45,12 @@ class AnthropicProvider(Provider):
     _FALLBACK_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
 
     def list_models(self):
+        """Danh sách model; hỏi được API thì dùng, không thì rơi về danh sách dựng sẵn.
+
+        Không bao giờ trả về rỗng: người dùng luôn phải chọn được một model, kể
+        cả khi mạng nội bộ chặn ``/v1/models``. Lý do thất bại ghi vào
+        ``last_error`` để giao diện hiện ra.
+        """
         self.last_error = ""
         base = str(self.conf.get("base_url") or "https://api.anthropic.com").rstrip("/")
         try:
@@ -58,6 +74,11 @@ class AnthropicProvider(Provider):
 
     @staticmethod
     def _split(messages: List[Dict[str, Any]]):
+        """Tách lịch sử thành (prompt hệ thống, danh sách tin nhắn) theo khuôn Anthropic.
+
+        Anthropic nhận prompt hệ thống ở một tham số riêng, nên mọi tin nhắn
+        role ``system`` phải được gom lại và bỏ khỏi danh sách.
+        """
         system_parts: List[str] = []
         api: List[Dict[str, Any]] = []
         for m in messages:
@@ -117,6 +138,12 @@ class AnthropicProvider(Provider):
         cancel: Optional[CancelFn] = None,
         on_reasoning: Optional[TextCallback] = None,
     ) -> Dict[str, Any]:
+        """Chạy một lượt chat có stream, có gọi tool, tự thử lại khi bị giới hạn tốc độ
+        hoặc máy chủ quá tải.
+
+        Giữ bản sao ``work`` của lịch sử để cắt bớt và gửi lại được khi tràn
+        context — không đụng vào danh sách của chỗ gọi.
+        """
         work = list(messages)   # local copy we can trim on context overflow
         payload: Dict[str, Any] = {
             "model": self.model,
@@ -292,19 +319,31 @@ class AnthropicProvider(Provider):
                 args = {"_raw": b["json"]}
             tool_calls.append({"id": b["id"], "name": b["name"], "arguments": args})
 
-        # Dashboard usage event — real counts from the stream's usage events,
-        # else a ~4 chars/token estimate. Never breaks the turn.
+        # Usage event — real counts from the stream's usage events, else a
+        # ~4 chars/token estimate. Published to the telemetry sink (R03-T06)
+        # rather than written straight to the Dashboard store, so the provider
+        # stays a pure transport adapter. Never breaks the turn.
         try:
-            from ..core import usage_tracker as ut
+            from ..infrastructure.telemetry import usage_sink
 
             if usage_seen:
-                ut.record(self.name, self.model, usage_seen.get("in", 0),
-                          usage_seen.get("out", 0), usage_seen.get("cache", 0))
+                usage_sink.publish(usage_sink.UsageEvent(
+                    provider=self.name,
+                    model=self.model,
+                    input_tokens=usage_seen.get("in", 0),
+                    output_tokens=usage_seen.get("out", 0),
+                    cached_tokens=usage_seen.get("cache", 0),
+                ))
             else:
                 sent = json.dumps(payload.get("messages", []), ensure_ascii=False)
                 got = "".join(text_parts) + "".join(b["json"] for b in blocks.values())
-                ut.record(self.name, self.model, ut.estimate_tokens(sent),
-                          ut.estimate_tokens(got), 0, estimated=True)
+                usage_sink.publish(usage_sink.UsageEvent(
+                    provider=self.name,
+                    model=self.model,
+                    input_tokens=usage_sink.estimate_tokens(sent),
+                    output_tokens=usage_sink.estimate_tokens(got),
+                    estimated=True,
+                ))
         except Exception:  # noqa: BLE001
             pass
 
@@ -312,6 +351,7 @@ class AnthropicProvider(Provider):
 
     @staticmethod
     def _error_text(resp: requests.Response) -> str:
+        """Rút câu lỗi dễ đọc từ phản hồi lỗi của Anthropic, kèm mã HTTP."""
         try:
             body = resp.json()
             msg = body.get("error", {}).get("message") or json.dumps(body)

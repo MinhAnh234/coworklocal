@@ -41,6 +41,7 @@ class _TermInput(QLineEdit):
     history_next = Signal()
 
     def keyPressEvent(self, e):  # noqa: N802 - Qt override
+        """Tab yêu cầu tự hoàn tất đường dẫn; Lên/Xuống duyệt lịch sử lệnh."""
         if e.key() == Qt.Key_Tab:
             self.complete_requested.emit()
             e.accept()
@@ -62,6 +63,11 @@ class TerminalPanel(QWidget):
     expanded = Signal()
 
     def __init__(self, parent=None):
+        """Terminal thu gọn ở đáy tab Thư mục.
+
+        Mở ở trạng thái gập lại; ``_hist_idx`` trỏ quá phần tử cuối khi không duyệt
+        lịch sử, nên mũi tên lên lần đầu ra lệnh gần nhất.
+        """
         super().__init__(parent)
         self._collapsed = True
         self._cwd = str(Path.home())
@@ -141,12 +147,14 @@ class TerminalPanel(QWidget):
 
     # ---- public API ----------------------------------------------------------
     def set_cwd(self, path: str) -> None:
+        """Đổi thư mục làm việc (bỏ qua nếu đường dẫn không tồn tại) và cập nhật dấu nhắc."""
         if path and os.path.isdir(path):
             self._cwd = os.path.normpath(str(path))
             self._cwd_lbl.setText(self._cwd)
             self._prompt.setText(_prompt_for(self._cwd))
 
     def toggle(self) -> None:
+        """Gập/mở panel; mở ra thì phát ``expanded`` để chỗ gọi trỏ shell về đúng thư mục."""
         self._collapsed = not self._collapsed
         self._apply_collapsed()
         if not self._collapsed:
@@ -154,10 +162,12 @@ class TerminalPanel(QWidget):
             self.input.setFocus()
 
     def set_collapsed(self, collapsed: bool) -> None:
+        """Đặt thẳng trạng thái gập/mở, không phát tín hiệu."""
         self._collapsed = collapsed
         self._apply_collapsed()
 
     def _apply_collapsed(self) -> None:
+        """Áp trạng thái gập/mở lên phần thân, icon và tooltip của nút."""
         self._body.setVisible(not self._collapsed)
         self._toggle_btn.setIcon(icon("chevron-right" if self._collapsed else "chevron-down"))
         self._toggle_btn.setToolTip(
@@ -165,6 +175,7 @@ class TerminalPanel(QWidget):
 
     # ---- history -------------------------------------------------------------
     def _history_move(self, direction: int) -> None:
+        """Đi lên/xuống trong lịch sử lệnh; đi quá cuối thì trả ô nhập về rỗng."""
         if not self._history:
             return
         self._hist_idx = max(0, min(len(self._history), self._hist_idx + direction))
@@ -172,6 +183,7 @@ class TerminalPanel(QWidget):
 
     # ---- Tab completion ------------------------------------------------------
     def _complete(self) -> None:
+        """Tự hoàn tất đường dẫn cho đoạn đang gõ (giống Tab của shell)."""
         text = self.input.text()
         head, sep, token = text.rpartition(" ")
         norm = token.replace("\\", "/")
@@ -191,6 +203,7 @@ class TerminalPanel(QWidget):
             return
 
         def _decorate(entry: str) -> str:
+            """Thêm dấu phân cách vào cuối tên nếu đó là thư mục."""
             full = os.path.join(base or self._cwd, entry)
             return entry + (os.sep if os.path.isdir(full) else "")
 
@@ -206,6 +219,7 @@ class TerminalPanel(QWidget):
 
     # ---- running commands ----------------------------------------------------
     def _run_current(self) -> None:
+        """Chạy lệnh đang gõ trong ô nhập rồi xoá ô."""
         cmd = self.input.text().strip()
         if not cmd:
             return
@@ -215,6 +229,9 @@ class TerminalPanel(QWidget):
         self.run_command(cmd)
 
     def run_command(self, cmd: str) -> None:
+        """Chạy một lệnh: ``clear``/``cls`` và ``cd`` xử lý tại chỗ, còn lại giao cho
+        tiến trình con.
+        """
         self._append(f"\n{_prompt_for(self._cwd)} {cmd}\n", role="cmd")
         stripped = cmd.strip()
         if stripped in ("clear", "cls"):
@@ -229,6 +246,11 @@ class TerminalPanel(QWidget):
         self._start_process(cmd)
 
     def _change_dir(self, target: str) -> None:
+        """Xử lý ``cd`` ngay trong panel.
+
+        Phải tự xử lý vì mỗi lệnh chạy trong một tiến trình riêng — ``cd`` giao cho
+        tiến trình con sẽ đổi thư mục của chính nó rồi biến mất cùng nó.
+        """
         target = target.strip()
         if target.lower().startswith("/d "):     # cmd's "cd /d X:\path" flag
             target = target[3:].strip()
@@ -247,6 +269,7 @@ class TerminalPanel(QWidget):
             self._append(tr("terminal.cd_error", path=target) + "\n", role="err")
 
     def _start_process(self, cmd: str) -> None:
+        """Khởi động tiến trình con chạy lệnh, đọc stdout/stderr theo luồng."""
         proc = QProcess(self)
         proc.setWorkingDirectory(self._cwd)
         proc.setProcessChannelMode(QProcess.SeparateChannels)
@@ -268,17 +291,20 @@ class TerminalPanel(QWidget):
             proc.start(os.environ.get("SHELL", "/bin/sh"), ["-c", cmd])
 
     def _on_finished(self, code: int, _status=None) -> None:
+        """Tiến trình kết thúc: in mã thoát (xanh nếu 0, đỏ nếu khác) và mở khoá ô nhập."""
         self._append(tr("terminal.exit", code=code) + "\n",
                      role="ok" if code == 0 else "err")
         self._set_running(False)
 
     def _set_running(self, running: bool) -> None:
+        """Khoá/mở ô nhập và nút Chạy theo trạng thái đang chạy."""
         self.input.setEnabled(not running)
         self._run_btn.setEnabled(not running)
         if not running:
             self.input.setFocus()
 
     def _append(self, text: str, role: str = "out") -> None:
+        """Nối văn bản vào khung kết quả, tô màu theo vai trò (lệnh / ra / lỗi / mã thoát)."""
         if not text:
             return
         from PySide6.QtGui import QColor, QTextCursor
@@ -295,10 +321,12 @@ class TerminalPanel(QWidget):
 
     # ---- lifecycle -----------------------------------------------------------
     def stop(self) -> None:
+        """Giết tiến trình đang chạy, nếu có."""
         if self._proc is not None and self._proc.state() != QProcess.NotRunning:
             self._proc.kill()
 
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn."""
         self._title.setText(tr("terminal.title"))
         self._run_btn.setText(tr("terminal.run"))
         self.input.setPlaceholderText(tr("terminal.placeholder"))
@@ -306,11 +334,18 @@ class TerminalPanel(QWidget):
 
 
 def _prompt_for(cwd: str) -> str:
+    """Dấu nhắc lệnh theo thư mục hiện tại: ``tên >`` trên Windows, ``tên $`` nơi khác."""
     name = Path(cwd).name or cwd
     return f"{name} >" if _IS_WIN else f"{name} $"
 
 
 def _decode(data: bytes) -> str:
+    """Giải mã đầu ra tiến trình con: thử UTF-8 trước, rồi tới bảng mã mặc định
+    của hệ điều hành.
+
+    Cần vì console Windows tiếng Việt/Nhật trả về cp1258/cp932 chứ không phải
+    UTF-8, giải mã cứng một bảng mã là ra chữ rác.
+    """
     import locale
     encs = ["utf-8"]
     try:

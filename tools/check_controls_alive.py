@@ -25,7 +25,9 @@ sys.path.insert(0, str(REPO.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from capture_screens import _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts  # noqa: E402
+from capture_screens import (  # noqa: E402
+    _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts, owner_of,
+)
 
 # controls.json lists every control in a FILE, and several files hold more than
 # one class (schedule_task_tab.py alone has the tab plus three dialogs). Only
@@ -82,6 +84,11 @@ MOVED = {
     },
     "ui\\structure_graph_view.py": {
         "self._msgs_toggle_btn": "→ cặp tab Đồ thị | Tin nhắn (view_tabs)",
+        # R08-T14 split the screen and renamed these two on the way out. Both
+        # are still on screen, under a new owner and a new name, so they are
+        # deliberate moves rather than losses.
+        "self._ag_collapse": "→ GraphQaWidget._collapse_btn (nút thu gọn bảng Agent)",
+        "self._msgs_view": "→ GraphMessagesView.widget (cây Tin nhắn theo ngày)",
     },
     "app.py": {
         "self.settings_btn": "→ nút Cài đặt ở đáy rail (_nav_settings_btn)",
@@ -163,8 +170,9 @@ def main() -> int:
                        .read_text(encoding="utf-8"))
     own = owners(win)
 
-    alive = dead = moved = skipped = other_class = 0
+    alive = dead = moved = skipped = other_class = relocated = 0
     losses: list[tuple[str, str, str]] = []
+    moves: list[tuple[str, str, str]] = []
     for rec in index:
         holder = own.get(rec["file"])
         if holder is None:
@@ -187,14 +195,28 @@ def main() -> int:
             elif var in MOVED.get(rec["file"], {}):
                 moved += 1
             else:
-                dead += 1
-                losses.append((rec["file"], var,
-                               c.get("label_vi") or c.get("label") or "?"))
+                # EPIC R08 extracted sub-widgets out of every screen, so a
+                # control can still be on screen while no longer being a direct
+                # attribute of the screen's own widget (FolderTab.mode_btn ->
+                # FolderTab.preview.mode_btn). Searching the subtree keeps the
+                # subtraction test honest: it still fails on a control that is
+                # genuinely gone, but a relocation now reads as a relocation.
+                sub = owner_of(holder, name)
+                if sub is not None:
+                    relocated += 1
+                    moves.append((rec["file"], var, type(sub).__name__))
+                else:
+                    dead += 1
+                    losses.append((rec["file"], var,
+                                   c.get("label_vi") or c.get("label") or "?"))
 
     print(f"control con song    : {alive}")
     print(f"co y doi cho        : {moved}")
     for f, v, w in [(f, v, MOVED[f][v]) for f in MOVED for v in MOVED[f]]:
         print(f"   {v:26} {w}")
+    print(f"doi cho khi tach     : {relocated}  (con tren man, nam trong widget con)")
+    for f, var, own in sorted(moves):
+        print(f"   {var:26} -> {own}.{var.split('.', 1)[1]}")
     print(f"thuoc class khac    : {other_class}  (hop thoai dinh nghia cung file)")
     print(f"khong kiem duoc     : {skipped}  (dialog dung rieng, bien cuc bo)")
     print(f"MAT                 : {dead}")

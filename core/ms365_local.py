@@ -28,10 +28,12 @@ _PREFIX = "ms365_local"
 
 
 def _roots() -> List[Path]:
+    """Mọi thư mục OneDrive tìm thấy trên máy."""
     return paths.detect_onedrive_roots()
 
 
 def _primary_root() -> Optional[Path]:
+    """Thư mục OneDrive chính; ``None`` nếu không có."""
     return paths.primary_onedrive_root()
 
 
@@ -45,6 +47,7 @@ def _resolve_under(root: Path, rel: str) -> Path:
 
 
 def _list_dir(base: Path, rel: str) -> dict:
+    """Liệt kê nội dung một thư mục con của OneDrive, chặn thoát ra ngoài gốc."""
     target = _resolve_under(base, rel)
     if not target.exists():
         raise FileNotFoundError(f"Not found: {rel or '.'}")
@@ -60,6 +63,7 @@ def _list_dir(base: Path, rel: str) -> dict:
 
 
 def _read_file(base: Path, rel: str) -> str:
+    """Đọc một tệp trong OneDrive dưới dạng văn bản, chặn thoát ra ngoài gốc."""
     target = _resolve_under(base, rel)
     if not target.is_file():
         raise FileNotFoundError(f"Not a file: {rel}")
@@ -68,6 +72,7 @@ def _read_file(base: Path, rel: str) -> str:
 
 
 def _write_file(base: Path, rel: str, content: str) -> dict:
+    """Ghi một tệp trong OneDrive, tự tạo thư mục cha, chặn thoát ra ngoài gốc."""
     target = _resolve_under(base, rel)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content or "", encoding="utf-8")
@@ -125,6 +130,9 @@ def build_ms365_local_tools(config) -> Tuple[List[ToolSpec], Optional[Callable[[
         ]
 
     def executor(name: str, args: dict) -> dict:
+        """Bộ thực thi tool MS365 cục bộ (đọc/ghi thẳng thư mục OneDrive đồng bộ trên
+        máy, không cần đăng nhập Graph), ghi nhật ký kiểm toán cho mỗi lần gọi.
+        """
         ok = False
         detail = ""
         try:

@@ -13,8 +13,19 @@ RequestFn = Callable[[Dict[str, Any]], None]
 
 
 class PermissionGate:
+    """Cổng phê duyệt tool: chặn lượt chạy lại và chờ người dùng đồng ý.
+
+    Ba chế độ: 'auto' cho qua hết, 'confirm' hỏi trước mỗi lệnh có rủi ro, và
+    'deny' chặn thẳng. Dùng ``threading.Event`` để luồng nền đứng chờ trong khi
+    luồng giao diện hiện hộp thoại.
+    """
     def __init__(self, mode: str = "confirm", on_request: Optional[RequestFn] = None,
                 agent_role: str = ""):
+        """``mode`` quyết định cách xử: hỏi, cho qua hết, hay chặn hết.
+
+        ``on_request`` là hàm hiện hộp thoại; để None (không có giao diện) thì cổng
+        rơi về quyết định mặc định của ``mode`` thay vì treo mãi.
+        """
         self.mode = mode
         self.on_request = on_request
         self.agent_role = agent_role
@@ -22,6 +33,7 @@ class PermissionGate:
         self._approved = False
 
     def set_mode(self, mode: str) -> None:
+        """Đổi chế độ phê duyệt giữa chừng."""
         self.mode = mode
 
     def request(self, action: Dict[str, Any]) -> bool:
@@ -43,6 +55,7 @@ class PermissionGate:
         return self._approved
 
     def resolve(self, approved: bool) -> None:
+        """Người dùng đã trả lời: ghi kết quả và đánh thức luồng đang chờ."""
         self._approved = approved
         self._event.set()
 

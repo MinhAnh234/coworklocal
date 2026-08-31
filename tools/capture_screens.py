@@ -37,6 +37,63 @@ OUT_DIR = REPO / "docs" / "screens"
 THEMES = ("dark", "light")
 
 
+def _own_member(widget, name: str) -> bool:
+    """True when `name` is declared by the app on `widget`, not inherited from Qt.
+
+    Instance attributes live in ``vars(widget)``; methods live on the class, so
+    both are checked. Only classes defined inside ``cowork_local`` count, so a
+    Qt base class that happens to use the same name can never be mistaken for
+    the app's own control.
+    """
+    if name in vars(widget):
+        return True
+    for base in type(widget).__mro__:
+        if getattr(base, "__module__", "").startswith("cowork_local") and name in vars(base):
+            return True
+    return False
+
+
+def owner_of(root, name: str):
+    """The widget in `root`'s subtree that actually holds `name` today.
+
+    EPIC R08 split every screen's god-widget into child widgets, so a control
+    that used to be ``tab.gran_combo`` now lives at ``tab.chart.gran_combo``,
+    and ``ScheduleTaskTab.columns`` moved to ``ScheduleTaskTab.kanban.columns``.
+    Checkers ask for a control by name and get back whichever widget owns it
+    today, so a further split does not break them again — while a control that
+    is genuinely gone still returns ``None`` and is still reported as a loss.
+
+    Breadth-first, so the shallowest owner wins if a name appears twice.
+    """
+    from PySide6.QtWidgets import QWidget
+
+    seen: set[int] = set()
+    queue = [root]
+    while queue:
+        w = queue.pop(0)
+        if id(w) in seen:
+            continue
+        seen.add(id(w))
+        if _own_member(w, name):
+            return w
+        queue.extend(c for c in w.children() if isinstance(c, QWidget))
+    return None
+
+
+def control(root, name: str, default=None):
+    """The control named `name` anywhere in `root`'s subtree — see `owner_of`.
+
+    Falls back to a plain ``getattr`` on `root` so a screen that already bridges
+    its old attribute names itself keeps working: ``MonitoringTab.__getattr__``
+    maps ``ov_*`` onto the extracted tabs, and a name served that way is on no
+    widget's ``__dict__`` for `owner_of` to find.
+    """
+    holder = owner_of(root, name)
+    if holder is not None:
+        return getattr(holder, name, default)
+    return getattr(root, name, default)
+
+
 def _isolate_home() -> Path:
     """Copy the real config dir into a temp HOME and repoint the env at it."""
     real = Path.home() / ".cowork_local"

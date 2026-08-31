@@ -30,6 +30,7 @@ class SubAgent:
 
 @dataclass
 class FlowStep:
+    """Một bước trong luồng cũ: prompt, skill áp dụng, và danh sách agent chạy song song."""
     name: str
     prompt: str = ""
     skill: str = ""    # skill name to apply on this step ("" = none)
@@ -44,11 +45,13 @@ class FlowStep:
 
     @property
     def is_parallel(self) -> bool:
+        """Bước này có chạy nhiều agent song song hay không."""
         return bool(self.parallel_agents)
 
 
 @dataclass
 class Flow:
+    """Một luồng cũ: tên, mô tả, và danh sách bước chạy tuần tự."""
     name: str
     description: str = ""
     steps: List[FlowStep] = field(default_factory=list)
@@ -77,6 +80,11 @@ class FlowRunStatus:
     substeps: List[dict] = field(default_factory=list)
 
     def state_of(self, i: int) -> str:
+        """Trạng thái hiển thị của bước thứ ``i``: xong, đang chạy, lỗi hay còn chờ.
+
+        Chỉ bước ngay TRƯỚC con trỏ mới được đánh dấu lỗi — các bước xong trước đó
+        vẫn là xong.
+        """
         if i < self.done:
             if self.last_error and i == self.done - 1:
                 return STEP_ERROR
@@ -97,11 +105,13 @@ class FlowRunStatus:
 
 
 def _slug(name: str) -> str:
+    """Định danh an toàn cho tên file, suy từ tên luồng."""
     s = "".join(c if (c.isalnum() or c in "-_") else "-" for c in name.strip().lower())
     return "-".join(filter(None, s.split("-"))) or "flow"
 
 
 def flows_dir() -> Path:
+    """Thư mục chứa file luồng cũ."""
     return FLOWS_DIR
 
 
@@ -126,11 +136,13 @@ def default_req_to_demo() -> Flow:
 
 
 def to_dict(flow: Flow) -> dict:
+    """Chuyển một luồng thành dict để ghi JSON."""
     return {"name": flow.name, "description": flow.description,
             "steps": [asdict(s) for s in flow.steps]}
 
 
 def from_dict(data: dict) -> Flow:
+    """Dựng :class:`Flow` từ dict đọc trên đĩa, lọc bỏ khoá lạ."""
     steps = []
     for raw in data.get("steps", []):
         raw = dict(raw)
@@ -142,6 +154,7 @@ def from_dict(data: dict) -> Flow:
 
 
 def list_flows(directory: Path = FLOWS_DIR) -> List[Flow]:
+    """Liệt kê mọi luồng đã lưu; thư mục chưa có thì trả list rỗng."""
     if not directory.exists():
         return []
     flows: List[Flow] = []
@@ -154,6 +167,11 @@ def list_flows(directory: Path = FLOWS_DIR) -> List[Flow]:
 
 
 def save_flow(flow: Flow, directory: Path = FLOWS_DIR, old_name: str = "") -> Path:
+    """Ghi một luồng xuống đĩa.
+
+    Đổi tên thì XOÁ file cũ trước — tên file suy từ tên luồng, không xoá sẽ để
+    lại một bản sao dưới tên cũ.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     if old_name and old_name != flow.name:
         delete_flow(old_name, directory)
@@ -163,6 +181,7 @@ def save_flow(flow: Flow, directory: Path = FLOWS_DIR, old_name: str = "") -> Pa
 
 
 def delete_flow(name: str, directory: Path = FLOWS_DIR) -> None:
+    """Xoá file luồng theo tên; không có thì bỏ qua."""
     path = directory / f"{_slug(name)}.json"
     if path.exists():
         try:
@@ -269,19 +288,23 @@ class FlowRunner:
 
     @property
     def step_index(self) -> int:
+        """Chỉ số bước đang chạy."""
         return self._index
 
     def current_step(self) -> Optional[FlowStep]:
+        """Bước đang chạy; ``None`` khi đã hết bước."""
         if 0 <= self._index < len(self.flow.steps):
             return self.flow.steps[self._index]
         return None
 
     def start(self) -> FlowAction:
+        """Bắt đầu chạy luồng và trả về hành động đầu tiên cần thực hiện."""
         if self.current_step() is None:
             return FlowAction(kind="done")
         return self._step_action()
 
     def _step_action(self) -> FlowAction:
+        """Hành động cho bước hiện tại: chạy một agent, hay chia ra nhiều agent song song."""
         step = self.current_step()
         self._phase = "step"
         if step.is_parallel:
@@ -326,6 +349,7 @@ class FlowRunner:
         return self._advance(compact=compact)
 
     def _advance(self, compact: bool) -> FlowAction:
+        """Sang bước kế tiếp; hết bước thì báo luồng đã xong."""
         self._index += 1
         if self.current_step() is None:
             return FlowAction(kind="done", compact=compact)

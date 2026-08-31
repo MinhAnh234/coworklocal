@@ -35,6 +35,7 @@ MAX_JSON_KEYS_PER_LEVEL = 200  # cap per object, so one huge JSON can't flood th
 
 @dataclass
 class GNode:
+    """Một node trong đồ thị cấu trúc: thư mục, tệp, lớp, hàm, phương thức hay mục tài liệu."""
     id: str
     label: str
     kind: str          # dir | file | class | function | method | module | section
@@ -44,6 +45,7 @@ class GNode:
 
 @dataclass
 class GEdge:
+    """Một cạnh trong đồ thị cấu trúc, kèm LOẠI quan hệ (chứa / định nghĩa / import…)."""
     source: str
     target: str
     type: str = ""     # contains | defines | method | imports | subsection
@@ -51,6 +53,11 @@ class GEdge:
 
 @dataclass
 class StructureGraph:
+    """Đồ thị cấu trúc mã nguồn, có trần số node/cạnh.
+
+    Chạm trần thì bật cờ ``truncated`` và ngừng thêm — đồ thị quá lớn làm treo
+    khung vẽ, thà hiện một phần kèm cảnh báo còn hơn đứng hình.
+    """
     nodes: List[GNode] = field(default_factory=list)
     edges: List[GEdge] = field(default_factory=list)
     truncated: bool = False
@@ -58,9 +65,13 @@ class StructureGraph:
     max_edges: int = 0   # 0 = unlimited
 
     def __post_init__(self):
+        """Dựng sẵn tập id node để kiểm tra một cạnh có hợp lệ không trong thời gian
+        hằng số, thay vì quét cả danh sách node cho từng cạnh.
+        """
         self._ids = {n.id for n in self.nodes}
 
     def add_node(self, node: GNode) -> bool:
+        """Thêm một node; trả về ``False`` nếu trùng id hoặc đã chạm trần."""
         if node.id in self._ids:
             return False
         if self.max_nodes and len(self.nodes) >= self.max_nodes:
@@ -71,6 +82,7 @@ class StructureGraph:
         return True
 
     def add_edge(self, source: str, target: str, type_: str = "") -> None:
+        """Thêm một cạnh; bỏ qua nếu một trong hai đầu chưa có node, hoặc đã chạm trần."""
         if source in self._ids and target in self._ids:
             if self.max_edges and len(self.edges) >= self.max_edges:
                 self.truncated = True
@@ -78,6 +90,7 @@ class StructureGraph:
             self.edges.append(GEdge(source, target, type_))
 
     def has(self, node_id: str) -> bool:
+        """Đồ thị đã có node với id này chưa."""
         return node_id in self._ids
 
 
@@ -144,6 +157,7 @@ def _add_generic_file(graph: StructureGraph, dir_id: str, fpath: Path, root: Pat
 
 
 def _rel(path: Path, root: Path) -> str:
+    """Đường dẫn tương đối so với thư mục gốc; nằm ngoài gốc thì trả nguyên đường dẫn."""
     try:
         return str(path.relative_to(root))
     except ValueError:
@@ -151,6 +165,7 @@ def _rel(path: Path, root: Path) -> str:
 
 
 def _add_python_file(graph: StructureGraph, dir_id: str, fpath: Path, root: Path) -> None:
+    """Thêm một tệp Python vào đồ thị: node tệp, các lớp, hàm, phương thức và import."""
     file_id = f"file:{fpath}"
     if not graph.add_node(GNode(file_id, fpath.name, "file", _rel(fpath, root), str(fpath))):
         return
@@ -184,6 +199,7 @@ def _add_python_file(graph: StructureGraph, dir_id: str, fpath: Path, root: Path
 
 
 def _module_imports(tree: ast.AST) -> List[str]:
+    """Tên các module mà một cây AST import vào."""
     mods: List[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -199,6 +215,7 @@ def _module_imports(tree: ast.AST) -> List[str]:
 
 
 def _add_doc_file(graph: StructureGraph, dir_id: str, fpath: Path, root: Path) -> None:
+    """Thêm một tệp tài liệu (Markdown…) vào đồ thị, tách theo cấp tiêu đề."""
     file_id = f"file:{fpath}"
     fp = str(fpath)
     if not graph.add_node(GNode(file_id, fpath.name, "file", _rel(fpath, root), fp)):
@@ -254,6 +271,7 @@ def _add_json_file(graph: StructureGraph, dir_id: str, fpath: Path, root: Path) 
 
 
 def _json_scalar_preview(value) -> str:
+    """Chuỗi xem trước ngắn cho một giá trị JSON, để nhãn node không quá dài."""
     if isinstance(value, dict):
         return f"{{…}} ({len(value)} keys)"
     if isinstance(value, list):
@@ -262,6 +280,11 @@ def _json_scalar_preview(value) -> str:
 
 
 def _add_json_value(graph: StructureGraph, parent_id: str, fp: str, value, depth: int) -> None:
+    """Thêm cấu trúc một giá trị JSON vào đồ thị, chặn ở ``MAX_JSON_DEPTH``.
+
+    Có trần độ sâu vì JSON lồng sâu sẽ sinh ra hàng nghìn node mà chẳng nói lên
+    điều gì về cấu trúc dự án.
+    """
     if depth >= MAX_JSON_DEPTH:
         return
     if isinstance(value, dict):
@@ -325,6 +348,9 @@ def build_from_codebase_memory(mem, repo_path, mode: str = "all",
 
 
 def _iter_results(res):
+    """Duyệt kết quả trả về từ bộ nhớ mã nguồn, chấp nhận nhiều khuôn khoá khác nhau
+    (``results`` / ``nodes`` / ``items`` / ``data``).
+    """
     if isinstance(res, dict):
         for key in ("results", "nodes", "items", "data"):
             val = res.get(key)
@@ -339,6 +365,10 @@ def _iter_results(res):
 # Layout (layered by distance from roots)
 # --------------------------------------------------------------------------
 def layered_layout(graph: StructureGraph, col_w: int = 280, row_h: int = 64) -> Tuple[Dict[str, Tuple[int, int]], Dict[str, int]]:
+    """Xếp đồ thị thành các cột theo bậc phụ thuộc, trong cột xếp dọc.
+
+    Trả về (toạ độ từng node, lớp của từng node).
+    """
     indeg = {n.id: 0 for n in graph.nodes}
     adj = defaultdict(list)
     for e in graph.edges:

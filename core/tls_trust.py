@@ -53,15 +53,22 @@ def looks_like_cert_trust_error(exc: BaseException) -> bool:
 
 
 def _host_port(url: str) -> tuple[str, int]:
+    """Cặp (host, port) rút từ URL; không có port thì mặc định 443."""
     parsed = urlparse(url)
     return parsed.hostname or "", parsed.port or 443
 
 
 def _slug(host: str) -> str:
+    """Tên file an toàn suy từ host."""
     return re.sub(r"[^a-zA-Z0-9.-]", "_", host) or "host"
 
 
 def trusted_cert_path(url: str) -> Path:
+    """Đường dẫn file PEM ghim chứng chỉ cho một host.
+
+    Mỗi host một file: gateway nội bộ dùng chứng chỉ tự ký, ghim đúng chứng chỉ
+    đã thấy lần đầu (trust on first use) thay vì tắt kiểm chứng chỉ.
+    """
     host, _port = _host_port(url)
     return TRUST_DIR / f"{_slug(host)}.pem"
 

@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from capture_screens import (  # noqa: E402
-    _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts)
+    _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts, owner_of)
 
 
 def main() -> int:
@@ -50,6 +50,10 @@ def main() -> int:
     win.show()
     app.processEvents()
     st, w = win.structure, win.workspace
+    # R08-T14 split StructureGraphView: the browser view, the cached graph
+    # and the scan/render steps all moved onto GraphRenderer, while the shell
+    # only forwards the public methods. Probe the widget that owns them.
+    st = owner_of(st, "web") or st
     fails: list[str] = []
 
     # startup itself must not build any of it

@@ -12,6 +12,10 @@ from ..foundation import ContractModel, SourceCitation, ToolTemplate
 
 
 class IssueContextInput(ContractModel):
+    """Tham số vào của ``get_project_issue_context``: project và mã issue.
+
+    ``detail`` chọn độ dài kết quả, ``cursor`` để lấy trang tiếp khi bị cắt bớt.
+    """
     project_id: str = Field(min_length=1, max_length=128)
     issue_key: str = Field(min_length=1, max_length=128)
     detail: Literal["summary", "standard", "full"] = "standard"
@@ -19,6 +23,7 @@ class IssueContextInput(ContractModel):
 
 
 class RelatedItem(ContractModel):
+    """Một mục liên quan tới issue (issue khác, PR, tài liệu) kèm loại quan hệ."""
     item_id: str
     relation: str
     title: str
@@ -26,6 +31,11 @@ class RelatedItem(ContractModel):
 
 
 class IssueContextOutput(ContractModel):
+    """Kết quả trả về: tiêu đề, trạng thái, mô tả, tiêu chí nghiệm thu và các mục liên quan.
+
+    ``source`` là trích dẫn nguồn bắt buộc; ``truncated``/``next_cursor`` cho
+    Agent biết còn dữ liệu chưa lấy hết.
+    """
     correlation_id: str
     project_id: str
     issue_key: str
@@ -42,6 +52,7 @@ class IssueContextOutput(ContractModel):
 
 
 def _handle(arguments: ContractModel, provider: Any) -> dict[str, Any]:
+    """Kiểm tham số theo schema rồi chuyển sang provider đã được cấp cho lượt gọi này."""
     request = IssueContextInput.model_validate(arguments)
     return provider.get_issue_context(**request.model_dump())
 

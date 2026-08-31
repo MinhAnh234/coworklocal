@@ -39,11 +39,18 @@ class _AccountEdit(QLineEdit):
     """Account field: alnum/./- only, auto-lowercased as the user types."""
 
     def __init__(self):
+        """Ô nhập tên tài khoản, tự chuẩn hoá theo từng ký tự gõ vào."""
         super().__init__()
         self.setMaxLength(64)
         self.textChanged.connect(self._normalize)
 
     def _normalize(self, text: str) -> None:
+        """Ép về chữ thường và chỉ giữ chữ–số–dấu chấm–gạch.
+
+        Tên tài khoản thành tên file trên thư mục dùng chung, nên khoảng trắng và ký
+        tự lạ phải chặn ngay tại ô nhập chứ không đợi tới lúc lưu. Vị trí con trỏ
+        được đặt lại sau khi sửa chữ, nếu không nó nhảy về cuối sau mỗi ký tự.
+        """
         cleaned = re.sub(r"[^\w.\-]", "", text.lower())
         if cleaned == text:
             return
@@ -55,7 +62,18 @@ class _AccountEdit(QLineEdit):
 
 
 class LoginDialog(QDialog):
+    """Hộp thoại đăng nhập, ba trang tuỳ tình trạng thư mục dùng chung.
+
+    * Chưa cấu hình thư mục, hoặc có mà chưa có tài khoản nào — trang khởi tạo,
+      nơi người đầu tiên nhận suất Admin.
+    * Thư mục tới được — trang đăng nhập bằng tên tài khoản và mã.
+    * Thư mục không tới được — trang ngoại tuyến, cho vào bằng lần đăng nhập
+      gần nhất đã nhớ, để mất mạng không đồng nghĩa với mất luôn ứng dụng.
+
+    Bản đang chạy không có lớp đăng nhập nên hộp thoại này không được mở ra.
+    """
     def __init__(self, ctx: AppContext, parent=None):
+        """Chọn và dựng đúng một trong ba trang theo tình trạng thư mục dùng chung."""
         super().__init__(parent)
         self.ctx = ctx
         self.account: Optional[Account] = None
@@ -91,6 +109,11 @@ class LoginDialog(QDialog):
     # ---- helpers -----------------------------------------------------
     @staticmethod
     def _is_reachable(shared_dir: str) -> bool:
+        """Thư mục dùng chung có tới được không (ổ mạng có thể rớt bất cứ lúc nào).
+
+        Mọi ``OSError`` đều tính là không tới được: đường dẫn sai, hết quyền hay ổ
+        mạng rớt đều dẫn tới cùng một lối đi ngoại tuyến.
+        """
         if not shared_dir:
             return False
         try:
@@ -99,6 +122,12 @@ class LoginDialog(QDialog):
             return False
 
     def _finish_login(self, account: Account) -> None:
+        """Ghi nhận đăng nhập thành công rồi đóng hộp thoại.
+
+        Mã được cất vào keyring để lần sau khỏi gõ lại — nhưng chỉ khi có mã thật:
+        lối vào ngoại tuyến không có mã, cất chuỗi rỗng vào sẽ hỏng lần đăng nhập
+        tự động sau đó.
+        """
         self.account = account
         accounts.save_last_login(account.username, account.role)
         self.ctx.config.auth["last_account"] = account.username
@@ -114,6 +143,7 @@ class LoginDialog(QDialog):
 
     # ---- bootstrap (no shared folder / no accounts yet) ---------------
     def _build_bootstrap_page(self) -> QWidget:
+        """Trang khởi tạo: chọn thư mục dùng chung và tạo tài khoản Admin đầu tiên."""
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.addWidget(QLabel(tr("login.bootstrap_hint")))
@@ -141,11 +171,18 @@ class LoginDialog(QDialog):
         return page
 
     def _bs_browse(self) -> None:
+        """Mở hộp thoại chọn thư mục dùng chung."""
         chosen = QFileDialog.getExistingDirectory(self, tr("login.shared_dir"))
         if chosen:
             self.bs_dir_edit.setText(chosen)
 
     def _bs_create_admin(self) -> None:
+        """Tạo tài khoản Admin đầu tiên.
+
+        Suất Admin được giành bằng ``claim_admin_slot`` chứ không chỉ kiểm tra rồi
+        ghi: hai máy cùng khởi tạo trên một thư mục dùng chung sẽ chỉ có một máy
+        thắng, thay vì cả hai cùng thành Admin.
+        """
         shared_dir = self.bs_dir_edit.text().strip()
         username = self.bs_user_edit.text().strip()
         if not shared_dir or not username:
@@ -175,6 +212,7 @@ class LoginDialog(QDialog):
 
     # ---- normal login ---------------------------------------------------
     def _build_login_page(self, shared_dir: str) -> QWidget:
+        """Trang đăng nhập thường: tên tài khoản + mã, điền sẵn tài khoản lần trước."""
         page = QWidget()
         lay = QVBoxLayout(page)
         form = QFormLayout()
@@ -214,6 +252,9 @@ class LoginDialog(QDialog):
         return page
 
     def _do_login(self, shared_dir: str) -> None:
+        """Kiểm tra tên tài khoản và mã; sai thì báo ngay trên trang, không đóng hộp
+        thoại.
+        """
         username = self.user_edit.text().strip()
         code = self.code_edit.text().strip()
         directory = accounts.accounts_dir(shared_dir)
@@ -246,6 +287,9 @@ class LoginDialog(QDialog):
 
     # ---- offline fallback (shared folder configured but unreachable) ----
     def _build_offline_page(self, shared_dir: str) -> QWidget:
+        """Trang ngoại tuyến: cho vào bằng vai trò của lần đăng nhập gần nhất, kèm nút
+        thử lại.
+        """
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.addWidget(QLabel(tr("login.unreachable", path=shared_dir)))
@@ -266,6 +310,7 @@ class LoginDialog(QDialog):
         return page
 
     def _retry(self) -> None:
+        """Kiểm tra lại thư mục dùng chung và dựng lại trang cho đúng tình trạng mới."""
         self._stack.removeWidget(self._stack.currentWidget())
         shared_dir = self.ctx.config.shared_dir
         reachable = self._is_reachable(shared_dir)

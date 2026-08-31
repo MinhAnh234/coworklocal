@@ -37,6 +37,7 @@ _KEEP_PREFIX = "("   # image values like "(keep …)" mean "don't change"
 
 
 def is_available() -> bool:
+    """Máy đã cài ``python-pptx`` chưa — không có thì mọi tính năng PowerPoint tắt."""
     try:
         import pptx  # noqa: F401
         return True
@@ -45,10 +46,12 @@ def is_available() -> bool:
 
 
 def _in(emu) -> float:
+    """Đổi đơn vị EMU của Office sang inch, làm tròn 2 chữ số."""
     return round((emu or 0) / _EMU_PER_IN, 2)
 
 
 def _kind(shape) -> str:
+    """Loại hình khối trong slide: ảnh, bảng, biểu đồ hay hộp văn bản."""
     from pptx.enum.shapes import MSO_SHAPE_TYPE
     try:
         if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
@@ -182,6 +185,11 @@ def _apply_font(shape, spec: str) -> bool:
 
 
 def _parse(text: str) -> Dict[Tuple[int, int], dict]:
+    """Đọc dạng văn bản đánh dấu của slide trở lại thành cấu trúc.
+
+    Đây là khuôn trung gian giữa PowerPoint và ô soạn thảo: người dùng (và AI)
+    sửa văn bản, hàm này dựng lại thành thao tác trên deck.
+    """
     blocks: Dict[Tuple[int, int], dict] = {}
     cur: Tuple[int, int] | None = None
     fields: dict = {}
@@ -189,6 +197,7 @@ def _parse(text: str) -> Dict[Tuple[int, int], dict]:
     textbuf: List[str] = []
 
     def _flush():
+        """Chốt khối đang đọc dở và đưa vào kết quả."""
         if cur is not None:
             if in_text:
                 fields["text"] = "\n".join(textbuf).strip("\n")
@@ -221,6 +230,7 @@ def _parse(text: str) -> Dict[Tuple[int, int], dict]:
 
 
 def _pair(val: str):
+    """Đọc chuỗi 'a, b' thành cặp số (dùng cho toạ độ và kích thước)."""
     try:
         a, b = (x.strip() for x in val.split(",", 1))
         return float(a), float(b)

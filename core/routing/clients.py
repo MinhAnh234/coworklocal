@@ -25,6 +25,7 @@ class CompletionResult:
 
     @property
     def ok(self) -> bool:
+        """Lượt dò có thành công không (không có lỗi)."""
         return self.error is None
 
 
@@ -37,6 +38,7 @@ class ProbeClient(Protocol):
         model_id: str,
         messages: List[Dict[str, Any]],
     ) -> CompletionResult:
+        """Gọi một model và trả về kết quả kèm số token, độ trễ và lỗi (nếu có)."""
         ...
 
 
@@ -59,6 +61,7 @@ class AppProbeClient:
     """
 
     def __init__(self, ctx: Any) -> None:
+        """Giữ ``AppContext`` để dựng provider lúc cần thăm dò."""
         self.ctx = ctx
 
     def complete(
@@ -67,6 +70,9 @@ class AppProbeClient:
         model_id: str,
         messages: List[Dict[str, Any]],
     ) -> CompletionResult:
+        """Gọi model qua provider thật; lỗi được gói vào kết quả chứ không ném ra —
+        một model hỏng không được làm dừng cả lượt chấm điểm danh mục.
+        """
         try:
             prov = self.ctx.build_provider_for(provider, model_id or None)
             # Non-streaming: no on_text/on_reasoning callbacks. cancel=None.

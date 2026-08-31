@@ -36,6 +36,7 @@ LIBRARY_DIR = Path(__file__).resolve().parent.parent / "skill_library"
 
 @dataclass
 class Skill:
+    """Một Skill: tên, mô tả, phần chỉ dẫn chèn vào prompt, và cờ bật/tắt."""
     name: str
     description: str = ""
     instructions: str = ""
@@ -43,12 +44,14 @@ class Skill:
 
     @property
     def slug(self) -> str:
+        """Định danh an toàn cho tên file, suy từ tên skill."""
         keep = "-_"
         s = "".join(c if (c.isalnum() or c in keep) else "-" for c in self.name.strip().lower())
         return "-".join(filter(None, s.split("-"))) or "skill"
 
 
 def skills_dir() -> Path:
+    """Thư mục chứa skill của người dùng."""
     return SKILLS_DIR
 
 
@@ -180,6 +183,9 @@ def builtin_skills() -> List[Skill]:
 
 
 def _builtin_slugs() -> set[str]:
+    """Tập slug của các skill dựng sẵn — dùng để không gieo trùng và không cho sửa
+    chúng như skill thường.
+    """
     return {s.slug for s in builtin_skills()}
 
 
@@ -277,6 +283,11 @@ def list_skills(directory: Path | None = None) -> List[Skill]:
 
 
 def save_skill(skill: Skill, directory: Path | None = None, old_name: str = "") -> Path:
+    """Ghi một skill xuống đĩa.
+
+    Đổi tên thì XOÁ file cũ trước — tên file suy từ tên skill, không xoá sẽ để
+    lại một bản sao dưới tên cũ.
+    """
     directory = directory or SKILLS_DIR
     directory.mkdir(parents=True, exist_ok=True)
     if old_name and old_name != skill.name:
@@ -287,6 +298,7 @@ def save_skill(skill: Skill, directory: Path | None = None, old_name: str = "") 
 
 
 def delete_skill(name: str, directory: Path | None = None) -> None:
+    """Xoá file skill theo tên; không có thì bỏ qua."""
     directory = directory or SKILLS_DIR
     path = directory / f"{Skill(name=name).slug}.json"
     if path.exists():
@@ -304,6 +316,9 @@ def _load_skill_from_zip(path: Path) -> "Skill | None":
     import zipfile
 
     def _rank(n: str) -> int:
+        """Thứ tự ưu tiên khi gói zip có nhiều file Markdown: ``skill.md`` trước, rồi
+        tới file ở gốc gói, cuối cùng mới tới file nằm sâu.
+        """
         low = n.lower()
         if low.endswith("skill.md"):
             return 0

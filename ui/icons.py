@@ -351,6 +351,7 @@ class IconLabel(QWidget):
 
     def __init__(self, name: str, text: str = "", *, size: int = 16,
                  color: str | None = None, gap: int = 6, parent=None):
+        """Một nhãn có biểu tượng đứng trước chữ, dùng cho các hàng thông tin."""
         super().__init__(parent)
         self._size = size
         lay = QHBoxLayout(self)
@@ -364,12 +365,17 @@ class IconLabel(QWidget):
         lay.addStretch(1)
 
     def set_text(self, text: str) -> None:
+        """Đổi phần chữ của nhãn."""
         self._text.setText(text)
 
     def setText(self, text: str) -> None:  # noqa: N802 — QLabel-compatible alias
+        """Bí danh hợp chuẩn ``QLabel`` của :meth:`set_text`, để thay thế trực tiếp
+        cho một ``QLabel`` mà không phải sửa chỗ gọi.
+        """
         self._text.setText(text)
 
     def set_icon(self, name: str, color: str | None = None) -> None:
+        """Đổi icon (và màu icon) của nhãn."""
         self._icon.setPixmap(pixmap(name, self._size, color))
 
     def text_label(self) -> QLabel:

@@ -1,12 +1,13 @@
-"""Off/Auto/Manual routing toggle + Auto-run toggle + Manual-mode confirm dialog.
+"""Off/Auto/Manual/Fallback routing toggle + Auto-run toggle + confirm dialog.
 
 Dropped into every chat surface's composer (Cowork / Co4E / AI-Edit). By
 default a :class:`RoutingToggle` reads/writes the **per-workspace** mode via
 ``AppContext.project_routing_mode`` / ``set_project_routing_mode`` (so each
 workspace keeps its own mode), but the storage is fully injectable through
 ``get_mode``/``set_mode`` callables — all the real decision logic lives in
-``core/routing``. Call :meth:`refresh` when the active workspace changes so the
-control shows that workspace's mode.
+``application/model_routing`` (which the surfaces call through
+``RoutingApplicationService``). Call :meth:`refresh` when the active workspace
+changes so the control shows that workspace's mode.
 """
 from __future__ import annotations
 
@@ -39,7 +40,7 @@ class RoutingToggle(QWidget):
     Emits :attr:`mode_changed`; call :meth:`refresh` after the workspace switches.
     """
 
-    mode_changed = Signal(str)  # "off" | "auto" | "manual"
+    mode_changed = Signal(str)  # "off" | "auto" | "manual" | "fallback"
 
     def __init__(
         self,
@@ -50,6 +51,11 @@ class RoutingToggle(QWidget):
         get_mode: Optional[Callable[[], str]] = None,
         set_mode: Optional[Callable[[str], None]] = None,
     ) -> None:
+        """Công tắc chế độ định tuyến cho một bề mặt chat.
+
+        ``get_mode``/``set_mode`` tiêm được để dùng lại công tắc này ở chỗ đọc/ghi
+        chế độ theo cách khác, mà không phải chép lại cả widget.
+        """
         super().__init__(parent)
         self.ctx = ctx
         self.surface = surface
@@ -65,11 +71,14 @@ class RoutingToggle(QWidget):
         self._label.setObjectName("hint")
         self._combo = QComboBox()
         self._combo.setToolTip(tr("routing.toggle_tooltip"))
-        # (data value, i18n key) — data is the persisted mode string.
+        # (data value, i18n key) — data is the persisted mode string. Order is
+        # least-to-most autonomous, with Fallback (R03-T03) last because it is
+        # the "only when something breaks" mode rather than a stronger Auto.
         self._modes = [
             ("off", "routing.mode_off"),
             ("auto", "routing.mode_auto"),
             ("manual", "routing.mode_manual"),
+            ("fallback", "routing.mode_fallback"),
         ]
         for value, key in self._modes:
             self._combo.addItem(tr(key), value)
@@ -81,6 +90,7 @@ class RoutingToggle(QWidget):
         lay.addWidget(self._combo)
 
     def current_mode(self) -> str:
+        """Chế độ định tuyến đang chọn; 'off' nếu chưa đặt."""
         return self._combo.currentData() or "off"
 
     def refresh(self) -> None:
@@ -105,6 +115,9 @@ class RoutingToggle(QWidget):
             self._combo.setItemText(i, tr(key))
 
     def _on_changed(self, _idx: int) -> None:
+        """Lưu chế độ vừa chọn. Nuốt lỗi có chủ ý: một cú đổi công tắc không được
+        phép làm vỡ giao diện.
+        """
         mode = self.current_mode()
         try:
             self._set_mode(mode)
@@ -125,6 +138,7 @@ class AutoRunToggle(QWidget):
     toggled_auto = Signal(bool)
 
     def __init__(self, ctx: Any, parent: Optional[QWidget] = None) -> None:
+        """Ô tick tự chạy: đổi model xong có tự tiếp tục lượt hay dừng lại hỏi."""
         super().__init__(parent)
         self.ctx = ctx
         lay = QHBoxLayout(self)
@@ -137,6 +151,7 @@ class AutoRunToggle(QWidget):
         lay.addWidget(self._chk)
 
     def refresh(self) -> None:
+        """Đọc lại trạng thái tự chạy của project đang mở lên ô đánh dấu."""
         try:
             auto = bool(self.ctx.project_auto_run())
         except Exception:  # noqa: BLE001
@@ -146,10 +161,12 @@ class AutoRunToggle(QWidget):
         self._chk.blockSignals(False)
 
     def retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn."""
         self._chk.setText(tr("routing.autorun_label"))
         self._chk.setToolTip(tr("routing.autorun_tooltip"))
 
     def _on_toggled(self, checked: bool) -> None:
+        """Ghi trạng thái tự chạy vào project đang mở."""
         try:
             self.ctx.set_project_auto_run(bool(checked))
         except Exception:  # noqa: BLE001
@@ -190,6 +207,11 @@ def confirm_switch(parent: QWidget, decision: Any, timeout_sec: float) -> bool:
     timer.setInterval(1000)
 
     def _tick() -> None:
+        """Đếm lùi mỗi giây; hết giờ thì tự đóng hộp thoại theo hướng GIỮ model hiện tại.
+
+        Hết giờ mà tự đổi model là quyết định thay người dùng — mặc định an toàn
+        phải là không đổi gì.
+        """
         remaining["secs"] -= 1
         if remaining["secs"] <= 0:
             timer.stop()

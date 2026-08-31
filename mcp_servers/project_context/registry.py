@@ -20,4 +20,5 @@ TOOL_NAMES = tuple(tool.name for tool in TOOLS)
 
 
 def tool_declarations() -> list[dict[str, Any]]:
+    """Danh sách khai báo của mọi tool đã đăng ký, để trả về cho ``list_tools``."""
     return [tool.declaration() for tool in TOOLS]

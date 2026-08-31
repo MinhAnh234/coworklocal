@@ -19,7 +19,15 @@ _FOLDER_LBL_MAX_CHARS = 42  # keep the composer's bottom row from crowding out A
 
 
 class CoworkTab(ChatPanel):
+    """Màn Cowork: khung chat chính, gắn với một project và một thư mục kết quả.
+
+    Khác :class:`ChatPanel` gốc ở chỗ kết quả được gom theo TỪNG hội thoại và
+    chỉ hiện ra sau khi lượt chạy thành công — xem :meth:`register_output`.
+    """
     def __init__(self, ctx: AppContext):
+        """Màn Cowork — một ``ChatPanel`` kèm thanh công cụ riêng hiện provider, model và
+        thư mục kết quả đang dùng.
+        """
         super().__init__(ctx, "cowork", "Cowork", placeholder_key="composer.placeholder_cowork")
 
         self._title_lbl = QLabel()
@@ -95,6 +103,7 @@ class CoworkTab(ChatPanel):
         lbl.setText(getattr(self, "title", "") or tr("cowork.title"))
 
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề và các nút trên thanh công cụ."""
         self.refresh_title()
         self.skills_btn.setText(tr("cowork.skills_btn"))
         self.skills_btn.setToolTip(tr("cowork.skills_tooltip"))
@@ -105,6 +114,7 @@ class CoworkTab(ChatPanel):
 
     # ---- output folder --------------------------------------------------
     def _pick_output_folder(self) -> None:
+        """Chọn thư mục kết quả cho hội thoại này."""
         start = str(self._session_output_dir())
         chosen = QFileDialog.getExistingDirectory(self, tr("cowork.pick_folder_title"), start)
         if not chosen:
@@ -126,6 +136,11 @@ class CoworkTab(ChatPanel):
         self._refresh_outputs_from_disk()
 
     def _apply_output_folder_label(self) -> None:
+        """Cập nhật nhãn cạnh nút chọn thư mục.
+
+        Chỉ hiện TÊN thư mục; đường dẫn đầy đủ để trong tooltip — bày cả đường dẫn
+        ra ngoài chỉ làm rối một giá trị mà người dùng vừa tự chọn.
+        """
         full = str(self._session_output_dir())
         # Only the folder NAME is shown beside the button — the full path
         # (still available on hover) reads as noisy clutter for a value the
@@ -150,6 +165,7 @@ class CoworkTab(ChatPanel):
 
     # ---- project (workspace) --------------------------------------------
     def _project(self):
+        """Project đang gắn với hội thoại này; ``None`` nếu không tìm thấy."""
         from ..core.projects import load_project
 
         return load_project(self.project_id)
@@ -187,6 +203,7 @@ class CoworkTab(ChatPanel):
                           ".sh", ".bat", ".ps1", ".rb", ".pl"}
 
     def assistant_title(self) -> str:
+        """Nhãn hiện trên bong bóng trả lời của màn Cowork."""
         return tr("cowork.assistant_title")
 
     def _session_output_dir(self):
@@ -222,6 +239,7 @@ class CoworkTab(ChatPanel):
         return self.ctx.config.cowork_output_dir() / self.session_id
 
     def workspace_dir(self):
+        """Thư mục agent được phép đọc/ghi trong hội thoại này."""
         return self._session_output_dir()
 
     def _turn_output_dir(self, turn_id: str):
@@ -234,6 +252,11 @@ class CoworkTab(ChatPanel):
         return self._session_output_dir() / ".turns" / turn_id
 
     def _is_intermediate_output(self, path: str) -> bool:
+        """Tệp này có phải file trung gian (do bước dựng sinh ra) không.
+
+        File trung gian không hiện lên ô "Tệp đầu ra" — người dùng chỉ quan tâm
+        sản phẩm cuối.
+        """
         from pathlib import Path
         return Path(path).suffix.lower() in self._INTERMEDIATE_EXTS
 
@@ -253,6 +276,12 @@ class CoworkTab(ChatPanel):
         # file it made earlier in this same conversation — e.g. "sửa lại tiêu đề
         # trong file báo cáo vừa tạo" — since it can read_file/edit_file/write_file
         # it directly by the exact name listed here.
+        """Ghi chú đính kèm vào prompt: danh sách tệp hội thoại này đã tạo.
+
+        Nhờ đó agent (và người dùng, không phải tải lên lại) tham chiếu và sửa được
+        tệp nó vừa tạo ở lượt trước — ví dụ "sửa lại tiêu đề trong file báo cáo vừa
+        tạo" — vì nó đọc/ghi được tệp đó theo đúng tên liệt kê ở đây.
+        """
         names = self._existing_output_names()
         if not names:
             return ""
@@ -308,9 +337,13 @@ class CoworkTab(ChatPanel):
     def register_output(self, path: str) -> None:
         # Suppress live/intermediate updates during a run — the Output box is
         # rebuilt from the surviving files once the turn succeeds (see below).
+        """Không làm gì: ô "Tệp đầu ra" của Cowork được dựng lại từ các tệp còn sống
+        sau khi lượt chạy THÀNH CÔNG, chứ không cập nhật từng tệp giữa chừng.
+        """
         return
 
     def on_file_written(self, path: str) -> None:
+        """Không làm gì: Cowork không cập nhật danh sách tệp theo thời gian thực."""
         return  # no live file updates in Cowork
 
     def _refresh_outputs_from_disk(self) -> None:
@@ -329,36 +362,72 @@ class CoworkTab(ChatPanel):
 
     def new_session(self) -> None:
         # The new thread stays in the CURRENT project (Claude-style).
+        """Mở hội thoại mới trong ĐÚNG project đang chọn, rồi trỏ lại thư mục kết quả."""
         super().new_session()
         # Refresh the project/folder labels + watch the new session's folder.
         self._apply_output_folder_label()
 
     def load_conversation(self, conv) -> None:
+        """Mở lại một hội thoại cũ: khôi phục project của nó, dựng lại danh sách tệp
+        đầu ra từ đĩa và trỏ lại nhãn thư mục.
+        """
         super().load_conversation(conv)    # restores this conversation's project_id
         self._refresh_outputs_from_disk()  # show this session's deliverables from disk
         # Refresh the project/folder labels + watch this conversation's folder.
         self._apply_output_folder_label()
 
     def refresh_header(self) -> None:
+        """Cập nhật dòng "provider · model" trên thanh công cụ Cowork."""
         cfg = self.ctx.config
         label = PROVIDER_LABELS.get(cfg.active_provider, cfg.active_provider)
         self.model_lbl.setText(f"{label} · {cfg.model_label()}")
         self._apply_output_folder_label()  # picks up edits made via Settings too
 
     def build_job(self, text: str, messages, out_dir):
-        # Each turn writes into its OWN isolated folder (out_dir) and works on its
-        # OWN message list, so several turns can run in parallel without clobbering
-        # each other's files or history. Deliverables are moved up to the session
-        # Output root when the turn finishes (see _cleanup_turn).
+        """This turn's job: a frozen request run through the conversation service.
+
+        Since R04-T04 the widget no longer drives the turn loop. Every value a
+        turn depends on is read HERE, on the UI thread at submit time, and packed
+        into an immutable ``ConversationExecutionRequest`` — so clicking a
+        different model or switching workspace mid-answer cannot reach work
+        already in flight.
+        """
         output_dir = out_dir or self._session_output_dir()
+        # The sandbox folder is named by the turn id ('.turns/t3'); with no
+        # sandbox the session id identifies the turn well enough for the audit log.
+        turn_id = out_dir.name if out_dir is not None else self.session_id
+        session_id = self.session_id
         title = self.title
         project_id = self.project_id
+        home_output_root = self.workspace_dir()
         # Captured at submit time (UI thread): the Admin-defined agent
         # preset's instructions, if one is selected in the Agent picker.
         agent_prompt = self.admin_agent_prompt()
+        # Per-workspace Auto-run override wins, else the global "confirm before
+        # running commands" setting. Frozen now, so a Settings change mid-turn
+        # cannot flip the rules this turn started under.
+        confirm_commands = self.ctx.project_confirm_commands()
+        # What the turn is recorded as running on. A routing override (R03) wins
+        # over the tab's own picker; '' means the provider's configured default.
+        # Informational only — an Admin-agent preset builds its own provider
+        # below, so treat these as the record, not the decision.
+        provider_id = self._routed_provider or self.ctx.config.active_provider
+        model = self._routed_model or self._model or ""
 
         def job(worker: AgentWorker):
-            from ..core.chat_agent import run_cowork
+            """Chạy nền một lượt Cowork qua ``ConversationApplicationService`` (R04-T04).
+
+            Sự kiện của service được dịch ngược về khuôn dict cũ để giao diện hiện tại
+            không phải sửa.
+            """
+            from ..application.conversations.core_runtime_adapter import (
+                build_cowork_conversation_service,
+                legacy_event_sink,
+            )
+            from ..application.conversations.cowork_turn_request import (
+                build_cowork_turn_request,
+            )
+            from ..application.conversations.turn_runtime import combine_instructions
             from ..core.projects import load_project, project_context_text
 
             provider = self.build_provider()  # this tab's selected agent/model
@@ -367,23 +436,36 @@ class CoworkTab(ChatPanel):
             # built-in MCP server auto-registered while signed in, see
             # AppContext._ms365_builtin_connection / mcp_servers/ms365_server.py).
             extra_tools, extra_exec = self.ctx.build_mcp_tools()
-            # Shared project instructions (Claude-Projects style) — refreshed
-            # each turn so edits in the Workspace screen apply immediately.
-            proj_ctx = project_context_text(load_project(project_id))
-            if agent_prompt:
-                proj_ctx = f"{proj_ctx}\n\n{agent_prompt}" if proj_ctx else agent_prompt
+            # Shared project instructions (Claude-Projects style) plus the Admin
+            # agent's persona, refreshed each turn so edits in the Workspace
+            # screen apply immediately.
+            instructions = combine_instructions(
+                project_context_text(load_project(project_id)), agent_prompt)
             # Permission Management (Sandbox Security Layer): off by default —
-            # matches the pre-existing auto-run behavior. Now resolved PER
-            # WORKSPACE: this project's Auto-run override wins, else the global
-            # "confirm before running commands" setting (project_confirm_commands).
+            # matches the pre-existing auto-run behavior. The gate lives on the
+            # worker because the UI resolves it from the main thread.
             gate = None
-            if self.ctx.project_confirm_commands():
+            if confirm_commands:
                 gate = worker.new_gate("confirm", agent_role=agent_roles.COWORK)
-            run_cowork(provider, messages, output_dir, worker.emit_event,
-                       worker.is_cancelled, title=title,
-                       extra_tools=extra_tools, extra_executor=extra_exec,
-                       project_context=proj_ctx, security_config=self.ctx.config,
-                       gate=gate)
+
+            service = build_cowork_conversation_service(
+                provider, output_dir, worker.emit_event, title=title,
+                project_context=instructions, extra_tools=extra_tools,
+                extra_executor=extra_exec, security_config=self.ctx.config,
+                gate=gate, agent_role=agent_roles.COWORK,
+            )
+            request = build_cowork_turn_request(
+                turn_id=turn_id, session_id=session_id, surface=self.kind,
+                project_id=project_id, title=title, messages=messages,
+                provider_id=provider_id, model=model, instructions=instructions,
+                output_dir=output_dir, home_output_root=home_output_root,
+                confirm_commands=gate is not None, agent_role=agent_roles.COWORK,
+            )
+            # Hand the widget's own list over: _reattach_running_turn replays
+            # from it while the turn is still running, and _finalize_turn slices
+            # it afterwards, so the service must append into that very object.
+            service.execute(request, legacy_event_sink(worker.emit_event),
+                            cancel=worker.is_cancelled, messages=messages)
             return {"messages": messages, "turn_dir": str(output_dir)}
 
         return job

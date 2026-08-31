@@ -51,6 +51,7 @@ def detect_onedrive_roots() -> List[Path]:
 
 
 def primary_onedrive_root() -> Path | None:
+    """Thư mục OneDrive chính (cái đầu tiên tìm thấy); ``None`` nếu máy không có."""
     roots = detect_onedrive_roots()
     return roots[0] if roots else None
 

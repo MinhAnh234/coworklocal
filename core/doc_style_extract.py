@@ -21,6 +21,10 @@ _RUN_PREVIEW_CHARS = 40
 
 
 def _run_style(font) -> str:
+    """Mô tả định dạng một đoạn chữ (đậm, nghiêng, cỡ, màu) thành chuỗi ngắn.
+
+    Dùng để AI sửa tài liệu mà vẫn giữ được định dạng gốc.
+    """
     bits: list[str] = []
     try:
         if font.name:

@@ -25,7 +25,16 @@ sys.path.insert(0, str(REPO.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from capture_screens import _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts  # noqa: E402
+from capture_screens import (  # noqa: E402
+    _apply_theme, _freeze_schedulers, _isolate_home, _load_fonts, control,
+)
+
+# EPIC R08 split every screen's god-widget into child widgets, so controls
+# this file used to read straight off the screen object now live one level
+# down (DashboardTab.chart.gran_combo, ScheduleTaskTab.kanban.columns, the
+# Monitoring Overview sections, the Settings sub-pages...). `control()`
+# looks a name up anywhere in the screen's subtree, so this checker keeps
+# measuring the real control and still returns None when one is truly gone.
 
 
 def page_proposals():
@@ -107,7 +116,7 @@ def main() -> int:
         """How many distinct y-bands the named widgets occupy."""
         bands = set()
         for n in names:
-            w = getattr(widget, n, None)
+            w = control(widget, n)
             if w is not None:
                 bands.add(round(w.mapTo(widget, w.rect().topLeft()).y() / 12))
         return len(bands)
@@ -123,29 +132,31 @@ def main() -> int:
                             "currency_combo"])
     add("dashboard", "Header tách 2 hàng", n_rows == 2, f"{n_rows} hàng")
     # Taller than the small tiles AND a bigger number = it reads as the headline.
-    taller = dash.card_cost.height() > dash.card_total.height() * 1.5
-    bigger = "34px" in dash.card_cost.value_lbl.styleSheet()
+    card_cost = control(dash, "card_cost")
+    card_total = control(dash, "card_total")
+    taller = card_cost.height() > card_total.height() * 1.5
+    bigger = "34px" in card_cost.value_lbl.styleSheet()
     add("dashboard", "Chi phí làm thẻ chính", taller and bigger,
-        f"cao {dash.card_cost.height()}px vs thẻ phụ {dash.card_total.height()}px · "
+        f"cao {card_cost.height()}px vs thẻ phụ {card_total.height()}px · "
         f"cỡ số {'34px' if bigger else 'như cũ'}")
 
     # --- 2 Schedule Kanban ---
-    lanes = len(getattr(sched, "_lane_widgets", getattr(sched, "lanes", []) or []))
+    lanes = len(control(sched, "columns") or {})
     if not lanes:
         from cowork_local.core.tasks import STATUSES
         lanes = len(STATUSES)
     add("schedule-kanban", "Giữ đủ 7 lane", lanes == 7, f"{lanes} lane")
-    has_combo = getattr(sched, "view_combo", None) is not None
+    has_combo = control(sched, "view_combo") is not None
     add("schedule-kanban", "Combo → cặp tab Kanban | Lịch", not has_combo,
         "vẫn là combo" if has_combo else "đã thành tab")
     # The lane is only outlined while it actually holds something — seed data
     # may leave it empty, so drop a card in and read the style back.
-    run_col = sched.columns.get("running")
+    run_col = (control(sched, "columns") or {}).get("running")
     styled = ""
     if run_col is not None:
         from PySide6.QtWidgets import QListWidgetItem
         run_col.addItem(QListWidgetItem("probe"))
-        sched.column_headers["running"].setStyleSheet("")
+        control(sched, "column_headers")["running"].setStyleSheet("")
         sched.refresh()
         app.processEvents()
         styled = run_col.styleSheet()
@@ -184,13 +195,13 @@ def main() -> int:
     # status line under the typing box, not inside it. So the test is that the
     # TYPING row holds only input + attach/send/stop, and the rest sits in its
     # own strip below. Demanding an empty strip would mean deleting features.
-    composer = getattr(chat, "composer", None)
-    bar = getattr(composer, "extra_bar", None)
+    composer = control(chat, "composer")
+    bar = control(composer, "extra_bar")
     from PySide6.QtWidgets import QPlainTextEdit, QTextEdit
     typing = composer.input
     in_typing_row = typing.parentWidget() is composer
     below = bar is not None and bar.objectName() == "composerStatus"
-    usage = getattr(chat, "_usage_total_lbl", None)
+    usage = control(chat, "_usage_total_lbl")
     usage_in_bar = usage is not None and bar is not None and bar.isAncestorOf(usage)
     add("workspace-cowork", "Usage/cost thành dải trạng thái; vùng gõ chỉ nhập·đính kèm·gửi",
         below and usage_in_bar,
@@ -199,23 +210,25 @@ def main() -> int:
 
     # --- 6 Co4E ---
     add("workspace-co4e", "Bỏ dải tab flow",
-        not (co4e.flow_scroll.isVisible() or co4e.flow_add_btn.isVisible()), "đã ẩn")
+        not (control(co4e, "flow_scroll").isVisible()
+             or control(co4e, "flow_add_btn").isVisible()), "đã ẩn")
+    sections = control(co4e, "_sections") or []
     add("workspace-co4e", "3 tab icon → 3 mục có nhãn cùng danh sách",
-        len(co4e._sections) >= 3, f"{len(co4e._sections)} mục xếp chồng")
+        len(sections) >= 3, f"{len(sections)} mục xếp chồng")
     add("workspace-co4e", "Còn 2 lớp: chọn trái → sửa phải",
-        not co4e.flow_scroll.isVisible(), "nav → cột trái → panel phải")
+        not control(co4e, "flow_scroll").isVisible(), "nav → cột trái → panel phải")
 
     # --- 7 Folder / 8 GraphRAG ---
     folder = ws.tabs.widget(ws._folder_tab_idx)
-    title_lbl = getattr(folder, "path_lbl", None)
+    title_lbl = control(folder, "path_lbl")
     add("workspace-folder", "Path bar gộp vào tiêu đề",
-        title_lbl is not None and getattr(folder, "path_edit", None) is None,
+        title_lbl is not None and control(folder, "path_edit") is None,
         f"tiêu đề = {title_lbl.text()[:40]!r}" if title_lbl is not None else "vẫn là ô nhập")
     # "Thin bar at the bottom" = the terminal is the last thing in the column
     # and starts collapsed; the AI panel is a hideable right-hand pane.
     # Geometry is meaningless for a page that has never been shown, so ask the
     # widgets what state they are in instead of how tall they currently are.
-    term = getattr(folder, "terminal", None)
+    term = control(folder, "terminal")
     lay = folder.layout()
     last = lay.itemAt(lay.count() - 1).widget() if lay.count() else None
     collapsed = term is not None and term._body.isHidden()
@@ -227,13 +240,14 @@ def main() -> int:
     # One row = the path box and Export share a y-band.
     def band(w):
         return round(w.mapTo(graph, w.rect().topLeft()).y() / 10)
-    one_row = band(graph.path_edit) == band(graph._export_btn)
+    g_path, g_export = control(graph, "path_edit"), control(graph, "_export_btn")
+    one_row = band(g_path) == band(g_export)
     add("workspace-graphrag", "Gộp hai hàng toolbar thành một", one_row,
-        f"path y≈{band(graph.path_edit) * 10} · Export y≈{band(graph._export_btn) * 10}")
+        f"path y≈{band(g_path) * 10} · Export y≈{band(g_export) * 10}")
     # The toggle is _msgs_toggle_btn (the audit's MOVES table calls it
     # _msg_btn — a stale name); while it exists, this is still one button whose
     # label flips, not a pair of tabs.
-    toggle = getattr(graph, "_msgs_toggle_btn", None)
+    toggle = control(graph, "_msgs_toggle_btn")
     add("workspace-graphrag", "Messages/Graph thành cặp tab", toggle is None,
         "vẫn là 1 nút đổi nhãn" if toggle is not None else "đã thành tab")
 
@@ -248,7 +262,7 @@ def main() -> int:
         body = area.widget()
         if body is None or body.layout() is None:
             continue
-        if body.layout().indexOf(mon.ov_usage_group) >= 0:
+        if body.layout().indexOf(control(mon, "ov_usage_group")) >= 0:
             ov = body
             break
     assert ov is not None, "khong tim thay cot Tong quan"
@@ -257,25 +271,29 @@ def main() -> int:
         "cột dọc" if one_col else "vẫn 2 cột")
     # Its own section = it is a direct child of the single column, not sharing a
     # row with the resource meters as it used to.
-    own = ov.layout().indexOf(mon.ov_pricing_group) >= 0
+    pricing = control(mon, "ov_pricing_group")
+    own = ov.layout().indexOf(pricing) >= 0
     add("monitoring-tổng-quan", "Bảng giá model tách mục riêng", own,
-        f"là mục riêng trong cột, rộng {mon.ov_pricing_group.width()}px")
-    strip = not mon.tabs.tabBar().isHidden()
+        f"là mục riêng trong cột, rộng {pricing.width()}px")
+    mon_tabs = control(mon, "tabs")
+    strip = not mon_tabs.tabBar().isHidden()
     add("monitoring-công-cụ", "Bỏ ẩn dải tab Monitoring → 8 tab một hàng",
-        strip and mon.tabs.count() == 8, f"dải tab hiện={strip}, {mon.tabs.count()} tab")
+        strip and mon_tabs.count() == 8, f"dải tab hiện={strip}, {mon_tabs.count()} tab")
 
     # --- 17/18 dialogs ---
     from cowork_local.ui.settings_dialog import SettingsDialog
     from cowork_local.ui.task_editor_dialog import TaskEditorDialog
     s = SettingsDialog(win.ctx)
+    s_list = control(s, "section_list")
     add("dialog-settings", "Thêm cột mục lục bên trái",
-        s.section_list.count() == 5, f"{s.section_list.count()} mục")
+        s_list.count() == 5, f"{s_list.count()} mục")
     # The page asks for Ngôn ngữ/Giao diện in the Chung group, with AI Provider
     # left as its own group — not everything merged together.
     from cowork_local.ui.widgets import SegmentedControl, ToggleSwitch
-    in_general = s._general_box.isAncestorOf(s.language_combo) and \
-        s._general_box.isAncestorOf(s.theme_combo)
-    prov_apart = not s._general_box.isAncestorOf(s.provider_combo)
+    gen_box = control(s, "_general_box")
+    in_general = gen_box.isAncestorOf(control(s, "language_combo")) and \
+        gen_box.isAncestorOf(control(s, "theme_combo"))
+    prov_apart = not gen_box.isAncestorOf(control(s, "provider_combo"))
     add("dialog-settings", "Gom Ngôn ngữ/Giao diện vào nhóm Chung; AI Provider vẫn riêng",
         in_general and prov_apart,
         f"ngôn ngữ+giao diện trong Chung={in_general} · provider tách riêng={prov_apart}")
@@ -288,10 +306,11 @@ def main() -> int:
         f"{n_switch} toggle · {n_seg} segmented · {len(steppers)} stepper")
     s.close()
     t = TaskEditorDialog(ctx=win.ctx)
-    rows = [t.section_list.item(i).text() for i in range(t.section_list.count())]
-    like_settings = (t.section_list.count() == 5
-                     and t.section_stack.count() == 5
-                     and not hasattr(t, "step_tabs"))
+    t_list, t_stack = control(t, "section_list"), control(t, "section_stack")
+    rows = [t_list.item(i).text() for i in range(t_list.count())]
+    like_settings = (t_list.count() == 5
+                     and t_stack.count() == 5
+                     and control(t, "step_tabs") is None)
     add("dialog-task-editor",
         "Danh sách trái + panel phải giống Cài đặt (không dùng tab), 5 mục = 5 group",
         like_settings, " · ".join(rows))

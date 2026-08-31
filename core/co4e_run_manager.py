@@ -13,6 +13,8 @@ the run that is currently open.
 """
 from __future__ import annotations
 
+from ..infrastructure.persistence.json.atomic_json_file import AtomicJsonFile
+
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -26,6 +28,7 @@ _HISTORY_CAP = 500          # keep the most-recent N runs on disk
 
 
 def _now_str() -> str:
+    """Mốc thời gian hiện tại dạng 'YYYY-MM-DD HH:MM' cho lịch sử run."""
     from datetime import datetime
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -42,6 +45,11 @@ class RunHandle:
     def __init__(self, run_id: str, wf_id: str, name: str, total: int,
                  plan_mode: bool, manual: bool, created_by: str = "", created_at: str = "",
                  project_id: str = ""):
+        """Một lượt chạy workflow đang sống trong bộ nhớ.
+
+        ``total`` âm bị kẹp về 0 — số bước không thể âm, và để lọt xuống thì thanh
+        tiến độ vẽ ngược.
+        """
         self.id = run_id
         self.wf_id = wf_id
         self.name = name
@@ -62,9 +70,11 @@ class RunHandle:
 
     @property
     def running(self) -> bool:
+        """Lượt chạy này còn đang chạy hay không."""
         return self.status == "running"
 
     def progress_text(self) -> str:
+        """Chuỗi tiến độ 'xong/tổng'; chưa biết tổng thì hiện trạng thái."""
         return f"{self.done}/{self.total}" if self.total else self.status
 
     # ---- persistence ------------------------------------------------------
@@ -85,6 +95,7 @@ class RunHandle:
 
     @classmethod
     def from_record(cls, rec: dict) -> "RunHandle":
+        """Dựng lại một ``RunHandle`` từ bản ghi đọc trong lịch sử trên đĩa."""
         from .co4e import workflow_from_dict
         rec = dict(rec or {})
         h = cls(str(rec.get("id", "")), str(rec.get("wf_id", "")),
@@ -107,10 +118,18 @@ class RunHandle:
 
 
 class Co4ERunManager(QObject):
+    """Quản lý vòng đời nhiều lượt chạy luồng Co4E cùng lúc.
+
+    Flow Status lọc theo project, nên hầu hết truy vấn ở đây chỉ tính run thuộc
+    workspace ĐANG chọn — xem ``_belongs``.
+    """
     changed = Signal()               # any run's status/progress changed → refresh views
     event = Signal(str, dict)        # (run_id, ev) — node-level events, for mirroring
 
     def __init__(self, ctx):
+        """Dựng bộ quản lý run và khôi phục lịch sử cũ ngay, để tab Flow Status có nội
+        dung ngay khi mở chứ không trống cho tới lần chạy đầu tiên.
+        """
         super().__init__()
         self.ctx = ctx
         self._runs: Dict[str, RunHandle] = {}
@@ -124,10 +143,12 @@ class Co4ERunManager(QObject):
 
     # ---- persistence ------------------------------------------------------
     def _history_path(self) -> Path:
+        """Đường dẫn file lịch sử run."""
         from .co4e import CO4E_DIR
         return CO4E_DIR / "run_history.json"
 
     def _load_history(self) -> None:
+        """Khôi phục lịch sử run từ đĩa lúc khởi động; file hỏng thì bỏ qua lặng lẽ."""
         path = self._history_path()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -147,20 +168,22 @@ class Co4ERunManager(QObject):
         self._seq = max_seq           # avoid minting ids that collide with history
 
     def _save_history(self) -> None:
+        """Ghi ``_HISTORY_CAP`` run gần nhất xuống đĩa."""
         path = self._history_path()
         runs = list(self._runs.values())[-_HISTORY_CAP:]
         payload = {"runs": [h.to_record() for h in runs]}
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = path.with_suffix(".json.tmp")
-            tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2),
-                           encoding="utf-8")
-            tmp.replace(path)         # atomic — never leaves a half-written file
+            # AtomicJsonFile thay cho tmp+replace tự viết: bản cũ thiếu fsync
+            # (dữ liệu có thể còn trong bộ đệm khi mất điện) và dùng thẳng
+            # Path.replace, vốn thỉnh thoảng bị Defender từ chối trên Windows.
+            AtomicJsonFile(path).write(payload)
         except OSError:
             pass
 
     # ---- lifecycle --------------------------------------------------------
     def _next_id(self) -> str:
+        """Sinh id run kế tiếp dạng 'runN'."""
         self._seq += 1
         return f"run{self._seq}"
 
@@ -196,6 +219,7 @@ class Co4ERunManager(QObject):
 
         run_label = handle.name
         def job(worker: AgentWorker):
+            """Chạy nền: thực thi luồng, chuyển tiếp sự kiện tiến độ và cờ huỷ."""
             return co4e_runner.run_workflow(
                 ctx, nodes, edges, out_dir, worker.emit_event, worker.is_cancelled,
                 plan_mode=plan_mode, skill_map=sk, only_nodes=only, seed_outputs=seed,
@@ -213,6 +237,7 @@ class Co4ERunManager(QObject):
 
     # ---- worker callbacks -------------------------------------------------
     def _on_event(self, run_id: str, ev: dict) -> None:
+        """Nhận sự kiện từ luồng đang chạy và cập nhật trạng thái/tiến độ của run."""
         handle = self._runs.get(run_id)
         if handle is not None and isinstance(ev, dict):
             t = ev.get("type")
@@ -227,6 +252,10 @@ class Co4ERunManager(QObject):
         self.event.emit(run_id, ev)
 
     def _on_finished(self, run_id: str) -> None:
+        """Job kết thúc mà không phát ``run_done``: chốt trạng thái về 'done'.
+
+        Lẽ ra không xảy ra, nhưng thiếu bước này thì run kẹt ở 'running' mãi.
+        """
         handle = self._runs.get(run_id)
         if handle is not None and handle.status == "running":
             # job returned without a run_done event (shouldn't happen) — settle it
@@ -234,6 +263,7 @@ class Co4ERunManager(QObject):
             self.changed.emit()
 
     def _on_failed(self, run_id: str, err: str) -> None:
+        """Job ném lỗi: ghi lỗi vào bản ghi run và báo ra ngoài."""
         handle = self._runs.get(run_id)
         if handle is not None:
             handle.status = "error"
@@ -243,6 +273,7 @@ class Co4ERunManager(QObject):
 
     # ---- control ----------------------------------------------------------
     def stop(self, run_id: str) -> None:
+        """Yêu cầu dừng một run đang chạy."""
         handle = self._runs.get(run_id)
         if handle is not None and handle.worker is not None and handle.running:
             handle.worker.request_stop()
@@ -251,6 +282,7 @@ class Co4ERunManager(QObject):
 
     def stop_all(self) -> None:
         # Only the CURRENT workspace's runs (Flow Status is per-project).
+        """Dừng mọi run của workspace đang chọn."""
         for run_id in [r for r, h in self._runs.items() if self._belongs(h)]:
             self.stop(run_id)
 
@@ -267,6 +299,7 @@ class Co4ERunManager(QObject):
         self.changed.emit()
 
     def remove(self, run_id: str) -> None:
+        """Xoá một run khỏi lịch sử; đang chạy thì dừng trước."""
         handle = self._runs.get(run_id)
         if handle is not None and handle.running:
             self.stop(run_id)
@@ -275,6 +308,7 @@ class Co4ERunManager(QObject):
 
     def clear_finished(self) -> None:
         # Only clear finished runs of the CURRENT workspace.
+        """Xoá mọi run đã kết thúc của workspace đang chọn, giữ nguyên run đang chạy."""
         for run_id in [r for r, h in self._runs.items() if not h.running and self._belongs(h)]:
             self._runs.pop(run_id, None)
         self.changed.emit()
@@ -293,9 +327,11 @@ class Co4ERunManager(QObject):
         return list(self._runs.values())
 
     def get(self, run_id: str) -> Optional[RunHandle]:
+        """Bản ghi của một run theo id; ``None`` nếu không có."""
         return self._runs.get(run_id)
 
     def active_count(self) -> int:
+        """Số run đang chạy của workspace đang chọn."""
         return sum(1 for h in self._runs.values() if h.running and self._belongs(h))
 
     def set_current_project(self, project_id: str) -> None:
@@ -318,6 +354,11 @@ class Co4ERunManager(QObject):
         # tab), not in the config/install folder. One subfolder per flow keeps
         # runs tidy. Falls back to the global Cowork output dir when no workspace
         # is selected.
+        """Thư mục ghi kết quả của một luồng, tạo sẵn nếu chưa có.
+
+        Ưu tiên thư mục của workspace đang chọn để file rơi đúng chỗ người dùng làm
+        việc (màn Thư mục), không rơi vào thư mục cài đặt.
+        """
         from .co4e import slugify
         base = self._output_root
         if base is None:

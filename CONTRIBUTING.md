@@ -48,7 +48,7 @@ Prefer the existing lightweight Conventional Commit prefixes: `feat:`, `fix:`, `
 Run the application from the parent directory with `python -m cowork_local`. The current reliable test command is:
 
 ```bash
-python -m pip install -r requirements-test.txt
+python -m pip install -r requirements.txt
 python -m pytest tests -q
 ```
 

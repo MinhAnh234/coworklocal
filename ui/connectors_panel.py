@@ -32,6 +32,7 @@ class JiraConnectDialog(QDialog):
     read and processed automatically (no per-request setup)."""
 
     def __init__(self, ctx: AppContext, parent=None):
+        """Form khai báo kết nối Jira: địa chỉ, tài khoản và token."""
         super().__init__(parent)
         self.ctx = ctx
         self.setWindowTitle(tr("connectors.jira_group"))
@@ -68,12 +69,16 @@ class JiraConnectDialog(QDialog):
         form.addRow(rw)
 
     def _on_paste(self, text: str) -> None:
+        """Dán một link Jira bất kỳ thì tự rút ra base URL — người dùng không phải
+        biết đâu là phần gốc của địa chỉ.
+        """
         from ..core import jira_tool
         base = jira_tool.base_url_from_link(text)
         if base:
             self.url.setText(base)
 
     def _save(self) -> None:
+        """Ghi thông tin Jira vào cấu hình (chưa đóng hộp thoại)."""
         j = self.ctx.config.data.setdefault("jira", {})
         j.update({"base_url": self.url.text().strip(), "email": self.email.text().strip(),
                   "api_token": self.token.text().strip()})
@@ -81,10 +86,12 @@ class JiraConnectDialog(QDialog):
         self.ctx.save()
 
     def _save_close(self) -> None:
+        """Lưu rồi đóng hộp thoại."""
         self._save()
         self.accept()
 
     def _test(self) -> None:
+        """Thử kết nối bằng một truy vấn tối thiểu, chạy ở luồng nền."""
         from ..core import jira_tool
         self._save()
         cfg = self.ctx.config.data.get("jira", {})
@@ -95,9 +102,13 @@ class JiraConnectDialog(QDialog):
         self.test_btn.setEnabled(False)
 
         def job(_w):
+            """Chạy nền: tìm đúng 1 issue mới nhất để xác nhận kết nối sống."""
             return {"out": jira_tool.search(cfg, "order by created DESC", 1)}
 
         def done(r):
+            """Hiện kết quả thử: coi là lỗi khi thông điệp bắt đầu bằng câu báo chưa cấu
+            hình hoặc tìm kiếm thất bại.
+            """
             self.test_btn.setEnabled(True)
             out = r.get("out", "")
             ok = not out.lower().startswith(("jira is not configured", "jira search failed"))
@@ -113,6 +124,11 @@ class JiraConnectDialog(QDialog):
 
 
 class ConnectorsPanel(QWidget):
+    """Bảng Connectors trong Cài đặt: MS365 dựng sẵn, Jira, và connector MCP tự thêm,
+    gom theo bốn nhóm CAD / CAE / MS365 / Khác.
+
+    Có một công tắc tổng: tắt là agent không nối ra connector ngoài nào cả.
+    """
     _EXT_CATEGORY_LABELS = {
         "cad": "CAD (NX / CATIA / SolidWorks / AutoCAD)",
         "cae": "CAE (ANSA / ABAQUS / HyperWorks / ANSYS)",
@@ -126,6 +142,11 @@ class ConnectorsPanel(QWidget):
     _MS365_BUILTIN_LABELS = {"onedrive": "OneDrive", "sharepoint": "SharePoint"}
 
     def __init__(self, ctx: AppContext):
+        """Panel quản lý connector ngoài.
+
+        Công tắc tổng ở trên cùng: tắt là agent KHÔNG nối tới connector nào, bất kể
+        từng connector bên dưới có bật hay không.
+        """
         super().__init__()
         self.ctx = ctx
         lay = QVBoxLayout(self)
@@ -185,6 +206,7 @@ class ConnectorsPanel(QWidget):
 
     # ---- rendering ------------------------------------------------------------
     def _clear_categories(self) -> None:
+        """Xoá sạch các mục nhóm trước khi dựng lại."""
         while self._cat_lay.count():
             item = self._cat_lay.takeAt(0)
             w = item.widget()
@@ -192,11 +214,13 @@ class ConnectorsPanel(QWidget):
                 w.deleteLater()
 
     def _reload_connectors(self) -> None:
+        """Dựng lại toàn bộ bảng từ cấu hình mới nhất."""
         self._clear_categories()
         for cat in EXT_CATEGORIES:
             self._cat_lay.addWidget(self._category_section(cat))
 
     def _category_section(self, cat: str) -> QWidget:
+        """Dựng một mục nhóm kèm lưới thẻ connector bên trong."""
         section = QWidget()
         enable_height_for_width(section)  # this section wraps a FlowLayout row — see FlowLayout
         sl = QVBoxLayout(section)
@@ -260,6 +284,9 @@ class ConnectorsPanel(QWidget):
 
     def _connector_card(self, title: str, subtitle: str, checked: bool, on_toggle,
                         edit_cb=None, delete_cb=None) -> QWidget:
+        """Dựng một thẻ connector: tiêu đề, dòng phụ, công tắc bật/tắt và nút sửa/xoá
+        (nếu có).
+        """
         card = QFrame()
         card.setFrameShape(QFrame.NoFrame)
         style_card(card)
@@ -307,19 +334,23 @@ class ConnectorsPanel(QWidget):
         return card
 
     def _toggle_ms365_builtin(self, key: str, checked: bool) -> None:
+        """Bật/tắt một connector MS365 dựng sẵn và lưu ngay."""
         self.ctx.config.ms365.setdefault("connectors", {})[key] = checked
         self.ctx.save()
 
     def _toggle_jira(self, checked: bool) -> None:
+        """Bật/tắt connector Jira và lưu ngay."""
         self.ctx.config.data.setdefault("jira", {})["enabled"] = checked
         self.ctx.save()
 
     def _toggle_ext_entry(self, entry: dict, checked: bool) -> None:
+        """Bật/tắt một connector MCP tự thêm và lưu ngay."""
         entry["enabled"] = checked
         self.ctx.save()
 
     # ---- CRUD -----------------------------------------------------------------
     def _ext_add(self) -> None:
+        """Thêm một connector MCP mới qua hộp thoại."""
         dlg = ExtConnectorEditDialog(self, category=EXT_CATEGORIES[0])
         if dlg.exec():
             entry = dlg.result_connector()
@@ -328,6 +359,7 @@ class ConnectorsPanel(QWidget):
             self._reload_connectors()
 
     def _edit_ext_entry(self, cat: str, entry: dict) -> None:
+        """Sửa một connector MCP đã có."""
         dlg = ExtConnectorEditDialog(self, category=cat, connector=entry)
         if dlg.exec():
             entry.update(dlg.result_connector())
@@ -335,10 +367,12 @@ class ConnectorsPanel(QWidget):
             self._reload_connectors()
 
     def _open_jira_dialog(self) -> None:
+        """Mở hộp thoại cấu hình Jira rồi dựng lại bảng."""
         JiraConnectDialog(self.ctx, self).exec()
         self._reload_connectors()
 
     def _delete_ext_entry(self, cat: str, entry: dict) -> None:
+        """Xoá một connector MCP sau khi hỏi xác nhận."""
         if QMessageBox.question(
                 self, tr("settings.ext_delete_btn"),
                 tr("settings.ext_delete_confirm", name=entry.get("name", ""))) != QMessageBox.Yes:
@@ -348,6 +382,7 @@ class ConnectorsPanel(QWidget):
         self._reload_connectors()
 
     def _refresh_ms365_local_status(self) -> None:
+        """Cập nhật dòng trạng thái MS365 cục bộ theo việc có tìm thấy thư mục OneDrive hay không."""
         from .. import paths
         root = paths.primary_onedrive_root()
         if root is not None:
@@ -356,6 +391,7 @@ class ConnectorsPanel(QWidget):
             self.ms365_local_status.setText(tr("settings.ms365_local_none"))
 
     def _on_connect_external_toggled(self, on: bool) -> None:
+        """Bật/tắt công tắc tổng cho connector ngoài, và khoá/mở cả bảng theo đó."""
         self.ctx.config.set_connect_external(on)
         self._apply_connect_external_enabled(on)
 
@@ -366,6 +402,7 @@ class ConnectorsPanel(QWidget):
             w.setEnabled(on)
 
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn."""
         self.connect_external_sw.setText(tr("connectors.connect_external"))
         self.connect_external_sw.setToolTip(tr("connectors.connect_external_tooltip"))
         self.add_btn.setText(tr("settings.ext_add_btn"))

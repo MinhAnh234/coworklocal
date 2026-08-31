@@ -54,6 +54,10 @@ def _extract_json(text: str) -> Optional[dict]:
 
 
 def _clamp(value, allowed, default):
+    """Ép một giá trị về tập hợp lệ; ngoài tập thì lấy mặc định.
+
+    Cần vì model hay trả về giá trị gần đúng ('High' thay vì 'high').
+    """
     return value if value in allowed else default
 
 

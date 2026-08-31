@@ -33,6 +33,9 @@ _MODEL_LIMITS = {
 
 
 def model_context_limit(model: str) -> int:
+    """Cửa sổ ngữ cảnh (token) của một model, dò theo tiền tố tên dài nhất khớp
+    trong bảng; không khớp gì thì lấy ``DEFAULT_LIMIT``.
+    """
     m = (model or "").lower()
     best = 0
     limit = DEFAULT_LIMIT
@@ -43,6 +46,7 @@ def model_context_limit(model: str) -> int:
 
 
 def _ctx_conf(config) -> Dict[str, Any]:
+    """Nhóm cấu hình ``context``; không có config thì trả dict rỗng."""
     if config is None:
         return {}
     try:
@@ -59,11 +63,13 @@ def context_limit(config, model: str = "") -> int:
 
 
 def auto_compact_enabled(config) -> bool:
+    """Có tự nén lịch sử khi gần đầy ngữ cảnh không (mặc định bật)."""
     conf = _ctx_conf(config)
     return bool(conf.get("auto_compact", True))
 
 
 def threshold(config) -> float:
+    """Ngưỡng nén, tính theo tỉ lệ cửa sổ ngữ cảnh đã dùng (mặc định 0,8)."""
     conf = _ctx_conf(config)
     try:
         t = float(conf.get("compact_threshold", DEFAULT_THRESHOLD))
@@ -73,6 +79,9 @@ def threshold(config) -> float:
 
 
 def _msg_text(m: Dict[str, Any]) -> str:
+    """Rút phần văn bản của một tin nhắn, kể cả khi nội dung là danh sách block
+    (tin nhắn có ảnh).
+    """
     c = m.get("content", "")
     if isinstance(c, str):
         return c
@@ -81,11 +90,17 @@ def _msg_text(m: Dict[str, Any]) -> str:
 
 
 def estimate_messages_tokens(messages: List[Dict[str, Any]]) -> int:
+    """Ước lượng tổng token của cả danh sách tin nhắn."""
     return sum(estimate_tokens(_msg_text(m)) for m in messages)
 
 
 def should_compact(messages: List[Dict[str, Any]], limit: int,
                    thresh: float = DEFAULT_THRESHOLD) -> bool:
+    """Đã đến lúc nén lịch sử chưa.
+
+    Không nén khi hội thoại còn quá ngắn: nén một cuộc mới vài lượt thì mất nội
+    dung mà chẳng tiết kiệm được bao nhiêu.
+    """
     if limit <= 0 or len(messages) <= _KEEP_RECENT + 2:
         return False
     return estimate_messages_tokens(messages) > limit * thresh
@@ -99,6 +114,7 @@ _SUMMARY_PROMPT = (
 
 
 def _summarize(provider, middle: List[Dict[str, Any]], cancel=None) -> str:
+    """Nhờ model tóm tắt phần giữa của hội thoại thành một đoạn ngắn."""
     convo = "\n\n".join(f"[{m.get('role', '?')}] {_msg_text(m)}" for m in middle)
     try:
         a = provider.chat([{"role": "system", "content": _SUMMARY_PROMPT},

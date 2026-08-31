@@ -21,6 +21,12 @@ logger = logging.getLogger("cowork_local.security.audit")
 
 @dataclass
 class AuditEntry:
+    """Một dòng nhật ký kiểm toán, đủ trường để dựng lại bối cảnh sau này.
+
+    Cố ý KHÔNG lưu nguyên văn lệnh: chỉ giữ ``command_hash`` (SHA-256, 16
+    ký tự đầu) để đối chiếu hai lần chạy có giống nhau không, mà không đưa
+    nội dung nhạy cảm vào file log.
+    """
     timestamp: str = ""
     user: str = ""
     project: str = ""
@@ -38,6 +44,11 @@ class AuditEntry:
     approval_status: str = ""  # auto, approved, rejected
 
     def __post_init__(self):
+        """Điền mốc thời gian và mã băm lệnh nếu bên gọi chưa đặt.
+
+        Mã băm thay cho nội dung lệnh gốc: nhật ký cần truy được về sau nhưng không
+        nên chứa nguyên văn thứ đã chạy.
+        """
         if not self.timestamp:
             self.timestamp = datetime.now(timezone.utc).isoformat()
         if not self.command_hash and self.action_type:
@@ -47,6 +58,7 @@ class AuditEntry:
 
 
 def _audit_dir() -> Path:
+    """Thư mục chứa nhật ký kiểm toán. Import muộn để tránh vòng import với ``config``."""
     from ..config import CONFIG_DIR
     return CONFIG_DIR / "audit"
 

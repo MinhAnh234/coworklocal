@@ -8,11 +8,24 @@ from ..foundation import IdentityContext, ProviderError
 
 
 class ChangeProvider(Protocol):
-    def get_change_context(self, **arguments: Any) -> dict[str, Any]: ...
+    """Nguồn cấp bối cảnh thay đổi (commit, PR) cho một project.
+
+    Chỉ là hợp đồng: bản cài đặt thật được nối vào qua ``build_provider``.
+    """
+    def get_change_context(self, **arguments: Any) -> dict[str, Any]:
+        """Trả về bối cảnh thay đổi (commit, PR) theo tham số của tool."""
+        ...
 
 
 class UnconfiguredChangeProvider:
+    """Bản thay thế khi chưa cấu hình nguồn thay đổi (commit, PR) thật.
+
+    Luôn ném lỗi ``UNAVAILABLE`` thay vì trả dữ liệu rỗng — rỗng sẽ bị Agent
+    hiểu nhầm là "tra rồi, không có gì", còn lỗi thì nói đúng sự thật là
+    chưa có nguồn nào được nối.
+    """
     def get_change_context(self, **arguments: Any) -> dict[str, Any]:
+        """Luôn báo chưa cấu hình; không cho thử lại."""
         raise ProviderError(
             "UNAVAILABLE",
             "The change provider is not configured for this environment.",

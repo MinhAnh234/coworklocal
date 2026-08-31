@@ -12,6 +12,7 @@ _URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 
 def is_image(path: str | Path) -> bool:
+    """Đuôi tệp này có phải ảnh không."""
     return Path(path).suffix.lower() in IMAGE_SUFFIXES
 
 

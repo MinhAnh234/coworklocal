@@ -28,7 +28,10 @@ bower_components/
 .env.preview
 *.pem
 *.key
-secrets/
+# Neo vào gốc repo: mẫu không neo nuốt MỌI thư mục tên secrets ở mọi độ
+# sâu — nó đã âm thầm chặn infrastructure/secrets/ (mã nguồn, không phải
+# bí mật) khỏi repo suốt 21-22/08.
+/secrets/
 credentials.json
 .npmrc
 .yarnrc
@@ -36,9 +39,11 @@ credentials.json
 # =============================================================================
 # Build & Distribution
 # =============================================================================
-dist/
-build/
-out/
+# Neo vao goc — mau khong neo se nuot moi thu muc trung ten o moi do sau,
+# ke ca ma nguon. Da mac dung loi do voi secrets/ (xem khoi Credentials).
+/dist/
+/build/
+/out/
 .next/
 .nuxt/
 .output/
@@ -73,7 +78,8 @@ desktop.ini
 # Logs & Debug
 # =============================================================================
 *.log
-logs/
+# Neo vao goc: infrastructure/logs/ la ma nguon, khong phai log chay may.
+/logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

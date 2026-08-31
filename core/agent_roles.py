@@ -37,6 +37,7 @@ HELP = "help"
 
 
 class AgentRole(NamedTuple):
+    """Một vai trò agent: khoá, nhãn hiển thị và prompt mặc định."""
     key: str
     label: str
     description: str
@@ -61,5 +62,6 @@ ROLES: Dict[str, AgentRole] = {
 
 
 def label_for(role_key: str) -> str:
+    """Nhãn của một vai trò; khoá lạ thì trả về chính khoá, rỗng thì trả về "—"."""
     role = ROLES.get(role_key)
     return role.label if role else (role_key or "—")

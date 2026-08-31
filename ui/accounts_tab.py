@@ -44,11 +44,15 @@ class _OrgTree(QTreeWidget):
     member_dropped = Signal(str, str)   # username, target_group_id ("" = ungrouped)
 
     def __init__(self):
+        """Bật kéo–thả ngay từ đầu; quyền kéo thật sự do :meth:`set_drag_enabled` quyết
+        định sau khi biết vai trò người đăng nhập.
+        """
         super().__init__()
         self.setDropIndicatorShown(True)
         self.setDragDropMode(QTreeWidget.DragDrop)
 
     def set_drag_enabled(self, enabled: bool) -> None:
+        """Cho phép hay cấm kéo–thả. Chỉ Admin mới được chuyển người giữa các nhóm."""
         self.setDragEnabled(enabled)
         self.setAcceptDrops(enabled)
 
@@ -63,17 +67,24 @@ class _OrgTree(QTreeWidget):
         return target_kind, source_kind
 
     def _drop_is_valid(self, event) -> bool:
+        """Chỉ nhận đúng một kiểu thả: một TÀI KHOẢN thả vào một NHÓM.
+
+        Mọi hướng khác (nhóm vào nhóm, tài khoản vào tài khoản) đều bị từ chối —
+        cây này biểu diễn quan hệ nhóm chứa người, không có cấp lồng nhau.
+        """
         target_kind, source_kind = self._drop_kinds(event)
         return bool(target_kind and target_kind[0] == "group"
                     and source_kind and source_kind[0] == "account")
 
     def dragEnterEvent(self, event) -> None:
+        """Nhận con trỏ kéo vào cây nếu đây là kiểu thả hợp lệ."""
         if self.dragEnabled() and self._drop_is_valid(event):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     def dragMoveEvent(self, event) -> None:
+        """Cập nhật con trỏ khi rê qua từng mục — chỉ mục hợp lệ mới nhận."""
         if self._drop_is_valid(event):
             event.acceptProposedAction()
         else:
@@ -100,6 +111,12 @@ class AccountEditDialog(QDialog):
                 available_groups: Optional[List[groups.Group]] = None,
                 allow_role_edit: bool = True, allow_group_edit: bool = True,
                 fixed_group_id: str = ""):
+        """Dựng form thêm/sửa tài khoản.
+
+        ``account`` là None thì đây là form thêm mới. ``allow_role_edit`` và
+        ``allow_group_edit`` tắt cho Sub-admin: họ sửa được thành viên nhóm mình
+        nhưng không được tự nâng vai trò hay chuyển người sang nhóm khác.
+        """
         super().__init__(parent)
         self._existing = account
         self.setWindowTitle(tr("accounts.edit_title") if account else tr("accounts.add_title"))
@@ -140,6 +157,7 @@ class AccountEditDialog(QDialog):
         form.addRow(buttons)
 
     def result_fields(self) -> Dict[str, str]:
+        """Nội dung form dưới dạng dict, đã cắt khoảng trắng thừa."""
         return {
             "username": self.user_edit.text().strip(),
             "display_name": self.name_edit.text().strip(),
@@ -151,7 +169,16 @@ class AccountEditDialog(QDialog):
 
 
 class AccountsTab(QWidget):
+    """Màn Tài khoản: cây nhóm–người dùng, form sửa và bảng thống kê mức dùng.
+
+    Dữ liệu nằm ở thư mục dùng chung (OneDrive/ổ mạng) chứ không ở máy, nên mọi
+    máy trỏ vào cùng thư mục đều thấy chung một danh sách.
+
+    Phân quyền chạy xuyên suốt màn này: Admin thấy và sửa tất cả; Sub-admin chỉ
+    thấy nhóm của mình và chỉ sửa được thành viên thường trong đó.
+    """
     def __init__(self, ctx: AppContext):
+        """Dựng giao diện và nạp lần đầu."""
         super().__init__()
         self.ctx = ctx
         self._current_username = ""
@@ -275,24 +302,36 @@ class AccountsTab(QWidget):
 
     # ---- role-scoped repository access ---------------------------------
     def _shared_dir(self) -> str:
+        """Thư mục dùng chung đang cấu hình; '' nghĩa là chưa đặt và màn này không có
+        gì để hiện.
+        """
         return self.ctx.config.shared_dir
 
     def _accounts_dir(self):
+        """Thư mục chứa file tài khoản bên trong thư mục dùng chung."""
         return accounts.accounts_dir(self._shared_dir())
 
     def _groups_dir(self):
+        """Thư mục chứa file nhóm bên trong thư mục dùng chung."""
         return groups.groups_dir(self._shared_dir())
 
     def _is_admin(self) -> bool:
+        """Người đang đăng nhập có phải Admin không."""
         return self.ctx.role == "admin"
 
     def _my_group(self) -> Optional[groups.Group]:
+        """Nhóm của người đang đăng nhập; ``None`` nếu chưa đăng nhập hoặc chưa vào
+        nhóm nào.
+        """
         acc = self.ctx.account
         if acc is None:
             return None
         return groups.group_for_user(acc.username, self._groups_dir())
 
     def _visible_groups(self) -> List[groups.Group]:
+        """Các nhóm người đang đăng nhập được phép thấy — Admin thấy hết, còn lại chỉ
+        thấy nhóm của mình.
+        """
         all_groups = groups.list_groups(self._groups_dir())
         if self._is_admin():
             return all_groups
@@ -300,6 +339,11 @@ class AccountsTab(QWidget):
         return [mine] if mine else []
 
     def _visible_accounts(self) -> List[accounts.Account]:
+        """Các tài khoản người đang đăng nhập được phép thấy.
+
+        Lọc ngay tại đây chứ không lọc ở chỗ hiển thị: mọi thứ vẽ ra sau đó đều đi
+        qua hàm này, nên không có đường nào lộ tài khoản ngoài phạm vi.
+        """
         all_accounts = accounts.list_accounts(self._accounts_dir())
         if self._is_admin():
             return all_accounts
@@ -311,6 +355,9 @@ class AccountsTab(QWidget):
 
     # ---- tree ------------------------------------------------------------
     def refresh(self) -> None:
+        """Nạp lại cả cây và bảng thống kê. Chưa đặt thư mục dùng chung thì chỉ hiện
+        lời nhắc và để trống.
+        """
         shared_dir = self._shared_dir()
         if not shared_dir:
             self._shared_hint.setText(tr("accounts.no_shared_dir"))
@@ -336,6 +383,7 @@ class AccountsTab(QWidget):
         self.group_filter_combo.blockSignals(False)
 
     def _reload_tree(self) -> None:
+        """Dựng lại cây nhóm → thành viên từ dữ liệu trên đĩa."""
         self._reload_group_filter_combo()
         self.tree.clear()
         my_accounts = {a.username: a for a in self._visible_accounts()}
@@ -364,6 +412,11 @@ class AccountsTab(QWidget):
 
     def _add_account_item(self, parent: QTreeWidgetItem, acc: accounts.Account,
                           is_subadmin: bool = False) -> None:
+        """Thêm một dòng tài khoản vào dưới một nhóm.
+
+        Sub-admin được đánh dấu bằng biểu tượng ngôi sao thay vì ký tự ★ — ký tự
+        hiển thị khác nhau tuỳ phông của từng máy.
+        """
         label = f"{acc.display_name or acc.username} ({acc.username}) — {tr(f'accounts.role.{acc.role}')}"
         item = QTreeWidgetItem([label])
         if is_subadmin:   # subadmin badge → star icon instead of a ★ glyph
@@ -374,6 +427,7 @@ class AccountsTab(QWidget):
         parent.addChild(item)
 
     def _on_tree_select(self, *_a) -> None:
+        """Ghi nhớ tài khoản vừa chọn rồi vẽ lại (các nút sửa/xoá bật theo lựa chọn)."""
         item = self.tree.currentItem()
         kind_id = item.data(0, Qt.UserRole) if item else None
         self._current_username = kind_id[1] if kind_id and kind_id[0] == "account" else ""
@@ -381,6 +435,10 @@ class AccountsTab(QWidget):
 
     # ---- account CRUD ------------------------------------------------------
     def _add_account(self) -> None:
+        """Mở form thêm tài khoản rồi lưu.
+
+        Sub-admin bị khoá cứng vào nhóm của chính họ, không chọn được nhóm khác.
+        """
         shared_dir = self._shared_dir()
         if not shared_dir:
             return
@@ -417,11 +475,15 @@ class AccountsTab(QWidget):
         self.refresh()
 
     def _selected_account(self) -> Optional[accounts.Account]:
+        """Tài khoản đang chọn trên cây, đọc lại từ đĩa; ``None`` nếu không chọn dòng
+        tài khoản nào.
+        """
         if not self._current_username:
             return None
         return accounts.find_by_username(self._current_username, self._accounts_dir())
 
     def _edit_account(self) -> None:
+        """Mở form sửa tài khoản đang chọn rồi lưu."""
         account = self._selected_account()
         if account is None:
             return
@@ -457,6 +519,11 @@ class AccountsTab(QWidget):
         self.refresh()
 
     def _delete_account(self) -> None:
+        """Xoá tài khoản đang chọn, có hỏi lại.
+
+        Sub-admin chỉ xoá được thành viên thường — không xoá được Admin hay một
+        Sub-admin khác.
+        """
         account = self._selected_account()
         if account is None:
             return
@@ -473,6 +540,11 @@ class AccountsTab(QWidget):
         self.refresh()
 
     def _regenerate_code(self) -> None:
+        """Cấp lại mã đăng nhập mới cho tài khoản đang chọn và hiện mã ra một lần.
+
+        Mã mới phải khác mọi mã đang dùng, nên danh sách mã hiện có được truyền vào
+        hàm sinh mã.
+        """
         account = self._selected_account()
         if account is None:
             return
@@ -524,6 +596,7 @@ class AccountsTab(QWidget):
         ctx = self.ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: nhờ model rút câu hỏi tự nhiên thành 1–3 từ khoá tìm kiếm."""
             provider = ctx.build_active_provider()
             reply = provider.chat([
                 {"role": "system", "content":
@@ -536,12 +609,16 @@ class AccountsTab(QWidget):
             return {"keyword": (reply.get("content") or "").strip().splitlines()[0][:60]}
 
         def done(result: dict) -> None:
+            """Đổ từ khoá vào ô tìm kiếm — chính việc gán chữ đã kích hoạt lọc lại cây."""
             self._ai_search_worker = None
             self.ai_search_btn.setEnabled(True)
             keyword = result.get("keyword") or query
             self.search_edit.setText(keyword)   # textChanged re-applies the filter
 
         def failed(_err: str) -> None:
+            """Gọi model hỏng thì lọc thẳng bằng câu người dùng gõ, không báo lỗi: tìm
+            kiếm là tiện ích, không đáng chặn người dùng.
+            """
             self._ai_search_worker = None
             self.ai_search_btn.setEnabled(True)
             self._apply_tree_filter(query)
@@ -554,6 +631,7 @@ class AccountsTab(QWidget):
 
     # ---- bulk import from Excel (Admin only) --------------------------------
     def _export_excel_template(self) -> None:
+        """Xuất file Excel mẫu để Admin điền danh sách tài khoản rồi nhập lại."""
         if not self._is_admin():
             return
         from ..core import account_excel
@@ -569,6 +647,9 @@ class AccountsTab(QWidget):
             QMessageBox.warning(self, tr("accounts.excel_template_btn"), str(exc))
 
     def _import_excel(self) -> None:
+        """Nhập tài khoản hàng loạt từ file Excel. Chỉ Admin, và phải đã đặt thư mục
+        dùng chung.
+        """
         if not self._is_admin() or not self._shared_dir():
             return
         from ..core import account_excel
@@ -598,6 +679,9 @@ class AccountsTab(QWidget):
 
     # ---- move a member between groups (Admin only, drag-and-drop) ---------
     def _on_member_dropped(self, username: str, target_group_id: str) -> None:
+        """Xử lý kéo một người sang nhóm khác: gỡ khỏi nhóm cũ, thêm vào nhóm mới rồi
+        lưu cả ba nơi (tài khoản, nhóm cũ, nhóm mới).
+        """
         if not self._is_admin():
             return
         account = accounts.find_by_username(username, self._accounts_dir())
@@ -616,6 +700,7 @@ class AccountsTab(QWidget):
 
     # ---- group CRUD (Admin only) -------------------------------------------
     def _add_group(self) -> None:
+        """Hỏi tên rồi tạo một nhóm mới. Chỉ Admin."""
         if not self._is_admin():
             return
         name, ok = QInputDialog.getText(self, tr("accounts.new_group_title"), tr("accounts.f_group_name"))
@@ -626,6 +711,7 @@ class AccountsTab(QWidget):
         self.refresh()
 
     def _add_member_to_group(self, group_id: str, username: str) -> None:
+        """Thêm một người vào danh sách thành viên của nhóm, bỏ qua nếu đã có."""
         g = groups.load_group(group_id, self._groups_dir())
         if g is None:
             return
@@ -634,6 +720,11 @@ class AccountsTab(QWidget):
             groups.save_group(g, self._groups_dir())
 
     def _remove_member_from_group(self, group_id: str, username: str) -> None:
+        """Gỡ một người khỏi nhóm.
+
+        Người bị gỡ mà đang là Sub-admin của nhóm thì phải xoá luôn vai trò ấy —
+        không thì nhóm còn trỏ tới một người không còn ở trong nó.
+        """
         g = groups.load_group(group_id, self._groups_dir())
         if g is None:
             return
@@ -647,9 +738,13 @@ class AccountsTab(QWidget):
 
     # ---- usage/cost table --------------------------------------------------
     def _pricing(self) -> Dict:
+        """Bảng đơn giá đang dùng: mặc định chồng bởi phần người dùng tự đặt trong cấu
+        hình.
+        """
         return {**ut.DEFAULT_PRICING, **(self.ctx.config.data.get("usage") or {})}
 
     def _reload_usage_table(self) -> None:
+        """Nạp lại bảng mức dùng theo kỳ đang chọn, gom sự kiện theo từng tài khoản."""
         shared_dir = self._shared_dir()
         period = self.period_combo.currentData() or "day"
         start = date.today() - timedelta(days=_PERIOD_DAYS.get(period, 1) - 1)
@@ -678,6 +773,7 @@ class AccountsTab(QWidget):
 
     # ---- i18n --------------------------------------------------------------
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn cho nhãn, nút và gợi ý."""
         self._shared_hint.setText(tr("accounts.no_shared_dir"))
         self.add_btn.setText(tr("accounts.add_btn"))
         self.edit_btn.setText(tr("accounts.edit_btn"))

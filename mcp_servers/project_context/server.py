@@ -99,6 +99,11 @@ def dispatch(
 
 
 def build_server(runtime: Optional[ProjectContextRuntime] = None):
+    """Dựng máy chủ MCP Project Context.
+
+    ``runtime`` để trống thì lấy bộ mặc định đọc từ biến môi trường; test
+    truyền vào bộ giả để không cần cấu hình thật.
+    """
     from mcp import types
     from mcp.server.lowlevel import Server
 
@@ -108,10 +113,16 @@ def build_server(runtime: Optional[ProjectContextRuntime] = None):
 
     @app.list_tools()
     async def list_tools() -> list[types.Tool]:
+        """Trả về khai báo của mọi tool đã đăng ký."""
         return [types.Tool(**declaration) for declaration in tool_declarations()]
 
     @app.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> types.CallToolResult:
+        """Chạy một tool và trả kết quả.
+
+        Luôn kèm payload dạng văn bản JSON; chỉ khi thành công mới đính thêm
+        ``structuredContent``, còn lỗi thì bật ``isError``.
+        """
         result = dispatch(name, arguments or {}, app_runtime)
         return types.CallToolResult(
             content=[types.TextContent(
@@ -126,12 +137,14 @@ def build_server(runtime: Optional[ProjectContextRuntime] = None):
 
 
 def main() -> None:
+    """Điểm vào khi chạy như tiến trình con: phục vụ MCP qua stdio."""
     import anyio
     from mcp.server.stdio import stdio_server
 
     app = build_server()
 
     async def _run() -> None:
+        """Vòng lặp phục vụ, đọc/ghi trên stdio cho tới khi tiến trình cha đóng."""
         async with stdio_server() as (read, write):
             await app.run(read, write, app.create_initialization_options())
 

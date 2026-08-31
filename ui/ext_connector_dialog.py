@@ -26,7 +26,11 @@ _CATEGORY_LABEL = {"cad": "CAD", "cae": "CAE", "other": "Other"}
 
 
 class ExtConnectorEditDialog(QDialog):
+    """Hộp thoại thêm/sửa một connector ngoài: MCP server hoặc REST API."""
     def __init__(self, parent=None, category: str = "cad", connector: Optional[dict] = None):
+        """Form thêm/sửa một connector ngoài. ``connector`` để None thì đây là form thêm
+        mới; nhóm (CAD/CAE/MS365/Other) lấy từ connector cũ nếu đang sửa.
+        """
         super().__init__(parent)
         connector = connector or {}
         self.category = connector.get("category", category)
@@ -121,6 +125,11 @@ class ExtConnectorEditDialog(QDialog):
         lay.addWidget(buttons)
 
     def _reload_presets(self) -> None:
+        """Nạp lại danh sách mẫu dựng sẵn theo nhóm đang chọn.
+
+        Chặn tín hiệu trong lúc nạp: ``clear()`` phát ``currentIndexChanged`` và sẽ
+        bị hiểu nhầm là người dùng vừa chọn mẫu.
+        """
         self.preset_combo.blockSignals(True)
         self.preset_combo.clear()
         self.preset_combo.addItem(tr("ext.preset_custom"), "")
@@ -129,15 +138,18 @@ class ExtConnectorEditDialog(QDialog):
         self.preset_combo.blockSignals(False)
 
     def _on_category_changed(self) -> None:
+        """Đổi nhóm (CAD/CAE/MS365/Khác) thì nạp lại danh sách mẫu tương ứng."""
         self.category = self.category_combo.currentData() or self.category
         self._reload_presets()
 
     def _apply_preset(self) -> None:
+        """Áp một mẫu dựng sẵn; chỉ điền tên khi người dùng chưa tự đặt tên."""
         preset_id = self.preset_combo.currentData()
         if preset_id and not self.name_edit.text().strip():
             self.name_edit.setText(self.preset_combo.currentText())
 
     def _current_entry(self) -> dict:
+        """Bản ghi connector dựng từ nội dung đang có trên form."""
         mode = self.mode_combo.currentData()
         preset_id = self.preset_combo.currentData()
         name = self.name_edit.text().strip()
@@ -159,6 +171,7 @@ class ExtConnectorEditDialog(QDialog):
         }
 
     def _test_connection(self) -> None:
+        """Thử kết nối tới connector đang cấu hình và hiện kết quả."""
         entry = self._current_entry()
         if entry["mode"] == "rest_api":
             from ..core.ext_connectors import RestApiConnector
@@ -182,6 +195,7 @@ class ExtConnectorEditDialog(QDialog):
         self.status_label.setText(f"{prefix} {message}")
 
     def _on_accept(self) -> None:
+        """Kiểm tra bắt buộc có tên trước khi đóng hộp thoại."""
         if not self.name_edit.text().strip():
             self.name_edit.setFocus()
             return
@@ -195,4 +209,5 @@ class ExtConnectorEditDialog(QDialog):
         self.accept()
 
     def result_connector(self) -> dict:
+        """Bản ghi connector để chỗ gọi lưu lại."""
         return self._current_entry()

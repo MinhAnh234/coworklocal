@@ -29,6 +29,9 @@ CancelFn = Callable[[], bool]
 
 
 def _predecessors(nodes: List[Node], edges: List[Edge]) -> Dict[str, List[str]]:
+    """Bảng ``{node: các node đứng trước}`` — dùng để gom đầu ra của bước trước làm
+    ngữ cảnh cho bước sau.
+    """
     ids = {n.id for n in nodes}
     preds: Dict[str, List[str]] = {n.id: [] for n in nodes}
     for e in edges:
@@ -38,6 +41,7 @@ def _predecessors(nodes: List[Node], edges: List[Edge]) -> Dict[str, List[str]]:
 
 
 def _label_of(nodes: List[Node], node_id: str) -> str:
+    """Nhãn hiển thị của một node; trả về chính id nếu không tìm thấy."""
     for n in nodes:
         if n.id == node_id:
             return n.data.label
@@ -62,6 +66,10 @@ def _attachments_text(node, out_dir=None) -> str:
     parts, budget = [], _MAX_ATTACH_CHARS
 
     def _read_into(path, label, indent=""):
+        """Đọc một tệp đính kèm vào phần ngữ cảnh, trừ dần vào hạn mức ký tự chung.
+
+        Có hạn mức vì vài tệp lớn là đủ đẩy cả lượt chạy vượt cửa sổ ngữ cảnh.
+        """
         nonlocal budget
         name = _P(path).name
         if is_image(path):
@@ -97,6 +105,7 @@ def _attachments_text(node, out_dir=None) -> str:
 
 
 def _last_assistant_text(messages: List[dict]) -> str:
+    """Nội dung trả lời cuối cùng của assistant; '' nếu không có."""
     for m in reversed(messages):
         if m.get("role") == "assistant" and m.get("content"):
             return str(m["content"])
@@ -245,6 +254,7 @@ def run_workflow(ctx, nodes: List[Node], edges: List[Edge], out_dir: Path,
 
     # Group compiled stages by wave, preserving per-node context threading.
     def extra_context_for(node_id: str) -> Dict[str, str]:
+        """Ngữ cảnh thêm cho một bước: tệp đính kèm của nó cộng đầu ra của các bước đứng trước."""
         parts = []
         att = _attachments_text(by_id.get(node_id), out_dir)
         if att:

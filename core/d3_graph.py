@@ -18,6 +18,7 @@ _CDN_D3 = '<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.j
 
 
 def build_html(graph) -> str:
+    """Dựng trang HTML D3 cho đồ thị: nhét dữ liệu node/cạnh vào bản mẫu."""
     html = TEMPLATE.read_text(encoding="utf-8")
 
     # Inline a bundled d3 (offline) if present; else keep the CDN reference.

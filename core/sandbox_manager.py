@@ -44,6 +44,7 @@ class SandboxManager:
     """Central sandbox manager that selects and routes to the right backend."""
 
     def __init__(self, config: Optional[ExecutionConfig] = None):
+        """Chưa dựng backend nào — chúng được tạo muộn, lúc thật sự cần chạy lệnh."""
         self.config = config or ExecutionConfig()
         self._backends: Dict[str, Any] = {}
 

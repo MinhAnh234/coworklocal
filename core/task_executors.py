@@ -2,7 +2,9 @@
 
 ``execute_task`` dispatches by ``task_type`` to the app's existing engines:
 
-- ``cowork``     → ``chat_agent.run_cowork``  (documents/answers, real files)
+- ``cowork``     → ``ConversationApplicationService`` (documents/answers, real
+                   files) — the same turn engine the interactive Cowork chat
+                   runs on since R04-T05
 - ``co4e_code``  → ``code_agent.run_code``    (code agent with file/command tools)
 - ``script``     → local subprocess with a timeout
 - ``flow``       → the task's own simple step list, run sequentially, each
@@ -36,16 +38,21 @@ CancelFn = Callable[[], bool]
 
 
 def new_run_id() -> str:
+    """Id lượt chạy mới: mốc thời gian cộng 6 ký tự ngẫu nhiên (chống trùng khi hai
+    task khởi động cùng giây).
+    """
     return datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
 
 
 def artifact_dir(task_id: str, run_id: str) -> Path:
+    """Thư mục hiện vật của một lượt chạy, tạo sẵn cả thư mục con ``generated_files``."""
     d = ARTIFACTS_DIR / task_id / run_id
     (d / "generated_files").mkdir(parents=True, exist_ok=True)
     return d
 
 
 def _last_assistant_text(messages) -> str:
+    """Nội dung trả lời cuối cùng của assistant trong hội thoại; '' nếu không có."""
     for m in reversed(messages or []):
         if m.get("role") == "assistant" and (m.get("content") or "").strip():
             return m["content"]
@@ -62,6 +69,7 @@ _OUTPUT_MODE_HINTS = {
 
 
 def _output_mode_hint(task: Dict[str, Any]) -> str:
+    """Câu hướng dẫn định dạng đầu ra tương ứng chế độ output của task."""
     return _OUTPUT_MODE_HINTS.get(task.get("output", {}).get("output_mode", "text"), "")
 
 
@@ -102,6 +110,9 @@ def _project_folder_input_text(project: Optional[projects.Project], max_files: i
 def _build_prompt(task: Dict[str, Any], tasks_dir: Path = None,
                   project: Optional[projects.Project] = None,
                   max_files: int = 10) -> str:
+    """Ghép prompt cho một task: mô tả, dữ liệu vào đã phân giải, chỉ dẫn chung của
+    project, và gợi ý định dạng đầu ra.
+    """
     parts = [task.get("description") or task.get("title") or ""]
     extra = resolve_input_text(task, tasks_dir)
     if extra:
@@ -162,6 +173,30 @@ _TIMEOUT_NOTICE_TMPL = (
 )
 
 
+_UNATTENDED_PREFIX = (
+    "This runs unattended (Schedule Task) — no one is watching live. Use "
+    "update_plan to track your steps and keep it accurate: mark a step "
+    "'error' (not silently skip it) if it genuinely can't be completed."
+)
+
+
+def _unattended_prompt(prompt: str, *, skill_text: str = "",
+                       agent_instructions: str = "") -> str:
+    """Assemble the user message an unattended run sends.
+
+    The order is load-bearing and used to be encoded as three successive
+    rebindings of ``prompt``, each prepending its own block: the plan reminder
+    must lead (it is the instruction that keeps a run without a human watching
+    honest), then the chosen skill's rules, then the Admin agent's persona, and
+    the task's own words last. Routing it through ``combine_instructions`` keeps
+    that order in one readable expression and drops the absent blocks instead of
+    leaving blank lines behind.
+    """
+    from ..application.conversations.turn_runtime import combine_instructions
+
+    return combine_instructions(_UNATTENDED_PREFIX, skill_text, agent_instructions, prompt)
+
+
 def _cancel_with_timeout(cancel: CancelFn, timeout_sec: Optional[int]) -> Tuple[CancelFn, Callable[[], bool]]:
     """Wrap ``cancel`` so it also fires once ``timeout_sec`` of wall-clock time
     elapses. ``timed_out()`` tells the caller whether THAT is why it stopped
@@ -176,6 +211,7 @@ def _cancel_with_timeout(cancel: CancelFn, timeout_sec: Optional[int]) -> Tuple[
     state = {"timed_out": False}
 
     def wrapped() -> bool:
+        """Cờ huỷ có thêm hạn giờ: người dùng bấm Dừng HOẶC quá thời gian cho phép."""
         if cancel():
             return True
         if time.monotonic() >= deadline:
@@ -218,36 +254,29 @@ def _run_agent(ctx, task_type: str, prompt: str, out_dir: Path,
     # default, see state.build_provider_for). A legacy Admin-agent preset
     # (task.admin_agent_id), if still set on an older task, keeps working and
     # takes precedence — it pins the provider/model AND prepends instructions.
+    agent_instructions = ""
     if admin_agent is not None:
         from .admin_agents import build_agent_provider
 
         provider = build_agent_provider(ctx, admin_agent)
         agent_instructions = admin_agent.effective_prompt()
-        if agent_instructions:
-            prompt = f"{agent_instructions}\n\n{prompt}"
     elif provider_name or model:
         # An explicit per-task provider/model override.
         provider = ctx.build_provider_for(provider_name or None, model or None)
     else:
         # Neither overridden → the machine's own Settings default, exactly as before.
         provider = ctx.build_active_provider()
-    # A chosen skill's instructions are prepended so this unattended run follows
+    # A chosen skill's instructions are applied so this unattended run follows
     # them, mirroring how the interactive chat applies /skill.
+    skill_text = ""
     if skill_slug:
         from .skills import skill_prefix_for
 
         skill_text = skill_prefix_for(skill_slug)
-        if skill_text:
-            prompt = f"{skill_text}\n\n{prompt}"
-    # This is an UNATTENDED run (no human watching to catch a half-finished
-    # job) — push the agent to actually use the Plan checklist so completion
-    # can be verified afterward, instead of just trusting "no exception".
-    prompt = (
-        "This runs unattended (Schedule Task) — no one is watching live. Use "
-        "update_plan to track your steps and keep it accurate: mark a step "
-        "'error' (not silently skip it) if it genuinely can't be completed.\n\n"
-        f"{prompt}"
-    )
+    # Assemble reminder + skill + persona + the task's own words in one place
+    # (see _unattended_prompt for why that order matters).
+    prompt = _unattended_prompt(prompt, skill_text=skill_text,
+                                agent_instructions=agent_instructions)
     messages = [{"role": "user", "content": prompt}]
     session_id = new_session_id()
     project_id = project.project_id if project is not None else ""
@@ -261,6 +290,7 @@ def _run_agent(ctx, task_type: str, prompt: str, out_dir: Path,
     last_plan_steps: List[Dict[str, str]] = []
 
     def emit_and_autosave(ev):
+        """Chuyển tiếp sự kiện tiến độ và tự lưu hội thoại tại các mốc an toàn."""
         emit(ev)
         if not isinstance(ev, dict):
             return
@@ -273,10 +303,41 @@ def _run_agent(ctx, task_type: str, prompt: str, out_dir: Path,
     watched_cancel, timed_out = _cancel_with_timeout(cancel, timeout_sec)
     try:
         if task_type == "cowork":
-            from .chat_agent import run_cowork
-            run_cowork(provider, messages, out_dir, emit_and_autosave, watched_cancel,
-                      security_config=ctx.config, agent_role=agent_roles.TASK,
-                      project_context=project_context)
+            # R04-T05: the unattended run shares the interactive turn engine
+            # instead of calling run_cowork itself, so there is exactly one place
+            # where a turn's lifecycle is defined. Everything unattended-specific
+            # stays here (the plan reminder above, the History autosave in
+            # emit_and_autosave, the timeout notice below).
+            from ..application.conversations.core_runtime_adapter import (
+                build_cowork_conversation_service,
+                legacy_event_sink,
+            )
+            from ..domain.agents.conversation_execution_request import (
+                ConversationExecutionRequest,
+            )
+
+            # No extra_tools/extra_executor and no permission gate: a scheduled
+            # run gets no MCP connectors and nobody is there to approve a
+            # command, which is exactly what run_cowork was called with.
+            service = build_cowork_conversation_service(
+                provider, out_dir, emit_and_autosave, title=title,
+                project_context=project_context, security_config=ctx.config,
+                agent_role=agent_roles.TASK,
+            )
+            request = ConversationExecutionRequest(
+                # The artifact folder is named by the run id, which identifies
+                # this attempt in the audit log.
+                turn_id=out_dir.name or session_id, session_id=session_id,
+                surface="task", title=title, project_id=project_id,
+                prompt=prompt, output_dir=out_dir,
+                agent_role=agent_roles.TASK, unattended=True,
+                timeout_sec=timeout_sec,
+            )
+            # ``messages`` is handed over so the History autosave in
+            # emit_and_autosave (and the final save in the finally block below)
+            # keep reading the live conversation as it grows.
+            service.execute(request, legacy_event_sink(emit_and_autosave),
+                            cancel=watched_cancel, messages=messages)
         else:
             from .code_agent import run_code
             limits, block_network = agent_security.sandbox_settings(ctx.config)
@@ -298,6 +359,7 @@ def _run_agent(ctx, task_type: str, prompt: str, out_dir: Path,
 
 
 def _run_script(command: str, out_dir: Path, timeout_sec: int) -> str:
+    """Chạy một task kiểu script bằng shell trong thư mục kết quả, có hạn giờ."""
     if not command.strip():
         raise RuntimeError("Script task has no command configured.")
     proc = subprocess.run(command, shell=True, cwd=str(out_dir),
@@ -406,6 +468,7 @@ def _run_co4e_flow(ctx, task: Dict[str, Any], wf, gen_dir: Path,
     outputs: Dict[str, str] = {}
 
     def _emit(ev):
+        """Chuyển tiếp sự kiện của luồng Co4E về dạng sự kiện task."""
         if not isinstance(ev, dict):
             return
         t = ev.get("type")

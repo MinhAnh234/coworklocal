@@ -19,6 +19,11 @@ from typing import Any, Dict, List, Optional
 
 def _load_events(shared_dir: str, subdir: str, start: Optional[date],
                  end: Optional[date]) -> List[Dict[str, Any]]:
+    """Đọc sự kiện telemetry từ thư mục chia sẻ của đội, lọc theo khoảng ngày.
+
+    Thư mục chưa có thì trả list rỗng — máy chưa đồng bộ xong không được làm vỡ
+    màn Giám sát.
+    """
     directory = Path(shared_dir).expanduser() / "telemetry" / subdir
     if not directory.exists():
         return []

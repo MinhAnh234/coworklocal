@@ -74,6 +74,7 @@ _KIND_PROMPTS = {
 
 @dataclass
 class AdminAgent:
+    """Một agent chuyên trách do quản trị cấu hình: prompt riêng, provider và model riêng."""
     agent_id: str
     name: str
     task_kind: str = "cowork"
@@ -85,6 +86,9 @@ class AdminAgent:
     updated_by: str = ""
 
     def effective_prompt(self) -> str:
+        """Prompt hệ thống thật sự dùng: prompt mặc định theo loại việc, rồi tới phần
+        quản trị viết thêm.
+        """
         parts = [_KIND_PROMPTS.get(self.task_kind, ""), (self.prompt or "").strip()]
         return "\n\n".join(p for p in parts if p)
 
@@ -98,12 +102,17 @@ def agents_admin_dir(shared_dir: str = "") -> Path:
 
 
 def _slug(name: str) -> str:
+    """Định danh an toàn cho tên file, suy từ tên agent."""
     s = re.sub(r"[^\w\-]+", "-", (name or "").strip().lower()).strip("-")
     return s or "agent"
 
 
 def new_agent(name: str, task_kind: str = "cowork", prompt: str = "",
               provider: str = "", model: str = "", updated_by: str = "") -> AdminAgent:
+    """Tạo một agent quản trị mới; loại việc lạ thì rơi về 'cowork'.
+
+    Id ghép slug với 6 ký tự ngẫu nhiên để hai agent trùng tên không đè file nhau.
+    """
     return AdminAgent(
         agent_id=f"{_slug(name)}-{uuid.uuid4().hex[:6]}",
         name=name.strip(), task_kind=task_kind if task_kind in TASK_KINDS else "cowork",
@@ -113,6 +122,7 @@ def new_agent(name: str, task_kind: str = "cowork", prompt: str = "",
 
 
 def save_agent(agent: AdminAgent, directory: Path) -> Path:
+    """Ghi một agent ra ``<agent_id>.json``."""
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{agent.agent_id}.json"
     path.write_text(json.dumps(asdict(agent), ensure_ascii=False, indent=2), encoding="utf-8")
@@ -120,6 +130,7 @@ def save_agent(agent: AdminAgent, directory: Path) -> Path:
 
 
 def load_agent(agent_id: str, directory: Path) -> Optional[AdminAgent]:
+    """Đọc một agent theo id; không có thì trả ``None``."""
     path = directory / f"{agent_id}.json"
     if not path.exists():
         return None
@@ -132,6 +143,7 @@ def load_agent(agent_id: str, directory: Path) -> Optional[AdminAgent]:
 
 
 def list_agents(directory: Path, enabled_only: bool = False) -> List[AdminAgent]:
+    """Liệt kê agent trong thư mục; ``enabled_only`` chỉ lấy agent đang bật."""
     if not directory.exists():
         return []
     out: List[AdminAgent] = []
@@ -165,6 +177,7 @@ def ensure_help_agent(directory: Path) -> AdminAgent:
 
 
 def delete_agent(agent_id: str, directory: Path) -> bool:
+    """Xoá file agent; trả về ``True`` nếu có file để xoá."""
     try:
         (directory / f"{agent_id}.json").unlink()
         return True

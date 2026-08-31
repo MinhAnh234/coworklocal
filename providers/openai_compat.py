@@ -22,16 +22,28 @@ _MAX_RETRIES = 6      # auto-retry on rate-limit (429) up to this many times
 
 
 class OpenAICompatProvider(Provider):
+    """Adapter cho mọi endpoint nói giao thức OpenAI: gateway nội bộ, Ollama,
+    GitHub Copilot.
+
+    Một lớp dùng chung cho nhiều nhà cung cấp vì phần khác nhau giữa chúng
+    chỉ là ``base_url`` và cách gắn khoá — đều nằm trong ``conf``.
+    """
     name = "openai_compat"
     supports_vision = True
 
     def _url(self) -> str:
+        """Endpoint ``/chat/completions``. Chưa cấu hình ``base_url`` thì báo lỗi
+        ngay tại đây, thay vì để lỗi nổ ra ở tận tầng HTTP.
+        """
         base = str(self.conf.get("base_url", "")).rstrip("/")
         if not base:
             raise ProviderError("base_url is not configured for the OpenAI-compatible provider.")
         return f"{base}/chat/completions"
 
     def _headers(self) -> Dict[str, str]:
+        """Header cho một lượt gọi; không có khoá thì bỏ hẳn ``Authorization``
+        (Ollama chạy cục bộ không cần khoá).
+        """
         headers = {"Content-Type": "application/json"}
         key = self.conf.get("api_key")
         if key:
@@ -40,6 +52,11 @@ class OpenAICompatProvider(Provider):
 
     @staticmethod
     def _to_api_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Đổi lịch sử hội thoại nội bộ sang đúng khuôn OpenAI mong đợi.
+
+        Chỗ khác biệt thật sự là lượt gọi tool: bên trong app lưu một tin nhắn
+        assistant kèm ``tool_calls``, còn API đòi tham số phải là chuỗi JSON.
+        """
         out: List[Dict[str, Any]] = []
         for m in messages:
             role = m["role"]
@@ -89,6 +106,13 @@ class OpenAICompatProvider(Provider):
         cancel: Optional[CancelFn] = None,
         on_reasoning: Optional[TextCallback] = None,
     ) -> Dict[str, Any]:
+        """Chạy một lượt chat có stream, có gọi tool, tự thử lại khi bị giới hạn tốc độ.
+
+        Giữ một bản sao ``work`` của lịch sử để khi tràn context còn cắt bớt và
+        gửi lại được — không đụng vào danh sách của chỗ gọi. Suy luận nội bộ mà
+        gateway nhét thẳng vào ``content`` dưới dạng ``<think>…</think>`` được
+        tách ra qua ``ThinkStreamSplitter`` để bong bóng trả lời sạch.
+        """
         work = list(messages)   # local copy we can trim on context overflow
         payload: Dict[str, Any] = {"model": self.model, "stream": True}
         if tools:
@@ -104,6 +128,7 @@ class OpenAICompatProvider(Provider):
         # (rather than a separate reasoning_content field). Route that to
         # on_reasoning (→ "Thinking" indicator) and keep the answer bubble clean.
         def _emit_answer(t: str) -> None:
+            """Gom phần trả lời (đã tách khỏi khối suy luận) và đẩy dần ra ngoài."""
             text_parts.append(t)
             if on_text:
                 on_text(t)
@@ -266,26 +291,45 @@ class OpenAICompatProvider(Provider):
         return _assemble_assistant(text_parts, tool_acc)
 
     def _record_usage(self, messages, text_parts, tool_acc, usage_seen) -> None:
-        """One Dashboard usage event per turn: real counts when the server's
-        final chunk carried a "usage" block, a ~4 chars/token estimate
-        otherwise. Never breaks the turn."""
+        """Publish one usage event per turn: real counts when the server's final
+        chunk carried a "usage" block, a ~4 chars/token estimate otherwise.
+
+        Since R03-T06 this only *describes* what the turn consumed and hands the
+        event to ``infrastructure/telemetry/usage_sink.py``; deciding where the
+        numbers land (Dashboard files, cost meters, tests) belongs to the
+        subscribers, not to a provider adapter. Never breaks the turn.
+        """
         try:
-            from ..core import usage_tracker as ut
+            from ..infrastructure.telemetry import usage_sink
 
             if usage_seen:
-                ut.record(self.name, self.model,
-                          usage_seen.get("prompt_tokens", 0),
-                          usage_seen.get("completion_tokens", 0),
-                          (usage_seen.get("prompt_tokens_details") or {}).get("cached_tokens", 0))
+                usage_sink.publish(usage_sink.UsageEvent(
+                    provider=self.name,
+                    model=self.model,
+                    input_tokens=usage_seen.get("prompt_tokens", 0),
+                    output_tokens=usage_seen.get("completion_tokens", 0),
+                    cached_tokens=(usage_seen.get("prompt_tokens_details") or {}).get("cached_tokens", 0),
+                ))
             else:
+                # No usage block from the gateway — approximate from the exact
+                # bytes we sent and received so the Dashboard still shows a
+                # (clearly flagged) figure instead of a silent zero.
                 sent = json.dumps(self._to_api_messages(messages), ensure_ascii=False)
                 got = "".join(text_parts) + "".join(s["args"] for s in tool_acc.values())
-                ut.record(self.name, self.model, ut.estimate_tokens(sent),
-                          ut.estimate_tokens(got), 0, estimated=True)
+                usage_sink.publish(usage_sink.UsageEvent(
+                    provider=self.name,
+                    model=self.model,
+                    input_tokens=usage_sink.estimate_tokens(sent),
+                    output_tokens=usage_sink.estimate_tokens(got),
+                    estimated=True,
+                ))
         except Exception:  # noqa: BLE001
             pass
 
     def list_models(self):
+        """Danh sách model của gateway; lỗi thì trả về list rỗng và ghi lý do vào
+        ``last_error`` để giao diện hiện được thay vì im lặng.
+        """
         self.last_error = ""
         base = str(self.conf.get("base_url", "")).rstrip("/")
         if not base:
@@ -311,6 +355,12 @@ class OpenAICompatProvider(Provider):
 
     @staticmethod
     def _error_text(resp: requests.Response) -> str:
+        """Rút câu lỗi dễ đọc nhất từ phản hồi lỗi của gateway.
+
+        Mỗi gateway trả một khuôn khác nhau: chuẩn OpenAI là
+        ``{"error": {"message": ...}}``, có nơi trả phẳng với ``description`` mới
+        là câu dành cho người đọc còn ``message`` chỉ là "Not found".
+        """
         try:
             body = resp.json()
             # Prefer the OpenAI-style {"error": {"message": ...}} shape; some
@@ -337,6 +387,11 @@ class OpenAICompatProvider(Provider):
 
 
 def _assemble_assistant(text_parts: List[str], tool_acc: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
+    """Ghép các mẩu stream thành một tin nhắn assistant hoàn chỉnh.
+
+    Tham số tool về theo từng mẩu nên phải nối lại rồi mới parse; JSON hỏng
+    thì giữ nguyên chuỗi thô trong ``_raw`` thay vì làm vỡ cả lượt chat.
+    """
     tool_calls: List[Dict[str, Any]] = []
     for idx in sorted(tool_acc):
         slot = tool_acc[idx]

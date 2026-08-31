@@ -13,7 +13,12 @@ from ..i18n import tr
 
 
 class McpServerEditDialog(QDialog):
+    """Form thêm/sửa một máy chủ MCP: tên, lệnh chạy, tham số và công tắc bật.
+
+    Đã được ``ui/connectors_panel.py`` thay thế; giữ lại làm bản đối chiếu.
+    """
     def __init__(self, parent=None, server: Optional[dict] = None):
+        """Dựng form. ``server`` để None thì đây là form thêm mới."""
         super().__init__(parent)
         server = server or {}
         self.setWindowTitle(tr("mcp.edit_title") if server else tr("mcp.add_title"))
@@ -42,12 +47,20 @@ class McpServerEditDialog(QDialog):
         lay.addWidget(buttons)
 
     def _on_accept(self) -> None:
+        """Chỉ đóng khi đã có tên và lệnh chạy — thiếu một trong hai thì máy chủ không
+        khởi động được. Con trỏ nhảy về ô tên thay vì hiện hộp lỗi.
+        """
         if not self.name.text().strip() or not self.command.text().strip():
             self.name.setFocus()
             return
         self.accept()
 
     def result_server(self) -> dict:
+        """Nội dung form dưới dạng dict.
+
+        Tham số được tách bằng ``shlex`` chứ không phải ``split()``: đường dẫn có
+        khoảng trắng phải đặt trong dấu nháy và vẫn tính là MỘT tham số.
+        """
         args_text = self.args.text().strip()
         return {
             "name": self.name.text().strip(),

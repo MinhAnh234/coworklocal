@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from ..application.conversations.tool_policy_gateway import ToolPolicyGateway
+from ..domain.tools import ToolCapability, default_registry
 from ..providers.base import Provider, ToolSpec
 from . import agent_roles
 from . import agent_security
@@ -26,6 +28,13 @@ from .tools import TOOL_SPECS, ToolContext, _snapshot, describe_action, execute_
 
 # Generator / helper scripts — never a final deliverable in Cowork's output.
 _SCRIPT_EXTS = {".py", ".pyw", ".js", ".mjs", ".cjs", ".ts", ".sh", ".bat", ".ps1", ".rb", ".pl"}
+
+# R05-T03/T04: replaces the literal ``name in ("run_command",
+# "install_package")`` check below with a capability lookup — EXECUTE is
+# exactly the capability those two (and only those two) built-in tools carry
+# (see domain/tools/tool_registry.py::BUILT_IN_CAPABILITIES). Copied per-turn
+# into ``turn_tool_policy`` inside run_cowork() once extra_tools are known.
+_COWORK_TOOL_REGISTRY = default_registry(TOOL_SPECS)
 
 EmitFn = Callable[[Dict[str, Any]], None]
 CancelFn = Callable[[], bool]
@@ -126,6 +135,12 @@ _UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
 
 
 def _safe_filename(name: str) -> str:
+    """Làm sạch tên tệp do model đề xuất: bỏ đường dẫn, thay ký tự cấm, không bao
+    giờ trả về chuỗi rỗng.
+
+    Model hay trả về tên có dấu ``/`` hoặc ``..`` — ghi thẳng là thoát khỏi thư
+    mục làm việc.
+    """
     base = Path(str(name)).name.strip()
     base = _UNSAFE.sub("_", base).strip(" _.") or "output.txt"
     if "." not in base:
@@ -298,17 +313,23 @@ def run_chat(
     emit: EmitFn,
     cancel: Optional[CancelFn] = None,
 ) -> Dict[str, Any]:
+    """Chạy một lượt chat thuần (không có tool) và phát nội dung dần ra ngoài.
+
+    Tự chèn prompt hệ thống nếu tin nhắn đầu chưa phải ``system``.
+    """
     if not messages or messages[0].get("role") != "system":
         messages.insert(0, {"role": "system", "content": COWORK_SYSTEM_PROMPT})
     # Rulebase: always attach security rules so the agent follows them every turn
     _apply_security_rules(messages, load_rules())
 
     def on_text(piece: str) -> None:
+        """Đẩy từng mẩu câu trả lời ra ngoài."""
         emit({"type": "text", "delta": piece})
 
     def on_reasoning(piece: str) -> None:
         # Stream the model's reasoning so the UI can show a live, collapsible
         # "Thinking" box (and keep the indicator active).
+        """Đẩy từng mẩu suy luận nội bộ ra ngoài, để giao diện hiện hộp "Đang nghĩ"."""
         emit({"type": "reasoning", "delta": piece})
 
     assistant = provider.chat(messages, tools=None, on_text=on_text, cancel=cancel,
@@ -388,6 +409,19 @@ def run_cowork(
                       jira=(security_config.data.get("jira") if security_config else None))
     extra_tools = extra_tools or []
     extra_names = {t.name for t in extra_tools}
+    # R05-T04: MCP servers (core/mcp_client.py) and unified connectors
+    # (core/ext_connectors.py) — everything that arrives here as extra_tools —
+    # advertise no standard risk metadata, so each is tagged with the same
+    # conservative default (WRITE|EXECUTE|NETWORK) domain/tools/tool_registry.py
+    # uses for any unclassified tool. Copying the built-in registry per turn
+    # (cheap - under 20 entries) rather than mutating the shared module-level
+    # one keeps different turns' extra_tools from leaking into each other.
+    from ..domain.tools import ToolDescriptor, ToolRegistry
+    from ..domain.tools.tool_registry import UNKNOWN_SOURCE_CAPABILITIES
+    _turn_registry = ToolRegistry(_COWORK_TOOL_REGISTRY.all())
+    for _spec in extra_tools:
+        _turn_registry.register(ToolDescriptor.from_spec(_spec, UNKNOWN_SOURCE_CAPABILITIES))
+    turn_tool_policy = ToolPolicyGateway(_turn_registry, ToolCapability.EXECUTE)
     # update_plan drives the Plan panel (above Output); it produces no file.
     # Built-in tools the admin disabled (Monitoring → Tools) are filtered out.
     from .tools import enabled_tool_specs
@@ -489,6 +523,18 @@ def run_cowork(
                     preview = {"kind": "info", "title": name, "text": str(args)}
                     emit({"type": "tool_proposed", "id": tc_id, "name": name, "args": args,
                           "preview": preview})
+                    # R05-T04: MCP/connector tools used to run with NO permission
+                    # check at all — this is what closes that gap. Same policy,
+                    # same gate object as the built-in tools below.
+                    if not turn_tool_policy.allow(
+                        name, gate, {"name": name, "args": args, "preview": preview}
+                    ):
+                        result = {"ok": False, "output": "Rejected by user."}
+                        emit({"type": "tool_result", "id": tc_id, "name": name,
+                              "ok": False, "output": result["output"]})
+                        messages.append({"role": "tool", "tool_call_id": tc_id, "name": name,
+                                         "content": result["output"]})
+                        continue
                     result = extra_executor(name, args)
                     emit({"type": "tool_result", "id": tc_id, "name": name,
                           "ok": result.get("ok", False), "output": result.get("output", "")})
@@ -528,16 +574,18 @@ def run_cowork(
                 # Permission Management (Sandbox Security Layer) — only when a
                 # gate was actually supplied (Settings: "confirm before running
                 # commands"); None preserves the pre-existing auto-run behavior.
-                if gate is not None and name in ("run_command", "install_package"):
-                    approved = gate.request({"name": name, "args": args, "preview": preview})
-                    if not approved:
-                        result = {"ok": False, "output": "Rejected by user."}
-                        evt = {"type": "tool_result", "id": tc_id, "name": name,
-                              "ok": False, "output": result["output"]}
-                        emit(evt)
-                        messages.append({"role": "tool", "tool_call_id": tc_id,
-                                        "name": name, "content": result["output"]})
-                        continue
+                # R05-T03: gating is now capability-driven (see
+                # turn_tool_policy above) instead of a literal name tuple.
+                if not turn_tool_policy.allow(
+                    name, gate, {"name": name, "args": args, "preview": preview}
+                ):
+                    result = {"ok": False, "output": "Rejected by user."}
+                    evt = {"type": "tool_result", "id": tc_id, "name": name,
+                          "ok": False, "output": result["output"]}
+                    emit(evt)
+                    messages.append({"role": "tool", "tool_call_id": tc_id,
+                                    "name": name, "content": result["output"]})
+                    continue
 
                 if name == "save_file":
                     result = _do_save_file(output_dir, title, args)

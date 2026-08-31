@@ -31,6 +31,9 @@ class ProjectScopePolicy:
     """Pilot policy: read scope and exact identity-bound project are both mandatory."""
 
     def decide(self, identity: IdentityContext, tool_name: str, project_id: str) -> bool:
+        """Chỉ cho phép khi danh tính có phạm vi ``read`` VÀ project khớp đúng
+        project gắn với danh tính đó — không cho đọc chéo project.
+        """
         return "read" in identity.granted_scopes and project_id == identity.project
 
 
@@ -43,7 +46,11 @@ PROVIDER_FACTORIES: dict[str, Callable[[IdentityContext], Any]] = {
 
 @dataclass(frozen=True)
 class ProjectProviderResolver:
+    """Tra provider thật cho từng tool theo bảng ``PROVIDER_FACTORIES``."""
     def resolve(self, identity: IdentityContext, tool_name: str) -> Any:
+        """Dựng provider cho một tool; tool chưa đăng ký thì báo ``NOT_FOUND`` và
+        không cho thử lại.
+        """
         factory = PROVIDER_FACTORIES.get(tool_name)
         if factory is None:
             raise ProviderError("NOT_FOUND", "The requested tool is not registered.", retryable=False)
@@ -51,6 +58,11 @@ class ProjectProviderResolver:
 
 
 def _required_environment(name: str) -> str:
+    """Đọc một biến môi trường bắt buộc; thiếu thì dừng ngay lúc khởi động.
+
+    Thà không chạy còn hơn chạy với cấu hình khuyết rồi lỗi giữa chừng ở một
+    lượt gọi tool nào đó.
+    """
     value = os.environ.get(name, "").strip()
     if not value:
         raise RuntimeError(f"Project Context MCP cannot start: required setting {name} is missing")

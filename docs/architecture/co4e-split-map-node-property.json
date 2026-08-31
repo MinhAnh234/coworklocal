@@ -1,0 +1,123 @@
+{
+  "scope": "StepConfigPanel (ui/co4e_config_panel.py, dong 1-528)",
+  "source_file": "ui/co4e_config_panel.py",
+  "symbols": [
+    {
+      "symbol": "_SECTION_ANIM_MS",
+      "source_lines": "27",
+      "target_file": "presentation/co4e/step_config_section.py",
+      "note": "hang so animation cho _add_section"
+    },
+    {
+      "symbol": "_SectionHeader",
+      "source_lines": "30-52",
+      "target_file": "presentation/co4e/step_config_section.py",
+      "note": "QLabel clickable, khung UI dung chung, khong co hanh vi nghiep vu rieng"
+    },
+    {
+      "symbol": "_add_section",
+      "source_lines": "55-130",
+      "target_file": "presentation/co4e/step_config_section.py",
+      "note": "khung section gap/mo dung chung cho 4 nhom truong cua StepConfigPanel"
+    },
+    {
+      "symbol": "StepConfigPanel (Signal + __init__)",
+      "source_lines": "133-313",
+      "target_file": "presentation/co4e/node_property_panel.py",
+      "note": "4 Signal (changed/run_node/run_from/delete_node) + dung toan bo form"
+    },
+    {
+      "symbol": "StepConfigPanel.load_step",
+      "source_lines": "316-354",
+      "target_file": "presentation/co4e/node_property_panel.py",
+      "note": "nap Step vao form"
+    },
+    {
+      "symbol": "StepConfigPanel.clear_step",
+      "source_lines": "356-359",
+      "target_file": "presentation/co4e/node_property_panel.py",
+      "note": "xoa state, tat panel"
+    },
+    {
+      "symbol": "StepConfigPanel._on_edit",
+      "source_lines": "362-378",
+      "target_file": "presentation/co4e/node_property_panel.py",
+      "note": "ghi field UI nguoc vao Step"
+    },
+    {
+      "symbol": "StepConfigPanel._available_agent_names",
+      "source_lines": "380-390",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "staticmethod, chuyen vao mixin _StepConfigActionsMixin"
+    },
+    {
+      "symbol": "StepConfigPanel._add_subagent",
+      "source_lines": "392-408",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin"
+    },
+    {
+      "symbol": "StepConfigPanel._edit_subagent",
+      "source_lines": "410-428",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin"
+    },
+    {
+      "symbol": "StepConfigPanel._del_subagent",
+      "source_lines": "430-437",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin"
+    },
+    {
+      "symbol": "StepConfigPanel._add_attachment",
+      "source_lines": "439-453",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin"
+    },
+    {
+      "symbol": "StepConfigPanel._del_attachment",
+      "source_lines": "455-462",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin"
+    },
+    {
+      "symbol": "StepConfigPanel._ai_draft",
+      "source_lines": "464-498",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin; dung AgentWorker that"
+    },
+    {
+      "symbol": "StepConfigPanel._load_models",
+      "source_lines": "500-528",
+      "target_file": "presentation/co4e/node_property_actions_mixin.py",
+      "note": "chuyen vao mixin _StepConfigActionsMixin; dung AgentWorker that"
+    }
+  ],
+  "old_file_after_split": {
+    "file": "ui/co4e_config_panel.py",
+    "content": "module docstring (sua, van tieng Anh) + import lai StepConfigPanel tu presentation/co4e/node_property_panel.py + __all__",
+    "lines": 14
+  },
+  "new_files": [
+    {"file": "presentation/co4e/step_config_section.py", "lines": 134},
+    {"file": "presentation/co4e/node_property_actions_mixin.py", "lines": 202},
+    {"file": "presentation/co4e/node_property_panel.py", "lines": 293}
+  ],
+  "inheritance": {
+    "class": "StepConfigPanel",
+    "bases": ["_StepConfigActionsMixin", "QScrollArea"],
+    "mandatory_order": false,
+    "reason": "khong co method nao cua _StepConfigActionsMixin trung ten voi QScrollArea (khac Co4ECanvas voi paintEvent/mousePressEvent), nen thu tu ke thua khong anh huong hanh vi; giu mixin-truoc chi de nhat quan quy uoc"
+  },
+  "deliberate_unused_import_kept": {
+    "name": "PROVIDER_LABELS",
+    "source_line": 21,
+    "target_file": "presentation/co4e/node_property_panel.py",
+    "reason": "khong dung o dau trong ban goc (da xac minh bang grep); giu nguyen de dung pham vi chi doi cho, khong don dep import thua"
+  },
+  "test_patch_adaptation": {
+    "file": "tests/characterization/test_node_property_panel.py",
+    "what_changed": "case CASE_ADD_SUBAGENT_EMPTY_NAMES_USES_GETTEXT_QUIRK_OK doi tu StepConfigPanel.__dict__[\"_available_agent_names\"] (luu roi gan lai) sang del StepConfigPanel._available_agent_names (xoa override de roi ve lai method ke thua tu mixin)",
+    "why": "sau khi _available_agent_names chuyen vao _StepConfigActionsMixin, no khong con nam truc tiep trong StepConfigPanel.__dict__ nen loi KeyError; day la thay doi CACH patch/restore trong test, KHONG doi assert/hanh vi nao duoc kiem tra"
+  }
+}

@@ -27,27 +27,12 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
 from typing import List, Optional
 
 from ..providers.base import Provider
 from . import security_rules
-
-
-class SecurityBlocked(RuntimeError):
-    """A guardrail refused an action. ``verdict`` carries the full detail for
-    the admin alert; ``str(exc)`` is the short, user-facing reason."""
-
-    def __init__(self, verdict: "SecurityVerdict"):
-        super().__init__(verdict.reason or f"Blocked by agent security ({verdict.layer}).")
-        self.verdict = verdict
-
-
-@dataclass
-class SecurityVerdict:
-    allowed: bool
-    reason: str = ""
-    layer: str = ""   # "prompt" | "attachment" | "command"
+from .agent_security_alert import notify_admin
+from .agent_security_types import SecurityBlocked, SecurityVerdict
 
 
 def combined_rules_text(config, max_chars: int = 8000, agent_kind: str = "cowork") -> str:
@@ -164,6 +149,10 @@ def _ai_verdict(provider: Provider, system_prompt: str, content: str, layer: str
 
 
 def validate_prompt(provider: Provider, user_text: str, rules_text: str) -> SecurityVerdict:
+    """Nhờ model xét prompt người dùng theo bộ luật an toàn.
+
+    Prompt rỗng thì cho qua ngay, khỏi tốn một lượt gọi.
+    """
     if not (user_text or "").strip():
         return SecurityVerdict(True, "", "prompt")
     system = _PROMPT_SYSTEM.format(rules=rules_text or "(no additional rules configured)")
@@ -172,6 +161,7 @@ def validate_prompt(provider: Provider, user_text: str, rules_text: str) -> Secu
 
 def validate_attachment(provider: Provider, filename: str, content: str,
                         rules_text: str) -> SecurityVerdict:
+    """Nhờ model xét nội dung một tệp đính kèm theo bộ luật an toàn."""
     if not (content or "").strip():
         return SecurityVerdict(True, "", "attachment")
     system = _ATTACHMENT_SYSTEM.format(rules=rules_text or "(no additional rules configured)")
@@ -180,6 +170,11 @@ def validate_attachment(provider: Provider, filename: str, content: str,
 
 def validate_command(provider: Provider, command: str,
                      rules_text: str, ai_enabled: bool) -> SecurityVerdict:
+    """Nhờ model xét một lệnh shell theo bộ luật an toàn.
+
+    ``ai_enabled=False`` thì cho qua — người dùng đã tắt lớp xét bằng AI, bộ luật
+    tĩnh vẫn chạy ở chỗ khác.
+    """
     if not ai_enabled:
         return SecurityVerdict(True, "", "command")
     system = _COMMAND_SYSTEM.format(rules=rules_text or "(no additional rules configured)")
@@ -188,6 +183,7 @@ def validate_command(provider: Provider, command: str,
 
 # ---- call-site convenience wrappers (used by chat_agent.py / code_agent.py) --
 def _security_conf(config) -> dict:
+    """Nhóm cấu hình ``agent_security``; không có config thì trả dict rỗng."""
     return (config.data.get("agent_security", {}) if config is not None else {})
 
 
@@ -236,7 +232,6 @@ def enforce_prompt(provider: Provider, messages: List[dict], config, emit,
     emit({"type": "notice", "level": "warning",
           "text": f"🛡 Yêu cầu bị chặn bởi Agent Security: {verdict.reason}"})
     from . import audit_log
-    from .agent_security_alert import notify_admin
 
     audit_log.record("security_block", "prompt", False, verdict.reason)
     notify_admin(config, verdict, detail=user_text[:1000])
@@ -266,7 +261,6 @@ def enforce_command(provider: Provider, name: str, args: dict, config, emit,
     emit({"type": "notice", "level": "warning",
           "text": f"🛡 Lệnh bị chặn bởi Agent Security ({verdict.layer}): {verdict.reason}"})
     from . import audit_log
-    from .agent_security_alert import notify_admin
 
     audit_log.record("security_block", name, False, f"{verdict.layer}: {verdict.reason}")
     notify_admin(config, verdict, detail=command)

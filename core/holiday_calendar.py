@@ -44,6 +44,11 @@ def _package_calendar(country: str, year: int):
 
 
 def is_holiday(d: date, country: Optional[str]) -> bool:
+    """Ngày này có phải ngày nghỉ của một quốc gia không.
+
+    Không đặt quốc gia thì luôn trả ``False`` — không suy đoán lịch nghỉ thay
+    người dùng.
+    """
     country = (country or "").strip().upper()
     if not country:
         return False

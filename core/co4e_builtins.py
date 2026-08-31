@@ -15,6 +15,7 @@ from .co4e import (
 
 @dataclass
 class BuiltinAgent:
+    """Một agent dựng sẵn của Co4E: slug, tên, vai trò và prompt mặc định."""
     slug: str
     name: str
     role: str

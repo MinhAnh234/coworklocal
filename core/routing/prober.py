@@ -70,6 +70,7 @@ _SCORE_RE = re.compile(r'"score"\s*:\s*([0-9]*\.?[0-9]+)')
 
 
 def _clamp01(x: float) -> float:
+    """Chặn một số về khoảng 0..1."""
     return min(1.0, max(0.0, float(x)))
 
 
@@ -108,6 +109,10 @@ def make_judge(
     """
 
     def judge(task_type: TaskType, prompt: str, answer: str) -> float:
+        """Chấm điểm câu trả lời của một model theo rubric, trả về điểm 0..1.
+
+        Cắt câu trả lời ở 4000 ký tự để một lượt chấm không tự nó tràn ngữ cảnh.
+        """
         rubric = _JUDGE_RUBRIC.format(
             task=task_type.value, prompt=prompt, answer=(answer or "")[:4000]
         )
@@ -160,11 +165,17 @@ class _PerProviderSemaphores:
     """Lazily-created, per-provider bounded semaphores for rate-limit safety."""
 
     def __init__(self, limit: int) -> None:
+        """Giới hạn số lượt thăm dò song song TRÊN MỖI provider.
+
+        Đếm riêng từng provider chứ không đếm chung: một provider chậm không được
+        phép chiếm hết suất của những provider còn lại.
+        """
         self._limit = max(1, int(limit))
         self._sems: Dict[str, threading.Semaphore] = {}
         self._lock = threading.Lock()
 
     def get(self, provider: str) -> threading.Semaphore:
+        """Semaphore của một provider, tạo lười ở lần dùng đầu."""
         with self._lock:
             sem = self._sems.get(provider)
             if sem is None:
@@ -201,6 +212,7 @@ def probe_candidates(
     results_lock = threading.Lock()
 
     def _one(provider: str, model_id: str, task_type: TaskType) -> None:
+        """Dò một cặp (provider, model) cho một loại việc, tôn trọng giới hạn song song."""
         sem = sems.get(provider)
         with sem:
             if call_counter is not None:

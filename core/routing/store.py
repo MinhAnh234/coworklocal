@@ -68,6 +68,11 @@ class AssessmentStore:
         store_path: Optional[Path] = None,
         history_dir: Optional[Path] = None,
     ) -> None:
+        """``store_path`` để None thì dùng file mặc định trong thư mục cấu hình.
+
+        Import ``CONFIG_DIR`` muộn ngay trong thân hàm: nạp nó lúc import module sẽ
+        kéo theo cả cây cấu hình vào mọi test dùng lớp này.
+        """
         if store_path is None:
             from ...config import CONFIG_DIR  # lazy: avoids import cost in tests
             store_path = CONFIG_DIR / _DEFAULT_STORE_NAME
@@ -107,9 +112,11 @@ class AssessmentStore:
         return out
 
     def last_updated(self) -> Optional[str]:
+        """Mốc thời gian lần chấm điểm gần nhất; ``None`` nếu chưa chấm lần nào."""
         return self.load_raw().get("last_updated")
 
     def policy(self) -> str:
+        """Chính sách chấm điểm đã lưu; chưa có thì mặc định 'balanced'."""
         return self.load_raw().get("policy") or Policy.BALANCED.value
 
     # -- write ---------------------------------------------------------- #

@@ -73,6 +73,7 @@ def auto_chain_in_order(tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 # ---- CSV -----------------------------------------------------------------
 def _import_csv(path: Path) -> List[Dict[str, Any]]:
+    """Đọc danh sách task từ file CSV (chấp nhận BOM của Excel)."""
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
@@ -111,6 +112,7 @@ def _import_csv(path: Path) -> List[Dict[str, Any]]:
 
 # ---- JSON ----------------------------------------------------------------
 def _import_json(path: Path) -> List[Dict[str, Any]]:
+    """Đọc danh sách task từ file JSON."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -138,6 +140,11 @@ def _import_json(path: Path) -> List[Dict[str, Any]]:
 
 
 def _pick(d: Dict[str, Any], *keys, default=""):
+    """Lấy giá trị đầu tiên khác rỗng trong các khoá được nêu.
+
+    File nhập từ nhiều nguồn đặt tên cột khác nhau (``title``/``name``/``Tiêu đề``),
+    nên phải thử lần lượt.
+    """
     for k in keys:
         if k in d and d[k] not in (None, ""):
             return d[k]
@@ -145,6 +152,7 @@ def _pick(d: Dict[str, Any], *keys, default=""):
 
 
 def _clamp(value, allowed, default):
+    """Ép một giá trị về tập hợp lệ; ngoài tập thì lấy mặc định."""
     v = str(value or "").strip().lower()
     return v if v in allowed else default
 
@@ -213,6 +221,7 @@ _TRUE = {"yes", "y", "true", "1", "x", "có", "co"}
 
 
 def _truthy(value) -> bool:
+    """Đọc giá trị đúng/sai từ nhiều kiểu ghi khác nhau (bool, 'yes', '1', 'có'…)."""
     if isinstance(value, bool):
         return value
     return str(value or "").strip().lower() in _TRUE

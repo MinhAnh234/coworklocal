@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phân Việc Refactor Team Gamma</title>
+</head>
+<body>
+<style>
+  :root {
+    --ground: #FAF9FC; --surface: #FFFFFF; --surface-2: #F3F0F8;
+    --ink: #191325; --muted: #665E7C; --line: #E4DEEE;
+    --accent: #6D3A9E;
+    --lead: #6D3A9E; --m1: #14707F; --m2: #A65418;
+    --warn: #A81F1A; --ok: #1B6B40;
+    --lead-wash: #F1E9F9; --m1-wash: #E2F1F3; --m2-wash: #F8EDE2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #121020; --surface: #1B1830; --surface-2: #241F3D;
+      --ink: #EFEBF7; --muted: #A69EBD; --line: #2F2848;
+      --accent: #C08CF0;
+      --lead: #C08CF0; --m1: #56C6D8; --m2: #E29A56;
+      --warn: #F08A84; --ok: #6FD69C;
+      --lead-wash: #2A1F42; --m1-wash: #133038; --m2-wash: #38270F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #121020; --surface: #1B1830; --surface-2: #241F3D;
+    --ink: #EFEBF7; --muted: #A69EBD; --line: #2F2848;
+    --accent: #C08CF0;
+    --lead: #C08CF0; --m1: #56C6D8; --m2: #E29A56;
+    --warn: #F08A84; --ok: #6FD69C;
+    --lead-wash: #2A1F42; --m1-wash: #133038; --m2-wash: #38270F;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "Segoe UI", -apple-system, system-ui, "Helvetica Neue", sans-serif;
+    font-size: 15px; line-height: 1.62; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px 96px; }
+  code, .mono, td.day, th.day, .num {
+    font-family: Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  header.top { border-bottom: 2px solid var(--ink); padding: 56px 0 22px; margin-bottom: 34px; }
+  .eyebrow { font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 14px; }
+  h1 { font-size: clamp(30px, 4.4vw, 44px); line-height: 1.1; margin: 0 0 16px;
+    font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+  .lede { font-size: 17px; color: var(--muted); margin: 0; max-width: 64ch; }
+  .alias { margin: 18px 0 0; padding: 12px 16px; max-width: 74ch;
+    background: var(--surface-2); border-left: 3px solid var(--accent);
+    border-radius: 3px; font-size: 14px; color: var(--muted); }
+  .alias b { color: var(--ink); }
+  .facts { display: flex; flex-wrap: wrap; gap: 28px; margin-top: 26px;
+    padding-top: 20px; border-top: 1px solid var(--line); }
+  .fact .k { font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--muted); display: block; margin-bottom: 3px; }
+  .fact .v { font-size: 15px; font-weight: 600; }
+
+  h2 { font-size: 23px; margin: 52px 0 6px; letter-spacing: -.01em; font-weight: 700; text-wrap: balance; }
+  h2 + .sub { color: var(--muted); margin: 0 0 22px; max-width: 70ch; }
+  h3 { font-size: 17px; margin: 30px 0 10px; font-weight: 700; }
+
+  /* gate = việc phải xong trước khi chia nhánh */
+  .gatebox { background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--warn); border-radius: 3px; padding: 4px 26px 22px; }
+  .gatebox h2 { margin-top: 22px; }
+
+  .steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+  .steps > li { counter-increment: s; position: relative; padding: 14px 0 14px 46px;
+    border-bottom: 1px solid var(--line); }
+  .steps > li:last-child { border-bottom: none; }
+  .steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 14px;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-size: 13px; font-weight: 700; display: flex;
+    align-items: center; justify-content: center;
+    font-family: Consolas, ui-monospace, monospace;
+  }
+  .steps b { display: block; margin-bottom: 2px; }
+  .steps small { color: var(--muted); font-size: 13.5px; display: block; }
+  .est { float: right; font-size: 12px; color: var(--muted); font-weight: 600;
+    font-family: Consolas, ui-monospace, monospace; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 940px) { .cards { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line);
+    border-top: 3px solid var(--c); border-radius: 3px; padding: 20px;
+    display: flex; flex-direction: column; }
+  .card.lead { --c: var(--lead); --w: var(--lead-wash); }
+  .card.one  { --c: var(--m1);   --w: var(--m1-wash); }
+  .card.two  { --c: var(--m2);   --w: var(--m2-wash); }
+  .card .tag { font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+    font-weight: 700; color: var(--c); margin-bottom: 6px; }
+  .card h3 { margin: 0 0 4px; font-size: 18px; }
+  .card .who { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .card .branch { font-size: 12.5px; background: var(--w); color: var(--c);
+    padding: 5px 9px; border-radius: 3px; display: inline-block;
+    margin-bottom: 16px; word-break: break-all; font-weight: 600; }
+  .card h4 { font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); margin: 16px 0 7px; font-weight: 700; }
+  .card ul { margin: 0; padding-left: 17px; font-size: 14px; }
+  .card li { margin-bottom: 6px; }
+  .tid { font-size: 12px; font-weight: 700; color: var(--c);
+    font-family: Consolas, ui-monospace, monospace; }
+  .paths { list-style: none; padding: 0; margin: 0; font-size: 12.5px; }
+  .paths li { padding: 3px 0; border-bottom: 1px dotted var(--line);
+    font-family: Consolas, ui-monospace, monospace; color: var(--muted); word-break: break-all; }
+  .paths li:last-child { border-bottom: none; }
+  .weight { margin-top: auto; padding-top: 16px; font-size: 12.5px; color: var(--muted); }
+  .weight b { color: var(--ink); font-size: 15px; }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: var(--surface); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--surface-2); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); font-weight: 700; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.day, th.day { white-space: nowrap; font-weight: 700; font-size: 13px; }
+  td.cl { border-left: 3px solid var(--lead); }
+  td.c1 { border-left: 3px solid var(--m1); }
+  td.c2 { border-left: 3px solid var(--m2); }
+  tr.mark td { background: var(--surface-2); font-weight: 600; }
+  td small { color: var(--muted); display: block; font-size: 12.5px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px;
+    border-radius: 2px; letter-spacing: .04em; white-space: nowrap; }
+  .pill.cp { background: var(--m1-wash); color: var(--m1); }
+  .pill.gate { background: var(--m2-wash); color: var(--m2); }
+  .pill.ship { background: var(--lead-wash); color: var(--lead); }
+
+  .rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+  .rule { background: var(--surface); border: 1px solid var(--line);
+    border-radius: 3px; padding: 18px 20px; border-left: 3px solid var(--c, var(--line)); }
+  .rule.hard { --c: var(--warn); }
+  .rule.soft { --c: var(--ok); }
+  .rule h3 { margin: 0 0 8px; font-size: 15px; }
+  .rule p { margin: 0; font-size: 14px; color: var(--muted); }
+  .rule code { color: var(--ink); }
+
+
+  /* tóm tắt: đọc 30 giây là nắm được, trước khi vào chi tiết */
+  .tldr {
+    display: grid; grid-template-columns: 1.35fr 1fr; gap: 0;
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+    margin-bottom: 8px; background: var(--surface);
+  }
+  @media (max-width: 820px) { .tldr { grid-template-columns: 1fr; } }
+  .tldr > div { padding: 20px 24px; }
+  .tldr .right { background: var(--surface-2); border-left: 1px solid var(--line); }
+  @media (max-width: 820px) { .tldr .right { border-left: none; border-top: 1px solid var(--line); } }
+  .tldr .cap {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin: 0 0 12px;
+  }
+  .flow { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+  .flow li { padding: 7px 0; border-bottom: 1px dotted var(--line); display: flex; gap: 10px; }
+  .flow li:last-child { border-bottom: none; }
+  .flow .b {
+    flex: 0 0 auto; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 2px;
+    background: var(--w2); color: var(--c2); height: fit-content; margin-top: 2px;
+    font-family: Consolas, ui-monospace, monospace;
+  }
+  .flow li.f0 { --c2: var(--warn); --w2: var(--surface-2); }
+  .flow li.f1 { --c2: var(--lead); --w2: var(--lead-wash); }
+  .flow li.f2 { --c2: var(--m1); --w2: var(--m1-wash); }
+  .flow li.f3 { --c2: var(--m2); --w2: var(--m2-wash); }
+  .flow .t { flex: 1; }
+  .flow .t b { display: block; }
+  .flow .t small { color: var(--muted); font-size: 12.5px; }
+  .must { margin: 0; padding-left: 18px; font-size: 14px; }
+  .must li { margin-bottom: 8px; }
+  .must li:last-child { margin-bottom: 0; }
+  .must b { color: var(--ink); }
+
+  /* input / output từng người */
+  .io { display: grid; gap: 18px; }
+  .iorow { background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--c); border-radius: 3px; overflow: hidden; }
+  .iorow.n1 { --c: var(--lead); --w: var(--lead-wash); }
+  .iorow.n2 { --c: var(--m1);   --w: var(--m1-wash); }
+  .iorow.n3 { --c: var(--m2);   --w: var(--m2-wash); }
+  .iohead { padding: 14px 20px; background: var(--w); display: flex;
+    align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .iohead b { color: var(--c); font-size: 15px; }
+  .iohead span { color: var(--muted); font-size: 13px; }
+  .iogrid { display: grid; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 860px) { .iogrid { grid-template-columns: 1fr; } }
+  .iogrid > div { padding: 16px 20px; }
+  .iogrid > div + div { border-left: 1px solid var(--line); }
+  @media (max-width: 860px) {
+    .iogrid > div + div { border-left: none; border-top: 1px solid var(--line); }
+  }
+  .iocap { font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin: 0 0 10px; }
+  .iolist { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+  .iolist li { padding: 5px 0; border-bottom: 1px dotted var(--line); }
+  .iolist li:last-child { border-bottom: none; }
+  .iolist code { font-size: 12.5px; }
+  .frm { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px;
+    border-radius: 2px; background: var(--surface-2); color: var(--muted);
+    margin-right: 6px; font-family: Consolas, ui-monospace, monospace; }
+  .frm.done { background: var(--m1-wash); color: var(--m1); }
+  .frm.risk { background: var(--m2-wash); color: var(--m2); }
+
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Team Gamma · Automation, Workflows &amp; Governance</p>
+  <h1>Một nhánh chung, ba làn không đụng nhau</h1>
+  <p class="lede">
+    Toàn bộ phần việc refactor 10 ngày của Team Gamma — Nam, Hiệp, Lâm. Cả ba đẩy chung vào <code>gamma/refactor</code>. Nam làm thêm một mục chung —
+    khung kiến trúc, hợp đồng dữ liệu, cổng kiểm duyệt — nằm ngoài ba nhánh; xong mục đó thì
+    ba người vào ba nhánh tính năng ngang nhau, không ai phải sửa chung file với ai.
+  </p>
+  <p class="alias">
+    Ba tài liệu refactor gọi team này là <b>“Team Nam”</b> (theo tên lead). Cùng một team, cùng
+    phạm vi R02 · R08 · R09 · R07-T06. Nhánh của team dùng tiền tố <code>gamma/</code>; ba tài liệu refactor viết
+    <code>nam/workflow-governance-*</code> theo tên lead — cùng một thứ.
+  </p>
+  <div class="facts">
+    <div class="fact"><span class="k">Thời hạn</span><span class="v mono">21/08 → 31/08</span></div>
+    <div class="fact"><span class="k">Người</span><span class="v mono">Nam · Hiệp · Lâm</span></div>
+    <div class="fact"><span class="k">Nhánh</span><span class="v mono">gamma/refactor</span></div>
+    <div class="fact"><span class="k">Code phải bóc</span><span class="v mono">~6.500 dòng</span></div>
+    <div class="fact"><span class="k">Cổng phải qua</span><span class="v mono">CASAN Check 1</span></div>
+  </div>
+</header>
+
+
+<section class="tldr">
+  <div>
+    <p class="cap">Tóm tắt · thứ tự làm</p>
+    <ul class="flow">
+      <li class="f0">
+        <span class="b">CHUNG</span>
+        <span class="t"><b>Nam làm trước, nửa ngày</b>
+        <small>Dựng khung 5 thư mục (đang là 0 file) · interface + fake cho Config/Secrets ·
+        chốt <code>api_key</code> và báo Team Duy · script CASAN Check 1 · đưa 3 check vào CI ·
+        quyết số phận 24 checker UI. Merge xong mới chia nhánh.</small></span>
+      </li>
+      <li class="f1">
+        <span class="b">N1</span>
+        <span class="t"><b>N1 — Nam · Cấu hình, Bí mật, Vỏ ứng dụng</b>
+        <small>R02 (6 task) · settings 4 widget · bootstrap + MainWindow · policy doc.
+        Giữ luôn <code>app.py</code>, <code>config.py</code>, <code>theme.py</code>,
+        <code>i18n.py</code>. ~2.700 dòng.</small></span>
+      </li>
+      <li class="f2">
+        <span class="b">N2</span>
+        <span class="t"><b>N2 — Hiệp · Giám sát</b>
+        <small>7 tab Monitoring · CanonicalAuditLogger · MonitoringQueryService ·
+        2 vòng lặp import · ma trận Sandbox. ~2.650 dòng.</small></span>
+      </li>
+      <li class="f3">
+        <span class="b">N3</span>
+        <span class="t"><b>N3 — Lâm · Co4E Studio</b>
+        <small>Co4EWorkflowService · tách <code>co4e_tab.py</code> + <code>co4e_canvas.py</code>
+        thành 5 phần. ~2.880 dòng, file to nhất team.</small></span>
+      </li>
+    </ul>
+  </div>
+  <div class="right">
+    <p class="cap">Ba điều bắt buộc</p>
+    <ol class="must">
+      <li><b>Không chạm file dùng chung.</b> Cần thêm chuỗi hay màu thì nhắn nhóm trưởng, đừng tự sửa.</li>
+      <li><b>Nộp factory, không tự lắp vào <code>app.py</code>.</b> N1 lắp trong <code>bootstrap.py</code> ngày 28/08.</li>
+      <li><b>Bị chặn thì dùng fake, báo ngay trong ngày.</b> Không ngồi đợi ai.</li>
+    </ol>
+    <p class="cap" style="margin-top:20px">Nghiệm thu</p>
+    <p style="margin:0;font-size:14px;color:var(--muted)">
+      Trên <code>gamma/refactor</code>: không file nào được sửa bởi hai người khác nhau.
+      Có là quy ước <b style="color:var(--ink)">số 1</b> đang bị vi phạm.
+    </p>
+  </div>
+</section>
+
+<section class="gatebox">
+  <h2>Mục chung — Nam làm, xong hai người kia mới bắt đầu</h2>
+  <p class="sub">
+    Sáu việc dưới đây không thuộc làn nào — chúng là thứ cả ba người cùng đụng
+    vào. Nam làm một lần và đẩy lên <code>gamma/refactor</code>, rồi hai người kia
+    mới bắt đầu. Ước tính nửa ngày.
+  </p>
+  <ol class="steps">
+    <li>
+      <span class="est">~30 phút</span>
+      <b>Dựng khung thư mục</b>
+      <small>
+        <code>domain/</code> <code>application/</code> <code>infrastructure/</code>
+        <code>presentation/</code> <code>platform/</code> <code>tests/fakes/</code> —
+        hiện tại <b>chưa tồn tại, 0 file</b>. Mọi task của cả ba người đều ghi vào đây; để ba
+        người tự tạo là đụng nhau ở <code>__init__.py</code> ngay ngày đầu.
+      </small>
+    </li>
+    <li>
+      <span class="est">~45 phút</span>
+      <b>Viết interface + fake cho Config và Secrets</b>
+      <small>
+        <code>SecretStore</code>, <code>ConfigRepository</code>, kèm
+        <code>FakeSecretStore</code> và <code>FakeConfigRepository</code>. Chỉ chữ ký, chưa cần
+        thân hàm. Đây là thứ gỡ chốt cho cả hai người kia — <b>156 lời gọi
+        <code>ctx.config.*</code> trong 29 file</b> đang chờ nó.
+      </small>
+    </li>
+    <li>
+      <span class="est">~20 phút</span>
+      <b>Chốt số phận <code>api_key</code> và báo Team Duy</b>
+      <small>
+        <code>provider_conf()</code> còn trả <code>api_key</code> bên trong, hay tách hẳn sang
+        <code>SecretStore</code>? Có 5 nơi đọc trực tiếp, <b>3 trong số đó nằm trong
+        <code>providers/</code> của Team Duy</b>. Quyết một mình rồi im lặng là làm vỡ code
+        team bạn.
+      </small>
+    </li>
+    <li>
+      <span class="est">~30 phút</span>
+      <b>Viết <code>scripts/audit_security.py</code> (CASAN Check 1)</b>
+      <small>
+        Gamma chủ trì check này ngày 30/08. Viết ngay hôm nay thì lead tự kiểm được trong suốt
+        quá trình chuyển API key, thay vì tới ngày cổng mới chạy lần đầu và phát hiện vấn đề.
+      </small>
+    </li>
+    <li>
+      <span class="est">~20 phút</span>
+      <b>Thêm 3 check CASAN vào CI</b>
+      <small>
+        CI hiện chỉ chạy <code>pytest tests -q</code>. Ba check (secret · ≤400 dòng · import
+        guard) không nằm trong CI, nên tới 30/08 mới biết ai vi phạm. Đưa vào CI thì mỗi PR tự
+        báo.
+      </small>
+    </li>
+    <li>
+      <span class="est">~30 phút</span>
+      <b>Quyết số phận 24 checker UI, rồi thông báo</b>
+      <small>
+        Chúng bám vào <code>cowork_local.config</code> (34 chỗ) và <code>cowork_local.app</code>
+        (16 chỗ) — <b>sẽ chết ngay khi lead đụng <code>config.py</code></b>. Đây là lưới an toàn
+        duy nhất cho phần UI vừa làm xong. Xem mục quy ước bên dưới.
+      </small>
+    </li>
+  </ol>
+</section>
+
+<h2>Ba làn</h2>
+<p class="sub">
+  Ba làn ngang nhau, mỗi làn khoảng 2.700 dòng phải bóc tách, <b>cùng đẩy vào một
+  nhánh</b> <code>gamma/refactor</code>. Nam nhận làn N1 vì đó là làn chạm tới file
+  dùng chung nhiều nhất. Cột “sở hữu” là danh sách file <em>chỉ</em> người đó được
+  sửa — trên nhánh chung, đây là thứ duy nhất giữ cho ba người không giẫm chân.
+</p>
+
+<div class="cards">
+
+  <div class="card lead">
+    <div class="tag">Làn N1 · Nam</div>
+    <h3>Cấu hình, Bí mật &amp; Vỏ ứng dụng</h3>
+    <p class="who">Nam giữ — làn chạm nhiều file dùng chung nhất</p>
+    <div class="branch">gamma/refactor</div>
+
+    <h4>Việc</h4>
+    <ul>
+      <li><span class="tid">R02-T01…T06</span> AtomicJsonFile · ConfigRepository · Typed Settings Facade · SecretStore + Keyring · chuyển API key · schema versioning</li>
+      <li><span class="tid">R08-T07</span> tách <code>settings_dialog.py</code> → 4 section widget</li>
+      <li><span class="tid">R08-T10</span> <code>bootstrap.py</code> + tách <code>MainWindow</code> → shell · tray · lifecycle <em>(cuối sprint, lắp factory của hai người kia)</em></li>
+      <li><span class="tid">R09-T01</span> tài liệu Security Policy Model</li>
+      <li>Chủ trì <b>CASAN Check 1</b> · giữ CI · duyệt PR của hai người</li>
+    </ul>
+
+    <h4>Sở hữu độc quyền</h4>
+    <ul class="paths">
+      <li>config.py</li>
+      <li>app.py → presentation/shell/</li>
+      <li>bootstrap.py</li>
+      <li>theme.py · i18n.py</li>
+      <li>infrastructure/config/ · secrets/ · persistence/</li>
+      <li>ui/settings_dialog.py → presentation/settings/</li>
+      <li>scripts/ · .gitea/workflows/</li>
+    </ul>
+
+    <p class="weight"><b>~2.700 dòng</b> · 727 settings + 1.352 app + 616 config<br>+ mục chung ở trên</p>
+  </div>
+
+  <div class="card one">
+    <div class="tag">Làn N2 · Hiệp</div>
+    <h3>Giám sát &amp; Quan trắc</h3>
+    <p class="who">Hiệp — 7 tab, việc lặp cần kỷ luật</p>
+    <div class="branch">gamma/refactor</div>
+
+    <h4>Việc</h4>
+    <ul>
+      <li><span class="tid">R08-T08</span> tách <code>monitoring_tab.py</code> → 7 tab độc lập</li>
+      <li><span class="tid">R09-T04</span> <code>CanonicalAuditLogger</code></li>
+      <li><span class="tid">R09-T05</span> <code>MonitoringQueryService</code> read-only, phân trang</li>
+      <li><span class="tid">R09-T02</span> gỡ vòng lặp <code>model_pricing</code> ↔ <code>usage_tracker</code></li>
+      <li><span class="tid">R09-T03</span> gỡ vòng lặp <code>agent_security</code> ↔ <code>alert</code></li>
+      <li><span class="tid">R09-T06</span> ma trận Sandbox theo hệ điều hành</li>
+    </ul>
+
+    <h4>Sở hữu độc quyền</h4>
+    <ul class="paths">
+      <li>ui/monitoring_tab.py → presentation/monitoring/</li>
+      <li>application/monitoring/</li>
+      <li>infrastructure/telemetry/ · sandbox/</li>
+      <li>core/audit_log.py</li>
+      <li>core/model_pricing.py · usage_tracker.py</li>
+      <li>core/agent_security*.py</li>
+    </ul>
+
+    <p class="weight"><b>~2.650 dòng</b> · 1.545 monitoring + ~1.100 core</p>
+  </div>
+
+  <div class="card two">
+    <div class="tag">Làn N3 · Lâm</div>
+    <h3>Co4E Studio</h3>
+    <p class="who">Lâm — canvas và luồng chạy workflow</p>
+    <div class="branch">gamma/refactor</div>
+
+    <h4>Việc</h4>
+    <ul>
+      <li><span class="tid">R07-T06</span> <code>Co4EWorkflowService</code> thuần Python</li>
+      <li><span class="tid">R08-T09</span> tách <code>co4e_tab.py</code> + <code>co4e_canvas.py</code> → canvas · node property · run control · chat view · agent list</li>
+      <li>Gọi tool qua <code>ToolPolicyGateway</code> của Team Hoa — dùng fake, không chờ</li>
+    </ul>
+
+    <h4>Sở hữu độc quyền</h4>
+    <ul class="paths">
+      <li>ui/co4e_tab.py → presentation/co4e/</li>
+      <li>ui/co4e_canvas.py</li>
+      <li>ui/co4e_config_panel.py</li>
+      <li>application/workflows/</li>
+      <li>domain/workflows/</li>
+      <li>core/co4e_run_manager.py</li>
+    </ul>
+
+    <p class="weight"><b>~2.880 dòng</b> · file to nhất của cả team</p>
+  </div>
+
+</div>
+
+<h2>Tám quy ước</h2>
+<p class="sub">
+  Tám điều dưới đây là luật của team, Nam chốt. Bốn điều đầu là bắt buộc — trên một
+  nhánh chung, vi phạm không chỉ hại mình mà chặn cả hai người kia.
+</p>
+
+<div class="rules">
+
+  <div class="rule hard">
+    <h3>1 · Không chạm file dùng chung</h3>
+    <p>
+      <code>app.py</code>, <code>theme.py</code>, <code>i18n.py</code>, <code>config.py</code>,
+      <code>bootstrap.py</code> thuộc nhánh N1 của Nam. Cần thêm chuỗi hay token màu thì
+      <b>nhắn, đừng sửa</b> — Nam thêm trong ngày. Đây là ba file duy nhất có thể gây conflict
+      thật, và luật này xoá hẳn khả năng đó.
+    </p>
+  </div>
+
+  <div class="rule hard">
+    <h3>2 · Nộp factory, không tự lắp vào app</h3>
+    <p>
+      Mỗi nhánh expose một hàm dựng widget với chữ ký chốt từ ngày đầu, ví dụ
+      <code>build_monitoring_tab(ctx, query_service) -&gt; QWidget</code>. Nam gọi nó trong <code>bootstrap.py</code> ngày 28/08. Không ai tự sửa chỗ khởi tạo trong
+      <code>app.py</code>.
+    </p>
+  </div>
+
+  <div class="rule hard">
+    <h3>3 · Bị chặn thì dùng fake, không ngồi đợi</h3>
+    <p>
+      Chưa có <code>ConfigRepository</code> bản thật thì dùng <code>FakeConfigRepository</code>.
+      Chưa có <code>ToolPolicyGateway</code> của Team Hoa thì đã có fake sẵn. <b>Báo ngay trong ngày</b>
+      nếu thiếu fake nào — đó là việc của nhóm trưởng, không phải lý do dừng tay.
+    </p>
+  </div>
+
+
+  <div class="rule hard">
+    <h3>4 · Nhánh chung: kéo trước khi đẩy, đừng để nhánh đỏ</h3>
+    <p>
+      Cả ba đẩy vào <code>gamma/refactor</code>, nên không còn nhánh riêng làm vùng
+      đệm. Ba việc bắt buộc: <code>git pull --rebase</code> trước mỗi lần đẩy;
+      commit nhỏ và đẩy trong ngày, đừng ôm 500 dòng ba hôm; và
+      <b>không bao giờ đẩy thứ làm <code>pytest tests -q</code> đỏ</b> — nhánh hỏng
+      là hai người kia đứng hình. Lỡ đẩy nhầm thì sửa ngay hoặc
+      <code>git revert</code>, đừng để qua đêm.
+    </p>
+  </div>
+
+  <div class="rule soft">
+    <h3>5 · Commit nhỏ, mỗi ngày một lần</h3>
+    <p>
+      Một PR cho một sub-widget hoặc một service, không dồn 7 tab vào một PR cuối tuần. Nhóm
+      trưởng duyệt trong ngày. PR càng to thì rủi ro càng dồn về ngày 28/08.
+    </p>
+  </div>
+
+  <div class="rule soft">
+    <h3>6 · Mỗi commit kèm test, và không làm đỏ 90 test cũ</h3>
+    <p>
+      Baseline hiện tại: <b>102 test xanh trong 3,4 giây</b>. Chạy <code>pytest tests -q</code>
+      trước mỗi lần đẩy. Đây là lưới an toàn cho phần logic — giữ nó xanh suốt 10 ngày.
+    </p>
+  </div>
+
+  <div class="rule soft">
+    <h3>7 · File mới ≤ 400 dòng, không import PySide6 vào lõi</h3>
+    <p>
+      Hai điều kiện của CASAN Check 2 và 3. Tự kiểm trước khi đẩy — CI sẽ báo, nhưng biết
+      sớm thì đỡ phải tách lại lần hai.
+    </p>
+  </div>
+
+  <div class="rule soft">
+    <h3>8 · Checker UI thuộc phạm vi ai, người đó cập nhật</h3>
+    <p>
+      24 checker sẽ vỡ khi file bị dời. Ai dời file thì sửa checker tương ứng ngay trong
+      commit đó — tốn thêm khoảng 15% thời gian, đổi lại giữ được lưới an toàn cho phần
+      UI vừa làm xong.
+      <b>Đã chốt 21/08: đường A. Nam chịu trách nhiệm nếu đổi ý.</b>
+    </p>
+  </div>
+
+</div>
+
+
+<h2>Mỗi người nhận gì, giao gì</h2>
+<p class="sub">
+  Cột trái là thứ phải có trong tay mới làm được, kèm nguồn. Cột phải là thứ bắt
+  buộc giao ra, kèm người nhận. Nhãn <span class="frm done">có rồi</span> nghĩa là
+  mục chung đã làm xong.
+</p>
+
+<div class="io">
+
+  <div class="iorow n1">
+    <div class="iohead"><b>N1 · Cấu hình, Bí mật &amp; Vỏ</b><span>Nam · nhóm trưởng</span></div>
+    <div class="iogrid">
+      <div>
+        <p class="iocap">Input — cần có</p>
+        <ul class="iolist">
+          <li><span class="frm">mã cũ</span><code>config.py</code> 616 dòng</li>
+          <li><span class="frm">mã cũ</span><code>ui/settings_dialog.py</code> 727 dòng</li>
+          <li><span class="frm">mã cũ</span><code>app.py</code> 1.352 dòng</li>
+          <li><span class="frm risk">tự chốt</span>Quyết định <code>api_key</code> — trước 26/08</li>
+          <li><span class="frm">từ Hiệp</span>Chữ ký <code>build_monitoring_tab()</code> — trước 28/08</li>
+          <li><span class="frm">từ Lâm</span>Chữ ký <code>build_co4e_tab()</code> — trước 28/08</li>
+        </ul>
+      </div>
+      <div>
+        <p class="iocap">Output — phải giao</p>
+        <ul class="iolist">
+          <li><span class="frm done">có rồi</span><code>SecretStore</code> · <code>ConfigRepository</code> + fake → <b>cho Hiệp và Lâm</b></li>
+          <li><span class="frm done">có rồi</span><code>scripts/audit_security.py</code> → cho CI</li>
+          <li><code>infrastructure/persistence/json/atomic_json_file.py</code></li>
+          <li><code>infrastructure/config/</code> — cài đặt thật + settings facade</li>
+          <li><code>infrastructure/secrets/keyring_adapter.py</code></li>
+          <li><code>presentation/settings/</code> — 4 widget</li>
+          <li><code>bootstrap.py</code> + <code>presentation/shell/</code> — 3 file</li>
+          <li><code>docs/architecture/security-policy.md</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="iorow n2">
+    <div class="iohead"><b>N2 · Giám sát</b><span>Hiệp</span></div>
+    <div class="iogrid">
+      <div>
+        <p class="iocap">Input — cần có</p>
+        <ul class="iolist">
+          <li><span class="frm">mã cũ</span><code>ui/monitoring_tab.py</code> 1.545 dòng</li>
+          <li><span class="frm">mã cũ</span><code>core/usage_tracker.py</code> 524 · <code>sandbox_manager.py</code> 335</li>
+          <li><span class="frm">mã cũ</span><code>core/model_pricing.py</code> 284 · <code>agent_security.py</code> 272 · <code>audit_log.py</code> 115</li>
+          <li><span class="frm done">từ Nam</span><code>FakeConfigRepository</code> — dùng được ngay</li>
+          <li><span class="frm risk">tự chốt</span>Giữ nguyên 9 trường log, báo Duy và Hoa</li>
+        </ul>
+      </div>
+      <div>
+        <p class="iocap">Output — phải giao</p>
+        <ul class="iolist">
+          <li><code>build_monitoring_tab()</code> → <b>cho Nam</b>, trước 28/08</li>
+          <li><code>FakeAuditLogger</code> · <code>FakeMonitoringQueryService</code> → <b>cho cả team</b></li>
+          <li><code>presentation/monitoring/</code> — 7 tab + shell</li>
+          <li><code>application/monitoring/monitoring_query_service.py</code></li>
+          <li><code>infrastructure/telemetry/audit_logger.py</code></li>
+          <li><code>infrastructure/sandbox/sandbox_capabilities.py</code></li>
+          <li><b>0 circular import</b> ở pricing ↔ usage và security ↔ alert</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="iorow n3">
+    <div class="iohead"><b>N3 · Co4E Studio</b><span>Lâm</span></div>
+    <div class="iogrid">
+      <div>
+        <p class="iocap">Input — cần có</p>
+        <ul class="iolist">
+          <li><span class="frm">mã cũ</span><code>ui/co4e_tab.py</code> 2.089 dòng</li>
+          <li><span class="frm">mã cũ</span><code>ui/co4e_canvas.py</code> 791 · <code>co4e_config_panel.py</code></li>
+          <li><span class="frm">mã cũ</span><code>core/co4e_run_manager.py</code> 331</li>
+          <li><span class="frm">có sẵn</span><code>core/co4e.py</code> — dataclass Workflow/Node/Edge đã có</li>
+          <li><span class="frm done">từ Nam</span><code>FakeConfigRepository</code></li>
+          <li><span class="frm risk">từ Team Hoa</span>DTO <code>ToolPolicyGateway</code> — <b>rủi ro liên team cao nhất</b>, lấy trong hôm nay</li>
+        </ul>
+      </div>
+      <div>
+        <p class="iocap">Output — phải giao</p>
+        <ul class="iolist">
+          <li><code>build_co4e_tab()</code> → <b>cho Nam</b>, trước 28/08</li>
+          <li><code>FakeCo4EWorkflowService</code> → <b>cho cả team</b></li>
+          <li><code>domain/workflows/</code> — DTO chốt ngày đầu</li>
+          <li><code>application/workflows/co4e_workflow_service.py</code></li>
+          <li><code>presentation/co4e/</code> — 5 phần</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h3>Output bắt buộc với cả ba, mỗi lần đẩy</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>Điều kiện</th><th>Ngưỡng</th><th>Tự kiểm bằng</th></tr></thead>
+  <tbody>
+    <tr><td>File mới sau khi tách</td><td class="mono">≤ 400 dòng</td><td class="mono">wc -l</td></tr>
+    <tr><td><code>domain/</code> và <code>application/</code> import PySide6</td><td class="mono">0</td><td class="mono">grep -r PySide6</td></tr>
+    <tr><td>Test hiện có</td><td class="mono">102 xanh</td><td class="mono">pytest tests -q</td></tr>
+    <tr><td>Credential lộ</td><td class="mono">0</td><td class="mono">python scripts/audit_security.py</td></tr>
+    <tr><td>Checker UI trong phạm vi mình dời</td><td>đã cập nhật</td><td class="mono">python tools/check_&lt;tên&gt;.py</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Lịch từng ngày</h2>
+<p class="sub">Ba hàng chạy độc lập. Hàng tô nền là lúc cả ba phải gặp nhau.</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr>
+      <th class="day">Ngày</th>
+      <th>N1 · Nam</th>
+      <th>N2 · Hiệp</th>
+      <th>N3 · Lâm</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="day">21/08<br><small>T6</small></td>
+      <td class="cl"><b>Mục chung</b> · dựng khung · interface + fake · chốt api_key · CASAN script<small>Merge trước khi hai người kia bắt đầu</small></td>
+      <td class="c1">Chốt schema log 9 trường<small>Giữ nguyên định dạng cũ để 24 chỗ gọi không phải sửa</small></td>
+      <td class="c2">Chốt chữ ký <code>Co4EWorkflowService</code><small>Nộp cho lead để lắp bootstrap sau</small></td>
+    </tr>
+    <tr>
+      <td class="day">22–23/08<br><small>T7–CN</small></td>
+      <td class="cl">AtomicJsonFile · ConfigRepository · Typed Settings Facade</td>
+      <td class="c1">CanonicalAuditLogger · gỡ vòng lặp pricing ↔ usage</td>
+      <td class="c2">Co4EWorkflowService — CRUD &amp; validate, test không cần Qt</td>
+    </tr>
+    <tr class="mark">
+      <td class="day">23/08<br><small>17:00</small></td>
+      <td colspan="3"><span class="pill cp">Checkpoint 1</span> &nbsp; 100% DTO và fake xong · <code>pytest</code> xanh · không ai bị chặn</td>
+    </tr>
+    <tr>
+      <td class="day">24/08<br><small>T2</small></td>
+      <td class="cl">Tách settings: provider + connector widget</td>
+      <td class="c1">3 tab đầu: overview · sandbox · security events</td>
+      <td class="c2">node_property_panel · agent_list_panel</td>
+    </tr>
+    <tr>
+      <td class="day">25/08<br><small>T3</small></td>
+      <td class="cl">Tách settings: routing + general widget</td>
+      <td class="c1">4 tab còn lại: MCP · action logs · agent status · security settings</td>
+      <td class="c2">co4e_canvas_widget — thao tác node</td>
+    </tr>
+    <tr>
+      <td class="day">26/08<br><small>T4</small></td>
+      <td class="cl">Chuyển API key sang SecretStore<small>Báo Team Duy trước khi đụng providers/</small></td>
+      <td class="c1">Lắp shell MonitoringTab · query service bản thật</td>
+      <td class="c2">Run control · chat view</td>
+    </tr>
+    <tr>
+      <td class="day">27/08<br><small>T5</small></td>
+      <td class="cl">Schema versioning · recovery policy</td>
+      <td class="c1">Ma trận Sandbox · gỡ vòng lặp agent_security</td>
+      <td class="c2">Lắp container Co4ETab · thay fake bằng service thật</td>
+    </tr>
+    <tr>
+      <td class="day">28/08<br><small>T6</small></td>
+      <td class="cl"><b>bootstrap.py + tách MainWindow</b><small>Nhận factory của Hiệp và Lâm để lắp</small></td>
+      <td class="c1">Nộp factory · dọn file &gt;400 dòng · cập nhật checker</td>
+      <td class="c2">Nộp factory · dọn file &gt;400 dòng · cập nhật checker</td>
+    </tr>
+    <tr class="mark">
+      <td class="day">28/08<br><small>17:00</small></td>
+      <td colspan="3"><span class="pill cp">Checkpoint 2</span> &nbsp; Tách xong 100% god file · 0 circular import</td>
+    </tr>
+    <tr>
+      <td class="day">29/08<br><small>T7</small></td>
+      <td class="cl">Tài liệu Security Policy · integration test Settings</td>
+      <td class="c1">Integration test Monitoring</td>
+      <td class="c2">Integration test luồng Co4E đầu-cuối</td>
+    </tr>
+    <tr class="mark">
+      <td class="day">30/08<br><small>CN 17:00</small></td>
+      <td colspan="3"><span class="pill gate">CASAN Gate</span> &nbsp; <b>Nam chủ trì Check 1</b> — quét toàn bộ config/JSON, phải ra 0 secret plaintext. Hiệp và Lâm sửa ngay phần của mình nếu script bắt được.</td>
+    </tr>
+    <tr class="mark">
+      <td class="day">31/08<br><small>T2 15:00</small></td>
+      <td colspan="3"><span class="pill ship">Bàn giao</span> &nbsp; Fix tồn đọng · cập nhật tài liệu kiến trúc · merge PR cuối · smoke test 5 luồng chính</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Nghiệm thu: làm sao biết đã thật sự song song</h2>
+<p class="sub">Không phải “đã họp xong” mà là chạy được. Ba câu hỏi, trả lời bằng lệnh.</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Câu hỏi</th><th>Cách trả lời</th><th>Khi nào</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Hiệp có chạy được khi chưa có config bản thật?</td>
+      <td>Dựng một tab Monitoring, chạy test của nó, <b>không import <code>cowork_local.config</code></b> dòng nào — chỉ dùng <code>FakeConfigRepository</code></td>
+      <td class="mono">21/08</td>
+    </tr>
+    <tr>
+      <td>Lâm có chạy được khi Team Hoa chưa xong gateway?</td>
+      <td>Test <code>Co4EWorkflowService</code> xanh với <code>FakeToolPolicyGateway</code></td>
+      <td class="mono">23/08</td>
+    </tr>
+    <tr>
+      <td>Ba người có đụng file nhau không?</td>
+      <td><code>git log --name-only --pretty=%an</code> trên <code>gamma/refactor</code> —
+      không file nào được xuất hiện dưới hai tên khác nhau</td>
+      <td class="mono">mỗi ngày</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<footer>
+  Nguồn: <code>docs/refactor/plan.md</code>, <code>Refactoring_Checklist.md</code>,
+  <code>Feature_Architecture_Proposal.md</code>. Số dòng code, số lời gọi và baseline test đo
+  trực tiếp trên nhánh <code>main</code> ngày 21/08.
+  Mục chung, cách chia ba nhánh, bảy quy ước và mục nghiệm thu là đề xuất — không có trong
+  tài liệu gốc.
+</footer>
+
+</div>
+
+</body>
+</html>

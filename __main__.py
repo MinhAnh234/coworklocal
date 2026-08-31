@@ -17,6 +17,13 @@ def main() -> int:
     # a plain script (`python __main__.py`), `__package__` is empty so the
     # relative import fails — in that case put the package root (the parent
     # of this file's directory) on sys.path and use an absolute import.
+    """Điểm vào ``python -m cowork_local``.
+
+    Import muộn để công cụ kiểu ``-h`` và test nạp được gói mà không phải dựng cả
+    ứng dụng Qt. Chạy như script thường (``python __main__.py``) thì
+    ``__package__`` rỗng nên import tương đối hỏng — lúc đó đưa thư mục cha vào
+    ``sys.path`` và dùng import tuyệt đối.
+    """
     if __package__:
         from .app import run
     else:

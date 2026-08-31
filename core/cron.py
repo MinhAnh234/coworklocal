@@ -15,10 +15,14 @@ _SEARCH_DAYS = 366 * 2   # give up after two years (an expression that never fir
 
 
 class CronError(ValueError):
+    """Biểu thức cron sai cú pháp."""
     pass
 
 
 def _parse_field(spec: str, lo: int, hi: int) -> Set[int]:
+    """Đọc một trường cron thành tập giá trị: hỗ trợ ``*``, danh sách ``a,b``,
+    khoảng ``a-b`` và bước ``*/n``.
+    """
     values: Set[int] = set()
     for part in spec.split(","):
         part = part.strip()
@@ -55,7 +59,13 @@ def _parse_field(spec: str, lo: int, hi: int) -> Set[int]:
 
 
 class Cron:
+    """Biểu thức cron 5 trường (phút, giờ, ngày, tháng, thứ)."""
     def __init__(self, expression: str):
+        """Phân tích một biểu thức cron 5 trường.
+
+        Sai số trường là ném ``CronError`` ngay tại đây chứ không đợi tới lúc chạy:
+        lịch sai giờ khó phát hiện hơn nhiều so với một lỗi lúc nhập.
+        """
         fields = (expression or "").split()
         if len(fields) != 5:
             raise CronError("Cron expression needs exactly 5 fields: "
@@ -69,6 +79,11 @@ class Cron:
         self._dow_star = fields[4].strip() == "*"
 
     def _day_matches(self, dt: datetime) -> bool:
+        """Ngày này có khớp biểu thức không.
+
+        Theo chuẩn cron: khi cả trường NGÀY và trường THỨ đều được đặt cụ thể thì
+        khớp một trong hai là đủ (OR), chứ không phải cả hai (AND).
+        """
         if dt.month not in self.months:
             return False
         cron_dow = (dt.weekday() + 1) % 7    # Python Mon=0 → cron Sun=0

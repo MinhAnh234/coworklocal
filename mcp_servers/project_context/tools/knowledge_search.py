@@ -12,6 +12,10 @@ from ..foundation import ContractModel, SourceCitation, ToolTemplate
 
 
 class KnowledgeSearchInput(ContractModel):
+    """Tham số vào của ``search_project_knowledge``: project và câu truy vấn.
+
+    ``top_k`` chặn trong 1..20 để một lượt tra không nuốt hết cửa sổ ngữ cảnh.
+    """
     project_id: str = Field(min_length=1, max_length=128)
     query: str = Field(min_length=2, max_length=1000)
     detail: Literal["summary", "standard", "full"] = "standard"
@@ -21,6 +25,7 @@ class KnowledgeSearchInput(ContractModel):
 
 
 class KnowledgeItem(ContractModel):
+    """Một đoạn tài liệu khớp truy vấn: trích đoạn, điểm số 0..1 và nguồn."""
     document_id: str
     chunk_id: str
     title: str
@@ -30,6 +35,7 @@ class KnowledgeItem(ContractModel):
 
 
 class KnowledgeSearchOutput(ContractModel):
+    """Kết quả trả về: danh sách đoạn khớp đã xếp hạng, mỗi đoạn kèm trích dẫn nguồn."""
     correlation_id: str
     project_id: str
     query: str
@@ -41,6 +47,7 @@ class KnowledgeSearchOutput(ContractModel):
 
 
 def _handle(arguments: ContractModel, provider: Any) -> dict[str, Any]:
+    """Kiểm tham số theo schema rồi chuyển sang provider đã được cấp cho lượt gọi này."""
     request = KnowledgeSearchInput.model_validate(arguments)
     return provider.search_knowledge(**request.model_dump())
 

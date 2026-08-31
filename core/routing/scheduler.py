@@ -33,6 +33,7 @@ class RoutingScheduler(QObject):
     reassess_finished = Signal(int)  # number of models assessed
 
     def __init__(self, ctx: Any, service: Any, parent: Optional[QObject] = None) -> None:
+        """Dựng bộ hẹn giờ chạy thăm dò định kỳ. Chưa chạy cho tới khi gọi ``start()``."""
         super().__init__(parent)
         self.ctx = ctx
         self.service = service
@@ -49,16 +50,19 @@ class RoutingScheduler(QObject):
         self._timer.start()
 
     def stop(self) -> None:
+        """Dừng hẹn giờ."""
         self._timer.stop()
 
     # -- tick ----------------------------------------------------------- #
     def _interval_hours(self) -> float:
+        """Chu kỳ chấm điểm lại, tính bằng giờ; giá trị lạ thì coi như tắt."""
         try:
             return float(self.ctx.config.routing.get("reassess_interval_hours", 24) or 0)
         except Exception:  # noqa: BLE001
             return 24.0
 
     def _hours_since_last(self) -> Optional[float]:
+        """Số giờ kể từ lần chấm điểm gần nhất; ``None`` nếu chưa chấm lần nào."""
         last = self.service.store.last_updated()
         if not last:
             return None  # never assessed
@@ -87,6 +91,11 @@ class RoutingScheduler(QObject):
         return False
 
     def is_due(self) -> bool:
+        """Đã đến lúc chấm điểm lại chưa.
+
+        Tắt định tuyến ở mọi bề mặt thì KHÔNG dò — dò model là lượt gọi có tính phí,
+        không được tiêu tiền cho một tính năng người dùng đã tắt.
+        """
         if not self._routing_enabled_anywhere():
             return False  # routing off everywhere → don't probe (would be wasted cost)
         interval = self._interval_hours()
@@ -111,6 +120,7 @@ class RoutingScheduler(QObject):
         self.reassess_started.emit()
 
         def _done(result) -> None:
+            """Chấm điểm xong: báo ra ngoài số model đã đánh giá."""
             self.reassess_finished.emit(len(result or {}))
 
         self.service.reassess_background(on_done=_done)

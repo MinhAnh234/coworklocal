@@ -27,7 +27,13 @@ from .skills_dialog import SkillEditDialog
 
 
 class SkillManagerTab(QWidget):
+    """Màn quản lý skill cũ: danh sách có ô tick bật/tắt, kèm nút nhập/xuất/nhân
+    bản và hai lối nhờ model tự sinh skill.
+
+    Đã được ``ui/skills_dialog.py`` thay thế; giữ lại làm bản đối chiếu.
+    """
     def __init__(self, ctx=None, parent=None):
+        """Dựng danh sách skill và hàng nút thao tác."""
         super().__init__(parent)
         self._ctx = ctx
         self._auto_worker: Optional[AgentWorker] = None
@@ -85,6 +91,11 @@ class SkillManagerTab(QWidget):
 
     # ---- AI: auto-generate a whole skill from a one-line description ----
     def _auto_generate(self) -> None:
+        """Nhờ model viết một skill mới từ mô tả người dùng gõ vào.
+
+        Không có ``ctx`` (mở tab ngoài ứng dụng) thì báo là chưa dùng được, chứ
+        không im lặng.
+        """
         if self._ctx is None:
             QMessageBox.information(self, tr("skills.auto_generate_title"),
                                     tr("skills.auto_generate_unavailable"))
@@ -100,6 +111,9 @@ class SkillManagerTab(QWidget):
         text = prompt.strip()
 
         def job(worker: AgentWorker):
+            """Chạy nền: gọi model sinh skill. Lỗi được gói vào kết quả thay vì ném ra, để
+            luồng gọi lại luôn chạy tới nơi.
+            """
             try:
                 skill = generate_skill(ctx.build_active_provider(), text, worker.is_cancelled)
                 return {"skill": skill}
@@ -113,6 +127,7 @@ class SkillManagerTab(QWidget):
         w.start()
 
     def _on_auto_generated(self, result) -> None:
+        """Mở form sửa với skill model vừa sinh, để người dùng xem lại trước khi lưu."""
         self._auto_btn.setEnabled(True)
         self._auto_btn.setText(tr("skills.auto_generate"))
         skill = (result or {}).get("skill")
@@ -127,6 +142,7 @@ class SkillManagerTab(QWidget):
 
     # ---- AI: analyze a pptx/xlsx TEMPLATE file's structure into a skill ----
     def _from_template(self) -> None:
+        """Nhờ model dựng skill từ một file mẫu người dùng chọn."""
         if self._ctx is None:
             QMessageBox.information(self, tr("skills.from_template_title"),
                                     tr("skills.auto_generate_unavailable"))
@@ -141,6 +157,7 @@ class SkillManagerTab(QWidget):
         ctx = self._ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: đọc file mẫu và nhờ model dựng skill từ đó."""
             try:
                 skill = generate_skill_from_template(
                     ctx.build_active_provider(), path, worker.is_cancelled)
@@ -155,6 +172,7 @@ class SkillManagerTab(QWidget):
         w.start()
 
     def _on_template_generated(self, result) -> None:
+        """Mở form sửa với skill dựng từ file mẫu."""
         self._template_btn.setEnabled(True)
         self._template_btn.setText(tr("skills.from_template"))
         skill = (result or {}).get("skill")
@@ -168,6 +186,7 @@ class SkillManagerTab(QWidget):
             self.reload()
 
     def reload(self) -> None:
+        """Nạp lại danh sách skill từ đĩa, giữ đúng trạng thái bật/tắt của từng cái."""
         self.list.blockSignals(True)
         self.list.clear()
         for s in list_skills():
@@ -184,6 +203,7 @@ class SkillManagerTab(QWidget):
         self.list.blockSignals(False)
 
     def _on_check(self, item: QListWidgetItem) -> None:
+        """Tick/bỏ tick một skill là bật/tắt nó, ghi đĩa ngay."""
         skill = item.data(Qt.UserRole)
         if not isinstance(skill, Skill):
             return
@@ -191,6 +211,7 @@ class SkillManagerTab(QWidget):
         save_skill(skill)
 
     def _current_skill(self) -> Optional[Skill]:
+        """Skill đang chọn; ``None`` nếu chưa chọn dòng nào."""
         item = self.list.currentItem()
         if item is None:
             return None
@@ -198,6 +219,7 @@ class SkillManagerTab(QWidget):
         return skill if isinstance(skill, Skill) else None
 
     def _import(self) -> None:
+        """Nhập một skill từ file ngoài vào."""
         from ..core.skills import import_skill_file
 
         path, _ = QFileDialog.getOpenFileName(
@@ -211,6 +233,7 @@ class SkillManagerTab(QWidget):
             QMessageBox.warning(self, tr("skills.import_dialog_title"), tr("skills.import_failed", err=exc))
 
     def _export_md(self) -> None:
+        """Xuất skill đang chọn ra file Markdown."""
         skill = self._current_skill()
         if skill is None:
             QMessageBox.information(self, tr("skills.export_btn"), tr("skills.export_pick"))
@@ -229,6 +252,11 @@ class SkillManagerTab(QWidget):
             QMessageBox.warning(self, tr("skills.export_btn"), tr("skills.export_failed", err=exc))
 
     def _duplicate(self) -> None:
+        """Nhân bản skill đang chọn.
+
+        Bản sao được tạo ở trạng thái TẮT rồi mở form sửa ngay: nhân bản là để lấy
+        làm nền sửa tiếp, chưa phải để chạy.
+        """
         skill = self._current_skill()
         if skill is None:
             QMessageBox.information(self, tr("skills.duplicate_btn"), tr("skills.export_pick"))
@@ -243,6 +271,9 @@ class SkillManagerTab(QWidget):
             self.reload()
 
     def _edit(self) -> None:
+        """Mở form sửa skill đang chọn. Truyền ``old_name`` để đổi tên không sinh ra
+        bản thứ hai.
+        """
         skill = self._current_skill()
         if skill is None:
             return
@@ -252,6 +283,7 @@ class SkillManagerTab(QWidget):
             self.reload()
 
     def _delete(self) -> None:
+        """Xoá skill đang chọn."""
         skill = self._current_skill()
         if skill is None:
             return

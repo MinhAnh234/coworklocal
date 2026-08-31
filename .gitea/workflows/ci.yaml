@@ -12,19 +12,36 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cowork_local
+    env:
+      # Tiến trình con của test import `cowork_local` qua đường này.
+      PYTHONPATH: ${{ github.workspace }}
     steps:
+      # Checkout PHẢI nằm trong thư mục tên đúng `cowork_local`.
+      # Nhiều test characterization sinh tiến trình con chạy
+      # `python -c "from cowork_local... import ..."`; tiến trình con đó chỉ
+      # import được khi trên sys.path có một thư mục mang đúng tên gói. Checkout
+      # vào thư mục tên khác làm 73 test đỏ vì lý do không liên quan tới mã.
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          path: cowork_local
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: requirements-test.txt
+          cache-dependency-path: cowork_local/requirements.txt
 
-      - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-test.txt
+      # Mot file duy nhat: requirements-test.txt cu chi co pytest, nhung
+      # 64/108 file test dung widget that (20 file import PySide6 thang o dau
+      # file, khong co bao ve) nen no van phai keo ve gan nhu ca danh sach
+      # runtime. Cai rieng file kia thi pytest chet ngay luc thu thap test.
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
 
       - name: Check Python syntax
         run: |
@@ -39,3 +56,39 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests -q
+
+      # --- CASAN Verification Gate -------------------------------------
+      # Ba check này là điều kiện của cổng ngày 30/08. Chạy trên MỌI PR để
+      # biết vi phạm ngay hôm phát sinh, thay vì dồn tới ngày cổng.
+      #
+      # Check 1 do Team Gamma sở hữu và đã có. Check 2 (Team Hoa) và Check 3
+      # (Team Duy) chưa viết — bước dưới bỏ qua nếu script chưa tồn tại, để
+      # thêm cổng không làm đỏ CI của hai team kia.
+
+      - name: "CASAN Check 1 — không có credential lộ (Team Gamma)"
+        run: |
+          python scripts/audit_security.py --self-test
+          python scripts/audit_security.py
+
+      - name: "CASAN Check 2 — file production ≤ 400 dòng (Team Hoa)"
+        run: |
+          if [ -f scripts/check_loc.py ]; then
+            python scripts/check_loc.py
+          else
+            echo "scripts/check_loc.py chưa có — Team Hoa viết, hạn 30/08. Bỏ qua."
+          fi
+
+      - name: "CASAN Check 3 — domain/ và application/ không import PySide6 (Team Duy)"
+        run: |
+          if [ -f scripts/check_imports.py ]; then
+            python scripts/check_imports.py
+          else
+            echo "scripts/check_imports.py chưa có — Team Duy viết, hạn 30/08. Bỏ qua."
+          fi
+
+      # Cổng O bổ sung sau đợt đối chiếu AS-IS/TO-BE: ba check trên đều không
+      # bắt được mã chết (file không ai import vẫn đúng chiều phụ thuộc, vẫn
+      # sạch credential, vẫn dưới 400 dòng). Đợt đó tìm ra 1.400 dòng mã trùng
+      # lặp chết lọt qua đúng theo cách này.
+      - name: "CASAN Check O — module production phải có nơi import"
+        run: python scripts/check_orphan_modules.py

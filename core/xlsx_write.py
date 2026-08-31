@@ -33,6 +33,7 @@ def _openpyxl():
 
 
 def is_available() -> bool:
+    """Máy đã cài ``openpyxl`` chưa — không có thì mọi tính năng Excel tắt."""
     return _openpyxl() is not None
 
 

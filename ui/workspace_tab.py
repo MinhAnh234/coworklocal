@@ -40,6 +40,7 @@ class _ProjectRow(QWidget):
     """
 
     def __init__(self, name: str, counts: str):
+        """Một dòng dự án trong danh sách: tên ở trên, số liệu tóm tắt ở dưới."""
         super().__init__()
         lay = QVBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
@@ -52,6 +53,13 @@ class _ProjectRow(QWidget):
 
 
 class WorkspaceTab(QWidget):
+    """Trang chủ Workspace: cột project, cột lịch sử, và 5 sub-tab
+    (Dự án · Cowork · Co4E · Thư mục · GraphRAG).
+
+    Đây là chỗ CHỐT project đang hoạt động: :meth:`_bind_project` đặt
+    ``ctx.active_project_id``, và mọi chế độ theo-workspace (định tuyến, tự
+    chạy) đều phân giải theo giá trị đó.
+    """
     status_message = Signal(str)
     open_chat = Signal(str, dict)      # kind, conversation — open a thread in Cowork
     new_chat = Signal(str)             # project_id — start a new thread in this project
@@ -95,10 +103,12 @@ class WorkspaceTab(QWidget):
         return bool(0 <= index < self.tabs.count() and self.tabs.isTabVisible(index))
 
     def select_subtab(self, index: int) -> None:
+        """Chuyển sang sub-tab thứ ``index`` (thanh menu bên trái gọi vào đây)."""
         if 0 <= index < self.tabs.count():
             self.tabs.setCurrentIndex(index)
 
     def current_subtab(self) -> int:
+        """Chỉ số sub-tab đang mở."""
         return self.tabs.currentIndex()
 
     def hide_tab_bar(self) -> None:
@@ -107,6 +117,11 @@ class WorkspaceTab(QWidget):
         self.tabs.tabBar().hide()
 
     def __init__(self, ctx: AppContext, cowork=None, structure=None, sidebar=None):
+        """Màn Workspace: danh sách dự án bên trái, các tab con của dự án bên phải.
+
+        Cột lịch sử mở ở trạng thái gập cho tới khi người dùng chủ động mở ra, đúng
+        như bản vẽ bố cục màn này.
+        """
         super().__init__()
         self.ctx = ctx
         self._current_id = ""
@@ -220,7 +235,7 @@ class WorkspaceTab(QWidget):
         # Folder — a two-pane file explorer (tree + view/edit) placed right below
         # Co4E. Always available (not project-gated); its root follows the
         # selected project's workspace folder when one is chosen.
-        from .folder_tab import FolderTab
+        from ..presentation.folder.folder_tab import FolderTab
 
         self._folder = FolderTab(self.ctx, cowork=self._cowork)
         self._folder.status_message.connect(self.status_message)
@@ -255,6 +270,7 @@ class WorkspaceTab(QWidget):
 
     # ---- project settings tab -------------------------------------------
     def _build_project_tab(self) -> QWidget:
+        """Dựng sub-tab "Dự án": tên, mô tả, chỉ dẫn chung và thư mục sandbox."""
         right = QWidget()
         rl = QVBoxLayout(right)
         rl.setContentsMargins(8, 4, 4, 4)
@@ -311,6 +327,7 @@ class WorkspaceTab(QWidget):
 
     # ---- embedded sidebar (History inside the Cowork tab) ---------------
     def _wire_sidebar(self) -> None:
+        """Nối các tín hiệu của cột lịch sử vào màn Workspace."""
         sb = self._sidebar
         sb.open_chat.connect(self._on_sidebar_open)
         sb.new_chat.connect(self._on_sidebar_new)
@@ -354,6 +371,12 @@ class WorkspaceTab(QWidget):
         self._split.setSizes(sizes)
 
     def _on_sidebar_open(self, kind: str, conv: dict) -> None:
+        """Mở một hội thoại từ cột lịch sử, kèm chuyển sang đúng project của nó.
+
+        Id "default" (hội thoại cũ chưa gắn project) CỐ Ý không được coi là một
+        project thật — Cowork xử lý riêng nó như phạm vi toàn cục, không có tri thức
+        project nào.
+        """
         pid = conv.get("project_id", "") or "default"
         # The legacy "default"/no-project id is intentionally not a real
         # Project row (Cowork itself special-cases it as global/no-knowledge —
@@ -370,23 +393,30 @@ class WorkspaceTab(QWidget):
         self.open_chat.emit(kind or "cowork", conv)
 
     def _on_sidebar_new(self, kind: str) -> None:
+        """Bấm "chat mới" ở cột lịch sử: mở hội thoại mới rồi nhảy sang tab Cowork."""
         if self._cowork is not None:
             self._cowork.new_session()
         self._show_cowork_tab()
 
     def _on_sidebar_refresh(self) -> None:
+        """Cột lịch sử yêu cầu làm mới: cập nhật lại trạng thái Cowork và danh sách."""
         if self._cowork is not None:
             self._cowork.refresh_status()
         if self._sidebar is not None:
             self._sidebar.refresh()
 
     def _show_cowork_tab(self) -> None:
+        """Chuyển sang sub-tab Cowork nếu nó đang hiện."""
         if self._cowork_tab_idx >= 0:
             self.tabs.setCurrentIndex(self._cowork_tab_idx)
 
     def _on_tab_changed(self, idx: int) -> None:
         # Entering GraphRAG builds its (lazy) WebEngine view and scans the
         # project's sandbox; entering it is what keeps startup RAM low.
+        """Đổi sub-tab: vào GraphRAG mới dựng khung WebEngine và quét sandbox.
+
+        Dựng lười như vậy chính là thứ giữ cho RAM lúc khởi động ở mức thấp.
+        """
         if idx == self._graphrag_tab_idx and self._structure is not None:
             self._structure.auto_scan_and_fit()
         self._apply_pane_visibility()
@@ -450,6 +480,7 @@ class WorkspaceTab(QWidget):
 
     # ---- i18n ------------------------------------------------------------
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề, gợi ý và tên các sub-tab."""
         self._header.setText(tr("workspace.header"))
         self._hint.setText(tr("workspace.hint"))
         self._projects_hdr.setText(tr("workspace.projects_heading").upper())
@@ -484,6 +515,7 @@ class WorkspaceTab(QWidget):
     _NARROW = 1500
 
     def showEvent(self, e):  # noqa: N802 - Qt override
+        """Lần hiện đầu tiên mới gắn bộ canh bố cục hẹp — trước đó chưa biết bề rộng thật."""
         super().showEvent(e)
         if getattr(self, "_narrow", None) is None:
             from .widgets import narrow_guard
@@ -511,6 +543,7 @@ class WorkspaceTab(QWidget):
             self._apply_pane_visibility()
 
     def _set_projects_collapsed(self, collapsed: bool) -> None:
+        """Gập/mở cột project, đổi giữa panel đầy đủ và dải mỏng."""
         strip_w = CollapseStrip.WIDTH + 2
         self._projects_panel.setVisible(not collapsed)
         self._projects_strip.setVisible(collapsed)
@@ -539,10 +572,25 @@ class WorkspaceTab(QWidget):
     def refresh_ai_models(self) -> None:
         """Reload the Folder tab's AI-edit model picker for the active provider —
         called when the active provider changes so the picker never keeps a
-        stale model list from the old provider."""
+        stale model list from the old provider.
+
+        R08-T12 moved the picker off ``FolderTab`` and onto the AI-Edit panel
+        (``ai_panel.resolver``). The old guard here tested for
+        ``folder.ai_model_combo``, an attribute that no longer exists on the
+        tab, so this hook silently did nothing and a provider switch left the
+        picker listing the previous provider's models. Reach the resolver
+        directly instead.
+
+        Refreshes unconditionally, exactly as the pre-refactor tab did. Gating
+        on "the picker already holds a list" looks tidier but breaks the case
+        that matters most: the first fetch failing (endpoint down, no network)
+        leaves the list empty, and the user switching provider afterwards is
+        precisely when the retry has to happen."""
         folder = getattr(self, "_folder", None)
-        if folder is not None and hasattr(folder, "ai_model_combo"):
-            folder.refresh_ai_models()
+        panel = getattr(folder, "ai_panel", None)
+        resolver = getattr(panel, "resolver", None)
+        if resolver is not None:
+            resolver.refresh()
 
     def refresh(self) -> None:
         """Re-list projects, keeping the current selection when possible. No
@@ -594,10 +642,12 @@ class WorkspaceTab(QWidget):
         return out
 
     def _selected_id(self) -> str:
+        """Id project đang chọn trong danh sách; '' nếu chưa chọn gì."""
         item = self.project_list.currentItem()
         return item.data(Qt.UserRole) if item else ""
 
     def _select_project_row(self, project_id: str) -> bool:
+        """Chọn dòng ứng với một project id; trả về ``False`` nếu không tìm thấy."""
         for i in range(self.project_list.count()):
             if self.project_list.item(i).data(Qt.UserRole) == project_id:
                 self.project_list.setCurrentRow(i)
@@ -605,9 +655,11 @@ class WorkspaceTab(QWidget):
         return False
 
     def _on_select(self, *_a) -> None:
+        """Đổi dòng chọn trong danh sách project: nạp project đó lên form."""
         self._load_current()
 
     def _load_current(self) -> None:
+        """Nạp project đang chọn lên form và nối mọi sub-tab vào nó."""
         from ..core.projects import load_project
 
         pid = self._selected_id()
@@ -664,6 +716,7 @@ class WorkspaceTab(QWidget):
         return [(p.name, p.project_id) for p in list_projects()]
 
     def selected_project_id(self) -> str:
+        """Id project đang chọn — lối vào công khai cho lớp ngoài."""
         return self._selected_id()
 
     def choose_project(self, project_id: str) -> bool:
@@ -736,6 +789,7 @@ class WorkspaceTab(QWidget):
         self._on_sidebar_new("cowork")
 
     def _set_tabs_busy(self, busy: bool) -> None:
+        """Khoá/mở các sub-tab phụ thuộc project trong lúc đang chuyển project."""
         for idx in (self._cowork_tab_idx, self._graphrag_tab_idx):
             if idx >= 0:
                 widget = self.tabs.widget(idx)
@@ -760,6 +814,12 @@ class WorkspaceTab(QWidget):
         # This is THE central project-switch hook — make the selected project the
         # ACTIVE workspace so per-workspace modes (routing + auto-run) resolve
         # against it, then refresh every surface's toggles to show its modes.
+        """Đặt project đang hoạt động và làm mới mọi thứ phụ thuộc nó.
+
+        Đây là hook chuyển project TRUNG TÂM: đặt ``ctx.active_project_id`` để chế
+        độ theo-workspace (định tuyến, tự chạy) phân giải đúng, rồi làm mới công
+        tắc trên từng bề mặt cho khớp.
+        """
         self.ctx.active_project_id = pid or "default"
         self._refresh_mode_toggles()
         if self._structure is not None:
@@ -794,6 +854,11 @@ class WorkspaceTab(QWidget):
 
     def _reload_threads(self) -> None:
         # The threads list was removed from the Project tab; nothing to reload.
+        """Nạp lại danh sách luồng chat của project.
+
+        Danh sách này đã bị gỡ khỏi tab Dự án nên thường là no-op; giữ lại để mã
+        cũ còn gọi tới không vỡ.
+        """
         if not hasattr(self, "threads"):
             return
         from ..core.history import list_conversations
@@ -812,6 +877,7 @@ class WorkspaceTab(QWidget):
 
     # ---- actions -----------------------------------------------------------
     def _create(self) -> None:
+        """Tạo project mới với tên mặc định rồi chọn nó."""
         from ..core.projects import new_project
 
         project = new_project(tr("workspace.default_new_name"))
@@ -822,6 +888,7 @@ class WorkspaceTab(QWidget):
         self.name_edit.selectAll()
 
     def _delete(self) -> None:
+        """Xoá project đang chọn sau khi hỏi xác nhận."""
         from ..core.projects import delete_project, load_project
 
         pid = self._selected_id()
@@ -839,6 +906,7 @@ class WorkspaceTab(QWidget):
         self.status_message.emit(tr("workspace.deleted", name=project.name))
 
     def _save(self) -> None:
+        """Lưu tên, mô tả và chỉ dẫn chung của project đang mở."""
         from ..core.projects import load_project, save_project
 
         pid = self._current_id
@@ -854,6 +922,7 @@ class WorkspaceTab(QWidget):
         self.status_message.emit(tr("workspace.saved", name=project.name))
 
     def _pick_folder(self) -> None:
+        """Chọn thư mục sandbox cho project đang mở."""
         from ..core.projects import load_project, save_project
 
         pid = self._current_id
@@ -870,6 +939,7 @@ class WorkspaceTab(QWidget):
         self.status_message.emit(tr("workspace.saved", name=project.name))
 
     def _open_workspace(self) -> None:
+        """Mở thư mục sandbox của project trong trình quản lý tệp của hệ điều hành."""
         from ..core.projects import load_project
 
         project = load_project(self._current_id) if self._current_id else None

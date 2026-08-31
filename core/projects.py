@@ -44,6 +44,11 @@ STARTER_PROJECT_NAME = "My Workspace"
 
 @dataclass
 class Project:
+    """Một project: id, tên, mô tả, chỉ dẫn chung và thư mục sandbox.
+
+    Chỉ dẫn chung được chèn vào MỌI lượt chat thuộc project, nên đây là chỗ đặt
+    bối cảnh dùng lại thay vì gõ lại ở từng tin nhắn.
+    """
     project_id: str
     name: str
     description: str = ""
@@ -92,6 +97,7 @@ def ensure_starter_project(directory: Path = None) -> Project:
 
 
 def _slugify(name: str) -> str:
+    """Định danh an toàn cho tên file, suy từ tên project."""
     s = "".join(c if (c.isalnum() or c in "-_") else "-" for c in name.strip().lower())
     s = "-".join(filter(None, s.split("-")))
     return s or "project"
@@ -115,11 +121,14 @@ def new_project(name: str, description: str = "", instructions: str = "",
 
 
 def save_project(project: Project, directory: Path = None) -> Path:
+    """Ghi một project ra ``<project_id>.json`` (ghi nguyên tử)."""
     directory = directory or PROJECTS_DIR
-    directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{project.project_id}.json"
-    path.write_text(json.dumps(asdict(project), ensure_ascii=False, indent=2),
-                    encoding="utf-8")
+    # R06-T02: atomic write — a crash/kill between truncate and write used to
+    # leave a half-written project.json that load_project() then silently
+    # treats as "missing" (see infrastructure/persistence/json/atomic_write.py).
+    from ..infrastructure.persistence.json.atomic_write import write_json
+    write_json(path, asdict(project))
     return path
 
 

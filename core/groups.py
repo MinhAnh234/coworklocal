@@ -15,6 +15,7 @@ from typing import List, Optional
 
 @dataclass
 class Group:
+    """Một nhóm người dùng: id, tên, và tài khoản quản trị nhóm."""
     group_id: str
     name: str
     subadmin_username: str = ""
@@ -23,16 +24,19 @@ class Group:
 
 
 def groups_dir(shared_dir: str) -> Path:
+    """Thư mục chứa nhóm, nằm trong thư mục chia sẻ của đội."""
     return Path(shared_dir).expanduser() / "groups"
 
 
 def new_group(name: str, subadmin_username: str = "") -> Group:
+    """Tạo một nhóm mới với id ngẫu nhiên và mốc thời gian tạo."""
     return Group(group_id=uuid.uuid4().hex, name=name.strip() or "Group",
                 subadmin_username=subadmin_username,
                 created=datetime.now().isoformat(timespec="seconds"))
 
 
 def save_group(group: Group, directory: Path) -> Path:
+    """Ghi một nhóm ra ``<group_id>.json``."""
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{group.group_id}.json"
     path.write_text(json.dumps(asdict(group), ensure_ascii=False, indent=2), encoding="utf-8")
@@ -40,6 +44,7 @@ def save_group(group: Group, directory: Path) -> Path:
 
 
 def load_group(group_id: str, directory: Path) -> Optional[Group]:
+    """Đọc một nhóm theo id; id được làm sạch trước để không thoát khỏi thư mục."""
     safe_id = re.sub(r"[^\w\-]", "", group_id or "")
     path = directory / f"{safe_id}.json"
     if not path.exists():
@@ -53,6 +58,7 @@ def load_group(group_id: str, directory: Path) -> Optional[Group]:
 
 
 def list_groups(directory: Path) -> List[Group]:
+    """Liệt kê mọi nhóm trong thư mục; thư mục chưa có thì trả list rỗng."""
     if not directory.exists():
         return []
     out: List[Group] = []
@@ -65,6 +71,7 @@ def list_groups(directory: Path) -> List[Group]:
 
 
 def delete_group(group_id: str, directory: Path) -> bool:
+    """Xoá file nhóm; id rỗng hoặc không có file thì trả ``False``."""
     safe_id = re.sub(r"[^\w\-]", "", group_id or "")
     if not safe_id:
         return False

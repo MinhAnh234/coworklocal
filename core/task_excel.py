@@ -42,10 +42,12 @@ _TRUE = {"yes", "y", "true", "1", "x", "có", "co"}
 
 
 def _bool(value) -> bool:
+    """Đọc giá trị đúng/sai từ ô Excel, chấp nhận nhiều cách ghi."""
     return str(value or "").strip().lower() in _TRUE
 
 
 def _clamp(value, allowed, default):
+    """Ép một giá trị về tập hợp lệ; ngoài tập thì lấy mặc định."""
     v = str(value or "").strip().lower()
     return v if v in allowed else default
 

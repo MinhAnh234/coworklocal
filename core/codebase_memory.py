@@ -26,6 +26,7 @@ _INDEX_TIMEOUT = 900
 
 
 class CodebaseMemoryError(RuntimeError):
+    """Lỗi khi gọi công cụ codebase-memory-mcp bên ngoài."""
     pass
 
 
@@ -75,14 +76,24 @@ def _extract_json(text: str):
 
 
 class CodebaseMemory:
+    """Vỏ bọc quanh CLI ``codebase-memory-mcp``: đánh chỉ mục và tra cứu mã nguồn.
+
+    Đây là phần mềm ngoài, có thể không được cài — luôn kiểm :meth:`available`
+    trước khi dùng.
+    """
     def __init__(self, binary_path: str = ""):
+        """Tìm file thực thi codebase-memory; không có thì ``available`` là False và
+        mọi lượt gọi về sau tự bỏ qua.
+        """
         self.binary = resolve_binary(binary_path)
 
     @property
     def available(self) -> bool:
+        """Đã tìm thấy CLI trên máy chưa."""
         return self.binary is not None
 
     def _run(self, tool: str, args: Dict[str, Any], timeout: int) -> Dict[str, Any]:
+        """Gọi một tool của CLI và trả kết quả JSON; chưa cài thì báo lỗi kèm hướng dẫn."""
         if not self.binary:
             raise CodebaseMemoryError(
                 "codebase-memory-mcp is not installed. See the instructions in Settings."
@@ -107,12 +118,15 @@ class CodebaseMemory:
 
     # ---- high level ops ---------------------------------------------
     def index_repository(self, repo_path: str) -> Dict[str, Any]:
+        """Đánh chỉ mục một repository (chạy lâu — dùng hạn giờ dài hơn)."""
         return self._run("index_repository", {"repo_path": str(repo_path)}, _INDEX_TIMEOUT)
 
     def list_projects(self) -> Dict[str, Any]:
+        """Danh sách project đã được đánh chỉ mục."""
         return self._run("list_projects", {}, _QUERY_TIMEOUT)
 
     def call(self, tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Gọi một tool bất kỳ, tự chọn hạn giờ theo loại việc."""
         timeout = _INDEX_TIMEOUT if tool == "index_repository" else _QUERY_TIMEOUT
         return self._run(tool, args, timeout)
 
@@ -187,6 +201,9 @@ def make_executor(mem: CodebaseMemory):
     """Return an executor(name, args) -> {ok, output} for cmem_* tools."""
 
     def execute(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Bộ thực thi tool codebase-memory cho agent; tên tool lạ thì trả về lỗi thay
+        vì ném ngoại lệ.
+        """
         cli_tool = _CLI_NAME.get(name)
         if not cli_tool:
             return {"ok": False, "output": f"Unsupported codebase-memory tool: {name}"}

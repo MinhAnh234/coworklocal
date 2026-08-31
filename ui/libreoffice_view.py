@@ -37,6 +37,7 @@ DOC_SUFFIXES = {
 
 
 def is_document(path) -> bool:
+    """Đuôi tệp này có phải tài liệu LibreOffice mở được không."""
     return Path(path).suffix.lower() in DOC_SUFFIXES
 
 
@@ -74,6 +75,11 @@ class LibreOfficeView(QWidget):
     MAX_TRIES = 40  # ~16s to find the window before giving up
 
     def __init__(self):
+        """Khung nhúng cửa sổ LibreOffice vào trong ứng dụng.
+
+        Chưa chạy tiến trình nào; hồ sơ riêng và cửa sổ được dựng ở lần mở tệp đầu
+        tiên.
+        """
         super().__init__()
         self._proc: subprocess.Popen | None = None
         self._profile_dir: Path | None = None
@@ -108,10 +114,12 @@ class LibreOfficeView(QWidget):
         on_language_changed(self._retranslate)
 
     def _retranslate(self) -> None:
+        """Áp lại chữ theo ngôn ngữ đang chọn."""
         self._open_btn.setText(tr("libreoffice.open_btn"))
 
     # ---- public API --------------------------------------------------
     def open_document(self, path: str) -> None:
+        """Mở một tài liệu: đóng cái đang mở, khởi động soffice rồi nhúng cửa sổ của nó."""
         self.close_document()
         self._path = str(path)
         soffice = find_soffice()
@@ -124,6 +132,7 @@ class LibreOfficeView(QWidget):
         self._launch_and_embed(soffice)
 
     def close_document(self) -> None:
+        """Đóng tài liệu: dừng bộ đếm dò, gỡ cửa sổ nhúng và tắt tiến trình soffice."""
         self._poll.stop()
         self._tries = 0
         if self._container is not None:
@@ -141,6 +150,12 @@ class LibreOfficeView(QWidget):
 
     # ---- launch + embed (Windows) ------------------------------------
     def _launch_and_embed(self, soffice: str) -> None:
+        """Khởi động soffice với một profile RIÊNG rồi bắt đầu dò cửa sổ của nó.
+
+        Profile riêng trong thư mục tạm là bắt buộc: dùng chung profile mặc định thì
+        instance thứ hai sẽ nối vào instance đang chạy của người dùng và không có
+        cửa sổ mới nào để nhúng.
+        """
         try:
             self._profile_dir = Path(tempfile.mkdtemp(prefix=f"lo-embed-{uuid.uuid4().hex[:8]}-"))
             profile_url = "file:///" + str(self._profile_dir).replace("\\", "/")
@@ -160,6 +175,11 @@ class LibreOfficeView(QWidget):
         self._poll.start()
 
     def _try_embed(self) -> None:
+        """Một nhịp dò: tìm cửa sổ soffice và nhúng, quá ``MAX_TRIES`` thì bỏ cuộc.
+
+        Phải dò theo nhịp vì soffice tạo cửa sổ sau khi tiến trình đã khởi động —
+        không có tín hiệu nào báo "cửa sổ đã sẵn sàng".
+        """
         self._tries += 1
         if self._tries > self.MAX_TRIES:
             self._poll.stop()
@@ -183,6 +203,7 @@ class LibreOfficeView(QWidget):
 
         @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         def _cb(hwnd, _lparam):
+            """Callback duyệt cửa sổ của Windows: nhận cửa sổ đang hiện và đúng lớp của soffice."""
             if not user32.IsWindowVisible(hwnd):
                 return True
             cls = ctypes.create_unicode_buffer(256)
@@ -204,6 +225,7 @@ class LibreOfficeView(QWidget):
         return found[0] if found else None
 
     def _embed_hwnd(self, hwnd: int) -> None:
+        """Đổi cha của cửa sổ soffice sang widget này và bỏ khung viền của nó."""
         try:
             user32 = _win_user32()
             GWL_STYLE = -16
@@ -229,6 +251,11 @@ class LibreOfficeView(QWidget):
 
     # ---- cleanup -----------------------------------------------------
     def _post_close(self, hwnd: int) -> None:
+        """Gửi lệnh đóng tới cửa sổ soffice đang nhúng.
+
+        Đóng lịch sự thay vì giết tiến trình, để LibreOffice kịp dọn file khoá — bỏ
+        qua bước này thì lần mở sau nó báo tài liệu đang bị dùng.
+        """
         try:
             WM_CLOSE = 0x0010
             _win_user32().PostMessageW(hwnd, WM_CLOSE, 0, 0)
@@ -236,6 +263,11 @@ class LibreOfficeView(QWidget):
             pass
 
     def _cleanup_proc(self, graceful: bool = True) -> None:
+        """Dọn tiến trình soffice và thư mục profile tạm của nó.
+
+        ``graceful=True`` đóng lịch sự trước rồi mới giết; profile tạm luôn bị xoá,
+        nếu không mỗi lần mở tài liệu lại để lại một thư mục rác.
+        """
         proc, self._proc = self._proc, None
         profile, self._profile_dir = self._profile_dir, None
         if proc is not None and proc.poll() is None:
@@ -252,6 +284,9 @@ class LibreOfficeView(QWidget):
             shutil.rmtree(profile, ignore_errors=True)
 
     def _open_external(self) -> None:
+        """Mở tài liệu bằng ứng dụng mặc định của hệ điều hành — lối thoát khi không
+        nhúng được cửa sổ.
+        """
         if not self._path:
             return
         soffice = find_soffice()
@@ -265,10 +300,14 @@ class LibreOfficeView(QWidget):
 
     # ---- small helpers -----------------------------------------------
     def _show_message(self, text: str, offer_open: bool = False) -> None:
+        """Hiện một dòng thông báo thay cho khung xem, kèm nút mở bằng ứng dụng ngoài
+        nếu có.
+        """
         self._info.setText(text)
         self._info.setVisible(True)
         self._open_btn.setVisible(bool(offer_open and self._path))
 
     def _clear_info(self) -> None:
+        """Ẩn dòng thông báo và nút mở ngoài."""
         self._info.setVisible(False)
         self._open_btn.setVisible(False)

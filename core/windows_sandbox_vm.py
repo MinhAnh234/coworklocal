@@ -158,6 +158,7 @@ class WindowsSandboxVM:
                     pass
 
     def _error(self, message: str) -> Dict[str, Any]:
+        """Kết quả lỗi theo đúng khuôn chung của bộ chạy sandbox."""
         return {
             "ok": False,
             "stdout": "",

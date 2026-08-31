@@ -32,6 +32,14 @@ _SYMBOL_CCY = {"₫": "VND", "vnd": "VND", "đ": "VND",
 
 _DEFAULT_UNIT = "Million tokens"
 
+# Flat USD/1M-token fallback rates used by turn_cost_usd() when a model isn't
+# in the price table. Owned here (not usage_tracker.DEFAULT_PRICING) so this
+# module never needs to import usage_tracker — usage_tracker imports this
+# module instead, keeping the dependency one-directional. Values match
+# usage_tracker.DEFAULT_PRICING's price_per_mtok_in_usd/out_usd exactly.
+_FALLBACK_RATE_IN_USD = 0.5
+_FALLBACK_RATE_OUT_USD = 1.5
+
 
 # ---- currency ------------------------------------------------------------
 def _rates(config) -> Dict[str, float]:
@@ -57,6 +65,9 @@ _DIGITS = {"VND": 0, "JPY": 1, "USD": 4}
 
 
 def format_price(amount: float, ccy: str) -> str:
+    """Định dạng số tiền kèm ký hiệu tiền tệ, số chữ số thập phân theo từng loại
+    tiền (VND 0, JPY 1, USD 4).
+    """
     ccy = (ccy or "USD").upper()
     return f"{amount:,.{_DIGITS.get(ccy, 2)}f} {_SYMBOLS.get(ccy, '')}".strip()
 
@@ -91,14 +102,21 @@ def parse_price(text: Any) -> tuple:
 
 # ---- store ---------------------------------------------------------------
 def _bucket(config) -> Dict[str, Any]:
+    """Nhóm cấu hình ``model_pricing``; tự tạo nếu chưa có."""
     return config.data.setdefault("model_pricing", {})
 
 
 def list_entries(config) -> List[Dict[str, Any]]:
+    """Danh sách dòng đơn giá đã lưu (bản sao, sửa không ảnh hưởng cấu hình)."""
     return list(_bucket(config).get("entries", []) or [])
 
 
 def save_entries(config, entries: List[Dict[str, Any]]) -> None:
+    """Ghi lại toàn bộ bảng đơn giá và đồng bộ sang bộ tính chi phí.
+
+    Đồng bộ ngay tại đây để Tổng quan và Dashboard không hiện số tiền tính theo
+    bảng giá cũ.
+    """
     _bucket(config)["entries"] = [dict(e) for e in entries]
     sync_to_usage(config)      # keep the cost engine (Overview + Dashboard) in sync
 
@@ -107,6 +125,7 @@ def _norm_entry(model: str, ctx_len: str = "", max_out: str = "",
                 in_price=0.0, in_ccy: Optional[str] = None, in_unit: str = _DEFAULT_UNIT,
                 out_price=0.0, out_ccy: Optional[str] = None, out_unit: str = _DEFAULT_UNIT,
                 default_ccy: str = "USD") -> Dict[str, Any]:
+    """Chuẩn hoá một dòng đơn giá về đúng khuôn lưu trữ, điền mặc định cho ô trống."""
     return {
         "model": str(model).strip(),
         "context_length": str(ctx_len).strip(),
@@ -138,9 +157,11 @@ def turn_cost_usd(model: str, in_tok: int, out_tok: int, config) -> float:
     switches models (a different model → its own row / rates)."""
     rates = usd_rates_for(model, config)
     if rates is None:
-        from . import usage_tracker as ut
-        p = {**ut.DEFAULT_PRICING, **((getattr(config, "data", {}) or {}).get("usage") or {})}
-        rates = {"in": float(p["price_per_mtok_in_usd"]), "out": float(p["price_per_mtok_out_usd"])}
+        usage = (getattr(config, "data", {}) or {}).get("usage") or {}
+        rates = {
+            "in": float(usage.get("price_per_mtok_in_usd", _FALLBACK_RATE_IN_USD)),
+            "out": float(usage.get("price_per_mtok_out_usd", _FALLBACK_RATE_OUT_USD)),
+        }
     return (in_tok or 0) / 1e6 * rates["in"] + (out_tok or 0) / 1e6 * rates["out"]
 
 
@@ -179,6 +200,7 @@ def format_tokens(n: int) -> str:
 
 
 def add_entry(config, entry: Dict[str, Any]) -> None:
+    """Thêm một dòng đơn giá; đã có model đó thì THAY THẾ chứ không thêm trùng."""
     entries = list_entries(config)
     entries = [e for e in entries if e.get("model") != entry.get("model")]  # replace same model
     entries.append(entry)
@@ -243,6 +265,7 @@ def import_table(path: str | Path, default_ccy: str = "USD") -> List[Dict[str, A
 
 
 def _rows_from_xlsx(path: Path) -> List[List[Any]]:
+    """Đọc các dòng từ file Excel (lấy giá trị đã tính, không lấy công thức)."""
     from openpyxl import load_workbook
     try:
         wb = load_workbook(str(path), data_only=True)
@@ -253,6 +276,7 @@ def _rows_from_xlsx(path: Path) -> List[List[Any]]:
 
 
 def _rows_from_csv(path: Path) -> List[List[Any]]:
+    """Đọc các dòng từ file CSV, chấp nhận BOM của Excel."""
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:

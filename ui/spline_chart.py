@@ -53,7 +53,11 @@ def _catmull_rom(points: List[QPointF]) -> QPainterPath:
 
 
 class SplineChart(QWidget):
+    """Biểu đồ đường cong mượt cho Dashboard: vẽ tay bằng ``QPainter``, không dùng
+    thư viện biểu đồ ngoài.
+    """
     def __init__(self):
+        """Biểu đồ đường cong mượt. Rỗng lúc đầu — dữ liệu vào qua ``set_data()``."""
         super().__init__()
         self._points: List[Tuple[str, float]] = []
         self._fmt: Callable[[float], str] = lambda v: f"{v:.2f}"
@@ -63,6 +67,9 @@ class SplineChart(QWidget):
 
     def set_data(self, points: List[Tuple[str, float]],
                  value_fmt: Optional[Callable[[float], str]] = None, title: str = "") -> None:
+        """Đặt dữ liệu cho biểu đồ: danh sách (nhãn, giá trị), kèm hàm định dạng giá
+        trị và tiêu đề.
+        """
         self._points = list(points or [])
         if value_fmt is not None:
             self._fmt = value_fmt
@@ -76,6 +83,9 @@ class SplineChart(QWidget):
         self.update()
 
     def paintEvent(self, _e):  # noqa: N802
+        """Vẽ biểu đồ: lưới mờ, đường cong Bézier mượt qua các điểm, vùng tô dưới đường
+        và nhãn trục.
+        """
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         tok = current_palette()

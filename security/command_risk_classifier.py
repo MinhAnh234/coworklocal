@@ -20,6 +20,11 @@ from typing import List, Optional
 
 
 class RiskLevel(str, Enum):
+    """Bậc rủi ro của một lệnh, prompt hay tệp đính kèm.
+
+    Kế thừa ``str`` để so sánh và ghi log thẳng bằng chuỗi mà không phải
+    ``.value`` ở từng chỗ dùng.
+    """
     SAFE = "safe"
     MODERATE = "moderate"
     HIGH = "high"
@@ -29,6 +34,11 @@ class RiskLevel(str, Enum):
 
 @dataclass
 class RiskResult:
+    """Kết quả một lần phân loại: điểm, bậc, lý do, và có chặn hẳn không.
+
+    ``reasons`` giữ lại đúng mẫu regex đã khớp — nhật ký kiểm toán phải trả
+    lời được "vì sao lệnh này bị chặn", không chỉ "bị chặn".
+    """
     score: int           # 0-100
     level: RiskLevel     # categorized bucket
     reasons: List[str]   # why this score was assigned
@@ -65,6 +75,13 @@ _MODERATE_PATTERNS = [
 
 
 def classify_command(command: str, is_cowork_mode: bool = True) -> RiskResult:
+    """Chấm điểm rủi ro một lệnh shell.
+
+    Ba tầng mẫu: ``_BLOCK_PATTERNS`` chặn thẳng (100 điểm, dừng ngay khi
+    khớp mẫu đầu tiên), ``_HIGH_PATTERNS`` và ``_MODERATE_PATTERNS`` cộng
+    dồn điểm. ``is_cowork_mode`` nới tay hơn cho màn Cowork, nơi người dùng
+    đang chủ động ngồi xem từng bước.
+    """
     score = 0
     reasons: List[str] = []
     blocked = False
@@ -114,10 +131,20 @@ def classify_command(command: str, is_cowork_mode: bool = True) -> RiskResult:
 
 
 def classify_prompt(prompt: str, is_cowork_mode: bool = True) -> RiskResult:
+    """Chấm điểm rủi ro một prompt — dùng chung bộ mẫu với lệnh shell.
+
+    Cố ý dùng chung: tấn công tiêm lệnh viết bằng văn xuôi ("ignore previous
+    instructions") và lệnh shell nguy hiểm đều nằm trong cùng danh sách mẫu.
+    """
     return classify_command(prompt, is_cowork_mode=is_cowork_mode)
 
 
 def classify_attachment(path: str, mime_type: Optional[str] = None) -> RiskResult:
+    """Chặn tệp đính kèm chạy được, theo đuôi tệp rồi tới kiểu MIME.
+
+    Chặn theo danh sách đen — mã nguồn và tệp thực thi không được đưa vào
+    ngữ cảnh chat. Tệp ngoài danh sách được coi là an toàn (30 điểm).
+    """
     import os
     _, ext = os.path.splitext(path.lower())
     blocked_ext = {
@@ -141,6 +168,11 @@ def classify_attachment(path: str, mime_type: Optional[str] = None) -> RiskResul
 
 
 def classify_action(action_type: str, action_details: Optional[dict] = None) -> RiskResult:
+    """Chấm điểm rủi ro một loại hành động theo từ khoá trong tên.
+
+    Hành động lạ nhận 50 điểm (mức trung bình) chứ không phải 0 — thứ chưa
+    biết thì không được mặc định là an toàn.
+    """
     a = action_type.lower()
     if any(kw in a for kw in ('execute', 'run', 'shell', 'system')):
         return RiskResult(70, RiskLevel.HIGH, [f"high: action '{action_type}'"])

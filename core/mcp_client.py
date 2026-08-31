@@ -27,6 +27,7 @@ _SEP = "__"
 
 
 class McpServerError(RuntimeError):
+    """Lỗi khi nối hoặc gọi một MCP server."""
     pass
 
 
@@ -35,6 +36,9 @@ class McpServerConnection:
 
     def __init__(self, name: str, command: str, args: Optional[List[str]] = None,
                 env: Optional[Dict[str, str]] = None):
+        """Ghi nhận cách khởi động một máy chủ MCP; chưa chạy tiến trình nào cho tới
+        lần dùng đầu tiên.
+        """
         self.name = name
         self.command = command
         self.args = list(args or [])
@@ -59,6 +63,7 @@ class McpServerConnection:
             raise McpServerError(f"MCP server '{self.name}' failed to start: {self._start_error}")
 
     def _run_loop(self) -> None:
+        """Thân luồng nền: dựng vòng lặp asyncio riêng và giữ nó chạy."""
         loop = asyncio.new_event_loop()
         self._loop = loop
         asyncio.set_event_loop(loop)
@@ -79,6 +84,7 @@ class McpServerConnection:
             loop.close()
 
     async def _connect(self) -> None:
+        """Khởi động tiến trình con và bắt tay phiên MCP."""
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
@@ -93,6 +99,10 @@ class McpServerConnection:
         self._session = session
 
     async def _aclose(self) -> None:
+        """Đóng các context đã mở theo THỨ TỰ NGƯỢC.
+
+        Đóng xuôi sẽ đóng transport trước phiên và treo ở bước dọn dẹp.
+        """
         for cm in reversed(self._cm_stack):
             try:
                 await cm.__aexit__(None, None, None)
@@ -101,10 +111,18 @@ class McpServerConnection:
         self._cm_stack.clear()
 
     def stop(self) -> None:
+        """Dừng kết nối: tắt vòng lặp asyncio và chờ luồng nền kết thúc."""
         if self._loop is not None and self._loop.is_running():
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
             self._thread.join(timeout=5)
+
+    def is_alive(self) -> bool:
+        """True while the connection's background thread (and therefore its
+        event loop and subprocess) is still running — used by
+        ``infrastructure/mcp/mcp_source_manager.py`` (R05-T05) to tell a live
+        cached connection from one whose subprocess already died."""
+        return self._thread is not None and self._thread.is_alive()
 
     # ---- tools -----------------------------------------------------------
     def list_tool_specs(self) -> List[ToolSpec]:
@@ -134,6 +152,10 @@ class McpServerConnection:
         return {"ok": ok, "output": output}
 
     def _run_coro(self, coro):
+        """Chạy một coroutine trên vòng lặp của kết nối và chờ kết quả.
+
+        Đây là cầu nối duy nhất giữa mã đồng bộ của app và phiên MCP bất đồng bộ.
+        """
         if self._loop is None:
             raise McpServerError(f"MCP server '{self.name}' is not connected")
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
@@ -159,6 +181,9 @@ def build_mcp_tools(servers: List[McpServerConnection]) -> Tuple[List[ToolSpec],
         return [], None
 
     def executor(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Bộ thực thi cho tool MCP: định tuyến theo tên về đúng server và ghi nhật ký
+        kiểm toán cho mỗi lần gọi.
+        """
         from . import audit_log
 
         server = routing.get(name)

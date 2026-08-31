@@ -23,6 +23,7 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif",
 
 
 def is_image(path) -> bool:
+    """Đuôi tệp này có phải ảnh không."""
     return Path(path).suffix.lower() in IMAGE_EXTS
 
 
@@ -164,6 +165,10 @@ def extract_text(path, progress=None) -> tuple[str | None, str]:
 # Office Open XML (docx / xlsx / pptx)
 # --------------------------------------------------------------------------
 def _docx(p: Path) -> str:
+    """Trích văn bản từ .docx bằng cách đọc thẳng XML trong gói zip.
+
+    Không cần thư viện ngoài — .docx vốn là một file zip chứa XML.
+    """
     with zipfile.ZipFile(p) as z:
         xml = z.read("word/document.xml").decode("utf-8", "replace")
     out: list[str] = []
@@ -179,6 +184,7 @@ def _docx(p: Path) -> str:
 
 
 def _pptx(p: Path) -> str:
+    """Trích văn bản từ .pptx, đi theo đúng thứ tự slide."""
     out: list[str] = []
     with zipfile.ZipFile(p) as z:
         slides = [n for n in z.namelist() if re.match(r"ppt/slides/slide\d+\.xml$", n)]
@@ -192,6 +198,11 @@ def _pptx(p: Path) -> str:
 
 
 def _xlsx(p: Path) -> str:
+    """Trích văn bản từ .xlsx, có phân giải bảng chuỗi dùng chung.
+
+    Excel lưu chuỗi trong một bảng riêng và ô chỉ giữ chỉ số — đọc thẳng ô sẽ ra
+    toàn số.
+    """
     with zipfile.ZipFile(p) as z:
         names = z.namelist()
         shared: list[str] = []
@@ -235,6 +246,7 @@ def _xlsx(p: Path) -> str:
 # OpenDocument (odt / ods / odp)
 # --------------------------------------------------------------------------
 def _odf(p: Path) -> str:
+    """Trích văn bản từ tài liệu OpenDocument (.odt/.ods/.odp)."""
     with zipfile.ZipFile(p) as z:
         xml = z.read("content.xml").decode("utf-8", "replace")
     xml = re.sub(r"<text:line-break\s*/>", "\n", xml)
@@ -249,6 +261,10 @@ def _odf(p: Path) -> str:
 # PDF + LibreOffice fallback
 # --------------------------------------------------------------------------
 def _pdf(p: Path, progress=None) -> tuple[str | None, str]:
+    """Trích văn bản từ PDF bằng ``pypdf``, tự cài nếu thiếu.
+
+    Trả về (văn bản, ghi chú); văn bản là ``None`` khi không trích được.
+    """
     from .deps import ensure_module
 
     # Auto-install pypdf when missing (no manual install needed); fall back to
@@ -369,6 +385,11 @@ def _office_com_to_pdf(src: Path, pdf: Path) -> str | None:
 
 
 def _soffice_to_text(p: Path) -> tuple[str | None, str]:
+    """Cách dự phòng cuối: nhờ LibreOffice chuyển tài liệu sang văn bản.
+
+    Dùng cho định dạng không có bộ đọc riêng; không cài LibreOffice thì trả về
+    lý do để chỗ gọi hiện ra.
+    """
     soffice = find_soffice()
     if not soffice:
         return None, "no extractor available (install LibreOffice)"

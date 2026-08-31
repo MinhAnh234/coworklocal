@@ -22,14 +22,17 @@ TIMEOUT = 30
 
 
 class Ms365GraphError(Exception):
+    """Lỗi khi gọi Microsoft Graph API."""
     pass
 
 
 class TeamsLinkError(Exception):
+    """Link Teams không phân giải được thành team/channel/chat hợp lệ."""
     pass
 
 
 def _headers(token: str, extra: Optional[dict] = None) -> Dict[str, str]:
+    """Header cho một lượt gọi Graph: Bearer token cộng phần thêm (nếu có)."""
     h = {"Authorization": f"Bearer {token}"}
     if extra:
         h.update(extra)
@@ -37,6 +40,9 @@ def _headers(token: str, extra: Optional[dict] = None) -> Dict[str, str]:
 
 
 def _request(method: str, url: str, token: str, **kwargs) -> requests.Response:
+    """Gọi Graph API, tự ghép ``GRAPH_BASE`` cho đường dẫn tương đối và đổi lỗi HTTP
+    thành :class:`Ms365GraphError` kèm thông điệp đọc được.
+    """
     if not url.startswith("http"):
         url = f"{GRAPH_BASE}{url}"
     headers = _headers(token, kwargs.pop("headers", None))
@@ -73,6 +79,7 @@ def _path_segment(path: str) -> str:
 
 # ---- Outlook ---------------------------------------------------------------
 def list_mail(token: str, top: int = 10, folder: str = "inbox") -> List[dict]:
+    """Danh sách thư trong một thư mục hộp thư (mặc định Inbox)."""
     resp = _request("GET", f"/me/mailFolders/{quote(folder)}/messages"
                             f"?$top={int(top)}&$select=subject,from,receivedDateTime,bodyPreview,webLink",
                      token)
@@ -80,6 +87,7 @@ def list_mail(token: str, top: int = 10, folder: str = "inbox") -> List[dict]:
 
 
 def send_mail(token: str, to: str, subject: str, body: str) -> None:
+    """Gửi một email qua tài khoản đang đăng nhập."""
     payload = {
         "message": {
             "subject": subject,
@@ -91,6 +99,7 @@ def send_mail(token: str, to: str, subject: str, body: str) -> None:
 
 
 def list_calendar_events(token: str, top: int = 10) -> List[dict]:
+    """Danh sách sự kiện lịch sắp tới, xếp theo thời gian bắt đầu."""
     resp = _request("GET", f"/me/events?$top={int(top)}"
                             "&$select=subject,start,end,organizer,location&$orderby=start/dateTime",
                      token)
@@ -99,38 +108,45 @@ def list_calendar_events(token: str, top: int = 10) -> List[dict]:
 
 # ---- Teams ------------------------------------------------------------------
 def list_teams(token: str) -> List[dict]:
+    """Các team mà người dùng đang tham gia."""
     resp = _request("GET", "/me/joinedTeams", token)
     return resp.json().get("value", [])
 
 
 def list_channels(token: str, team_id: str) -> List[dict]:
+    """Các kênh trong một team."""
     resp = _request("GET", f"/teams/{quote(team_id)}/channels", token)
     return resp.json().get("value", [])
 
 
 def list_channel_messages(token: str, team_id: str, channel_id: str, top: int = 20) -> List[dict]:
+    """Tin nhắn gần đây trong một kênh."""
     resp = _request("GET", f"/teams/{quote(team_id)}/channels/{quote(channel_id)}/messages"
                             f"?$top={int(top)}", token)
     return resp.json().get("value", [])
 
 
 def send_channel_message(token: str, team_id: str, channel_id: str, text: str) -> None:
+    """Gửi tin nhắn vào một kênh Teams."""
     payload = {"body": {"content": text}}
     _request("POST", f"/teams/{quote(team_id)}/channels/{quote(channel_id)}/messages", token,
               json=payload)
 
 
 def get_channel(token: str, team_id: str, channel_id: str) -> dict:
+    """Thông tin một kênh Teams."""
     resp = _request("GET", f"/teams/{quote(team_id)}/channels/{quote(channel_id)}", token)
     return resp.json()
 
 
 def get_chat(token: str, chat_id: str) -> dict:
+    """Thông tin một cuộc trò chuyện Teams."""
     resp = _request("GET", f"/chats/{quote(chat_id)}", token)
     return resp.json()
 
 
 def send_chat_message(token: str, chat_id: str, text: str) -> None:
+    """Gửi tin nhắn vào một cuộc trò chuyện Teams."""
     _request("POST", f"/chats/{quote(chat_id)}/messages", token, json={"body": {"content": text}})
 
 
@@ -160,17 +176,20 @@ def parse_teams_link(url: str) -> Dict[str, str]:
 
 # ---- OneDrive -----------------------------------------------------------
 def list_onedrive_files(token: str, path: str = "") -> List[dict]:
+    """Liệt kê tệp/thư mục trong OneDrive; ``path`` rỗng là thư mục gốc."""
     url = "/me/drive/root/children" if not path else f"/me/drive/root:/{_path_segment(path)}:/children"
     resp = _request("GET", url, token)
     return resp.json().get("value", [])
 
 
 def read_onedrive_file(token: str, path: str, max_chars: int = 50_000) -> str:
+    """Đọc nội dung một tệp OneDrive dưới dạng văn bản, cắt ở ``max_chars``."""
     resp = _request("GET", f"/me/drive/root:/{_path_segment(path)}:/content", token)
     return resp.content.decode("utf-8", errors="replace")[:max_chars]
 
 
 def write_onedrive_file(token: str, path: str, content: str) -> dict:
+    """Ghi nội dung văn bản vào một tệp OneDrive (tạo mới hoặc ghi đè)."""
     resp = _request("PUT", f"/me/drive/root:/{_path_segment(path)}:/content", token,
                      data=content.encode("utf-8"),
                      headers={"Content-Type": "text/plain"})
@@ -197,11 +216,13 @@ def read_shared_file(token: str, share_url: str, max_chars: int = 50_000) -> str
 
 # ---- SharePoint --------------------------------------------------------
 def list_sharepoint_sites(token: str, query: str) -> List[dict]:
+    """Tìm site SharePoint theo từ khoá."""
     resp = _request("GET", f"/sites?search={quote(query)}", token)
     return resp.json().get("value", [])
 
 
 def list_sharepoint_files(token: str, site_id: str, path: str = "") -> List[dict]:
+    """Liệt kê tệp/thư mục trong thư viện tài liệu của một site SharePoint."""
     url = (f"/sites/{quote(site_id)}/drive/root/children" if not path
            else f"/sites/{quote(site_id)}/drive/root:/{_path_segment(path)}:/children")
     resp = _request("GET", url, token)
@@ -210,18 +231,21 @@ def list_sharepoint_files(token: str, site_id: str, path: str = "") -> List[dict
 
 # ---- Teams meeting transcripts ------------------------------------------
 def find_online_meeting(token: str, join_url: str) -> List[dict]:
+    """Tìm cuộc họp online theo link tham gia."""
     resp = _request("GET", f"/me/onlineMeetings?$filter=JoinWebUrl eq '{quote(join_url, safe='')}'",
                      token)
     return resp.json().get("value", [])
 
 
 def list_meeting_transcripts(token: str, meeting_id: str) -> List[dict]:
+    """Danh sách bản ghi lời thoại của một cuộc họp."""
     resp = _request("GET", f"/me/onlineMeetings/{quote(meeting_id)}/transcripts", token)
     return resp.json().get("value", [])
 
 
 def get_meeting_transcript_content(token: str, meeting_id: str, transcript_id: str,
                                    max_chars: int = 50_000) -> str:
+    """Nội dung một bản ghi lời thoại, cắt ở ``max_chars``."""
     resp = _request(
         "GET",
         f"/me/onlineMeetings/{quote(meeting_id)}/transcripts/{quote(transcript_id)}/content"

@@ -138,6 +138,7 @@ class ModelAssessment(BaseModel):
 
     @property
     def key(self) -> str:
+        """Khoá định danh của model được chấm điểm (provider + model id)."""
         return self.metadata.key
 
     def fit_for(self, task_type: TaskType) -> float:

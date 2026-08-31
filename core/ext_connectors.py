@@ -79,6 +79,7 @@ def new_connector(category: str, preset_id: str = "", name: str = "") -> Dict[st
 
 
 def _redact(entry: Dict[str, Any]) -> Dict[str, Any]:
+    """Bản sao đã che các trường nhạy cảm (khoá, token) — dùng khi ghi log/kiểm toán."""
     out = dict(entry)
     for k in _SENSITIVE_KEYS:
         if out.get(k):
@@ -92,6 +93,11 @@ class RestApiConnector:
     vendor documents without this app knowing that vendor's API shape."""
 
     def __init__(self, entry: Dict[str, Any]):
+        """Đọc một khai báo connector REST.
+
+        ``base_url`` luôn được chuẩn hoá thành có đúng một dấu ``/`` ở cuối, để ghép
+        đường dẫn về sau không sinh ra ``//`` hay dính liền.
+        """
         self.id = entry.get("id") or entry.get("name", "")
         self.display_name = entry.get("name") or self.id
         self.base_url = (entry.get("base_url") or "").rstrip("/") + "/"
@@ -100,6 +106,9 @@ class RestApiConnector:
         self.auth_scheme = entry.get("auth_scheme") or "Bearer"
 
     def tool_spec(self) -> ToolSpec:
+        """Khai báo tool để đưa cho model; tên tool có tiền tố là id connector nên hai
+        connector không đụng tên nhau.
+        """
         return ToolSpec(
             name=f"{self.id}{_SEP}http_request",
             description=(
@@ -122,6 +131,7 @@ class RestApiConnector:
         )
 
     def call(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Gọi API theo tham số model đưa ra, đi qua lớp TLS có ghim chứng chỉ nội bộ."""
         from .tls_trust import request_any_method as tls_request
 
         method = str(args.get("method", "GET")).upper()
@@ -153,6 +163,7 @@ class RestApiConnector:
         return {"ok": ok, "output": f"HTTP {resp.status_code}\n{text}"}
 
     def test_connection(self) -> Tuple[bool, str]:
+        """Thử kết nối tới endpoint; trả về (thành công, thông điệp)."""
         from .tls_trust import request as tls_request
 
         if not self.base_url.strip("/"):

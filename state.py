@@ -6,6 +6,7 @@ import time
 from typing import TYPE_CHECKING, Optional, Tuple
 
 from .config import AppConfig
+from .infrastructure.mcp import McpToolSourceManager
 
 
 def resolve_agent_default(
@@ -36,23 +37,38 @@ class AppContext:
     """Holds the live config and small convenience factories."""
 
     def __init__(self, config: AppConfig):
+        """Dựng ngữ cảnh dùng chung cho cả ứng dụng: cấu hình, mốc khởi động và các
+        nguồn tool.
+
+        Vòng đời kết nối MCP nằm ở ``McpToolSourceManager`` chứ không ở đây — xem
+        docstring của nó về việc vì sao kiểm-rồi-tạo phải có khoá.
+        """
         self.config = config
         self.started_at = time.time()   # for Monitoring's Sandbox Details "Created"/"Uptime"
-        self._mcp_connections: dict = {}  # server name -> McpServerConnection
+        # Admin-configured MCP servers + the built-in MS365 server (R05-T05):
+        # connection caching/lifecycle (check-then-create, restart, shutdown)
+        # now lives in McpToolSourceManager, extracted so it is testable
+        # without an AppContext/Qt. See its docstring for why the check-then-
+        # create race matters — several turns (multiple Cowork tabs, parallel
+        # Co4E flows, scheduled tasks) can call build_mcp_tools() at once.
+        self._mcp_manager = McpToolSourceManager()
         self._ext_connections: dict = {}  # connector id -> McpServerConnection (mcp_stdio mode only)
-        # Guards the two connection caches above. build_mcp_tools() runs on EVERY
-        # chat turn's own AgentWorker thread, so several turns (multiple Cowork
-        # tabs, parallel Co4E flows, scheduled tasks) can enter it at once. The
-        # cache is populated check-then-create ("conn is None → spawn → store");
-        # without this lock two concurrent turns both see None and each spawns a
-        # subprocess for the SAME server — one leaks as an orphan and the wrong
-        # object may be handed out. The lock makes connection setup atomic; the
-        # provider/HTTP path itself is already thread-safe (a fresh provider per
-        # call, module-level `requests`, MCP calls multiplexed on the server's
-        # own event loop), so concurrent model calls never needed serializing.
+        # Guards ``_ext_connections`` only now — unified Connectors (CAD/CAE/
+        # MS365/Other) aren't covered by McpToolSourceManager (R05-T05 scoped
+        # to MCP servers), so this cache still needs its own check-then-create
+        # lock, the same race McpToolSourceManager guards against internally.
         self._conn_lock = threading.Lock()
         self._routing_service = None       # lazy RoutingService (Auto Model Routing)
+        # Lazy RoutingApplicationService (R03-T03) — the Qt-free decision layer
+        # every chat surface now routes through. Wraps _routing_service, which
+        # stays the scoring/ranking engine underneath.
+        self._routing_application = None
         self._routing_lock = threading.Lock()
+        # A SEPARATE lock for the application service: building it calls
+        # routing(), which takes _routing_lock. threading.Lock is not
+        # reentrant, so sharing one lock across both accessors deadlocks the
+        # first caller instead of just serialising them.
+        self._routing_app_lock = threading.Lock()
         # The workspace (project) currently selected in the Workspace screen.
         # Per-workspace modes (routing + auto-run) resolve against THIS project
         # so each workspace keeps its own modes. Updated by WorkspaceTab on
@@ -61,6 +77,7 @@ class AppContext:
 
     @property
     def role(self) -> str:
+        """Vai trò người dùng. Bản này không có lớp xác thực nên luôn là 'admin'."""
         return "admin"  # no authentication layer, always full access
 
     # ---- Per-workspace modes (Auto Model Routing + Auto-run) ----------------
@@ -73,14 +90,18 @@ class AppContext:
         return load_project(pid)
 
     def project_routing_mode(self, surface: str) -> str:
-        """Effective Off/Auto/Manual routing mode for a chat ``surface`` in the
-        ACTIVE workspace: the workspace's own override wins; otherwise the
+        """Effective Off/Auto/Manual/Fallback routing mode for a chat ``surface``
+        in the ACTIVE workspace: the workspace's own override wins; otherwise the
         global default (``config.routing_mode_for``). This is what makes each
-        workspace keep its own routing mode."""
+        workspace keep its own routing mode.
+
+        The accepted set is taken from ``AppConfig.ROUTING_MODES`` rather than
+        repeated here, so adding a mode (as R03-T03 did with "fallback") stays a
+        one-line change instead of a hunt through every validation site."""
         project = self._current_project()
         if project is not None:
             mode = (project.routing_modes or {}).get(surface, "")
-            if mode in ("off", "auto", "manual"):
+            if mode in self.config.ROUTING_MODES:
                 return mode
         return self.config.routing_mode_for(surface)
 
@@ -88,7 +109,7 @@ class AppContext:
         """Persist a surface's routing mode for the ACTIVE workspace. With no
         workspace selected, falls back to the global setting so behaviour
         outside a project stays global."""
-        mode = mode if mode in ("off", "auto", "manual") else "off"
+        mode = mode if mode in self.config.ROUTING_MODES else "off"
         project = self._current_project()
         if project is None:
             self.config.set_routing_mode_for(surface, mode)
@@ -144,6 +165,34 @@ class AppContext:
                     self._routing_service = RoutingService(self)
         return self._routing_service
 
+    def routing_application(self):
+        """The shared :class:`RoutingApplicationService` (R03-T03).
+
+        This is what UI code should call: it owns the Off/Auto/Manual/Fallback
+        policy, the confirm handshake and the never-raise guarantee, while
+        :meth:`routing` remains the scoring engine underneath. Chat, Co4E and
+        AI-Edit all go through this one object, so a change to routing policy is
+        made once instead of three times.
+
+        Built lazily and memoised for the same reason as :meth:`routing`: the
+        pending-switch registry and assessment store must be shared app-wide."""
+        if self._routing_application is None:
+            # Resolve the engine BEFORE taking this lock: routing() takes
+            # _routing_lock, and nesting the two acquisitions is what makes the
+            # ordering fragile in the first place.
+            engine = self.routing()
+            with self._routing_app_lock:
+                if self._routing_application is None:
+                    from .application.model_routing import RoutingApplicationService
+
+                    self._routing_application = RoutingApplicationService(
+                        engine,
+                        # Per-workspace mode lookup, so each workspace keeps its
+                        # own routing behaviour (see project_routing_mode).
+                        mode_reader=self.project_routing_mode,
+                    )
+        return self._routing_application
+
     def build_active_provider(self):
         """Construct the currently selected provider (called inside workers)."""
         return self.build_provider_for(self.config.active_provider)
@@ -165,11 +214,13 @@ class AppContext:
         return build_provider(name, conf)
 
     def teams_notifier(self):
+        """Bộ gửi thông báo Teams, dựng theo webhook trong cấu hình."""
         from .core.teams import TeamsNotifier
 
         return TeamsNotifier(self.config.teams.get("webhook_url", ""), ca_bundle=self.config.ca_bundle)
 
     def save(self) -> None:
+        """Ghi cấu hình xuống đĩa."""
         self.config.save()
 
     # ---- 🔌 MCP Layer — external MCP servers this app connects to as a client
@@ -188,48 +239,41 @@ class AppContext:
         if not self.config.connect_external:
             return [], None
         from .core.ext_connectors import build_ext_connector_tools
-        from .core.mcp_client import McpServerConnection
         from .core.mcp_client import build_mcp_tools as _merge_mcp_tools
         from .core.tools import combine_tool_sources
 
-        # Serialize the check-then-create against the connection caches so
-        # concurrent turns share one subprocess per server instead of racing to
-        # spawn duplicates (see _conn_lock in __init__). The lock is held while
-        # connections are established (a one-time cost per server per app run);
-        # once warm, every turn just finds the cached connection and returns.
-        with self._conn_lock:
-            active = []
-            for entry in self.config.mcp_servers:
-                if not entry.get("enabled", True):
-                    continue
-                name = entry.get("name", "")
-                command = entry.get("command", "")
-                if not name or not command:
-                    continue
-                conn = self._mcp_connections.get(name)
-                if conn is None:
-                    conn = McpServerConnection(name, command, entry.get("args") or [],
-                                               entry.get("env") or None)
-                    try:
-                        conn.start()
-                    except Exception:  # noqa: BLE001 - one broken server must not block the turn
-                        continue
-                    self._mcp_connections[name] = conn
+        # R05-T05: connection caching/check-then-create for admin-configured
+        # servers + the MS365 builtin now lives in McpToolSourceManager (its
+        # own lock guards the race — see its docstring).
+        active = []
+        for entry in self.config.mcp_servers:
+            if not entry.get("enabled", True):
+                continue
+            name = entry.get("name", "")
+            command = entry.get("command", "")
+            if not name or not command:
+                continue
+            conn = self._mcp_manager.ensure(name, command, entry.get("args") or [],
+                                            entry.get("env") or None)
+            if conn is not None:
                 active.append(conn)
-            builtin = self._ms365_builtin_connection(skip={c.name for c in active})
-            if builtin is not None:
-                active.append(builtin)
-            mcp_tools, mcp_executor = _merge_mcp_tools(active)
+        builtin = self._ms365_builtin_connection(skip={c.name for c in active})
+        if builtin is not None:
+            active.append(builtin)
+        mcp_tools, mcp_executor = _merge_mcp_tools(active)
 
+        # ``_ext_connections`` isn't covered by McpToolSourceManager (T05
+        # scoped to MCP servers) — still serialized under ``_conn_lock``.
+        with self._conn_lock:
             ext = self.config.ext_connectors
             all_connectors = [*ext.get("cad", []), *ext.get("cae", []),
                               *ext.get("ms365", []), *ext.get("other", [])]
             ext_tools, ext_executor = build_ext_connector_tools(all_connectors, self._ext_connections)
 
-            # Locally-synced OneDrive/SharePoint (no sign-in) — reads/writes the
-            # OneDrive-desktop-synced folders directly, gated on ms365.connectors.
-            from .core.ms365_local import build_ms365_local_tools
-            local_tools, local_executor = build_ms365_local_tools(self.config)
+        # Locally-synced OneDrive/SharePoint (no sign-in) — reads/writes the
+        # OneDrive-desktop-synced folders directly, gated on ms365.connectors.
+        from .core.ms365_local import build_ms365_local_tools
+        local_tools, local_executor = build_ms365_local_tools(self.config)
 
         return combine_tool_sources((mcp_tools, mcp_executor), (ext_tools, ext_executor),
                                     (local_tools, local_executor))
@@ -259,36 +303,20 @@ class AppContext:
         import sys
         from pathlib import Path
 
-        from .core.mcp_client import McpServerConnection
-
         name = self._MS365_BUILTIN
         if name in skip:
             return None
         if not self._ms365_available():
-            stale = self._mcp_connections.pop(name, None)
-            if stale is not None:
-                try:
-                    stale.stop()
-                except Exception:  # noqa: BLE001
-                    pass
+            self._mcp_manager.stop(name)
             return None
-        conn = self._mcp_connections.get(name)
-        if conn is None:
-            # The subprocess must import cowork_local even in a from-source run
-            # (PYTHONPATH=src) — prepend this package's parent dir explicitly.
-            env = dict(os.environ)
-            src_root = str(Path(__file__).resolve().parent.parent)
-            env["PYTHONPATH"] = (src_root + os.pathsep + env["PYTHONPATH"]
-                                 if env.get("PYTHONPATH") else src_root)
-            conn = McpServerConnection(
-                name, sys.executable,
-                ["-m", "cowork_local.mcp_servers.ms365_server"], env)
-            try:
-                conn.start()
-            except Exception:  # noqa: BLE001 - MS365 down must not block the turn
-                return None
-            self._mcp_connections[name] = conn
-        return conn
+        # The subprocess must import cowork_local even in a from-source run
+        # (PYTHONPATH=src) — prepend this package's parent dir explicitly.
+        env = dict(os.environ)
+        src_root = str(Path(__file__).resolve().parent.parent)
+        env["PYTHONPATH"] = (src_root + os.pathsep + env["PYTHONPATH"]
+                             if env.get("PYTHONPATH") else src_root)
+        return self._mcp_manager.ensure(
+            name, sys.executable, ["-m", "cowork_local.mcp_servers.ms365_server"], env)
 
     def stop_mcp_connections(self) -> None:
         """Terminate every connected MCP server's subprocess (incl. External
@@ -296,11 +324,6 @@ class AppContext:
         them linger as orphan processes."""
         from .core.ext_connectors import stop_ext_connections
 
+        self._mcp_manager.stop_all()
         with self._conn_lock:
-            for conn in self._mcp_connections.values():
-                try:
-                    conn.stop()
-                except Exception:  # noqa: BLE001
-                    pass
-            self._mcp_connections.clear()
             stop_ext_connections(self._ext_connections)

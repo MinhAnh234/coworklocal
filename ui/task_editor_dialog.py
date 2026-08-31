@@ -59,6 +59,12 @@ class TaskEditorDialog(QDialog):
 
     def __init__(self, task: Optional[dict] = None, all_tasks: Optional[List[dict]] = None,
                  parent=None, ctx=None):
+        """Form thêm/sửa một task theo lịch.
+
+        ``all_tasks`` để kiểm trùng tên và dựng danh sách task phụ thuộc. Danh sách
+        model của từng provider được nhớ lại sau khi nạp, để đổi provider qua lại
+        không phải gọi mạng lần nữa.
+        """
         super().__init__(parent)
         self._original = task
         self.ctx = ctx                     # for ✨ AI-generate buttons (optional)
@@ -521,16 +527,19 @@ class TaskEditorDialog(QDialog):
     # ---- helpers ---------------------------------------------------------
     @staticmethod
     def _select(combo: QComboBox, data) -> None:
+        """Chọn mục mang dữ liệu ``data`` trong một combo; không có thì để nguyên."""
         idx = combo.findData(data)
         if idx >= 0:
             combo.setCurrentIndex(idx)
 
     def _add_files(self) -> None:
+        """Thêm tệp vào danh sách dữ liệu đầu vào của task."""
         files, _ = QFileDialog.getOpenFileNames(self, tr("schedtask.pick_files"))
         for f in files:
             self.files_list.addItem(f)
 
     def _add_link(self) -> None:
+        """Thêm một link vào danh sách dữ liệu đầu vào của task."""
         url, ok = QInputDialog.getText(self, tr("schedtask.add_link_title"),
                                        tr("schedtask.add_link_label"))
         url = url.strip()
@@ -539,6 +548,7 @@ class TaskEditorDialog(QDialog):
 
     @staticmethod
     def _remove_selected(list_widget: QListWidget) -> None:
+        """Gỡ các dòng đang chọn khỏi một danh sách."""
         for item in list_widget.selectedItems():
             list_widget.takeItem(list_widget.row(item))
 
@@ -563,11 +573,13 @@ class TaskEditorDialog(QDialog):
         ctx = self.ctx
 
         def job(_worker: AgentWorker):
+            """Chạy nền: hỏi mọi provider danh sách model đang dùng được."""
             from ..core import preview_ai
 
             return preview_ai.fetch_live_models(ctx)
 
         def done(result: dict) -> None:
+            """Ghi nhớ danh sách model rồi nạp vào ô chọn."""
             self.load_models_btn.setEnabled(True)
             self._live_models = result or {}
             self._refresh_model_combo()
@@ -576,6 +588,7 @@ class TaskEditorDialog(QDialog):
                                         tr("schedtask.load_models_empty"))
 
         def failed(err: str) -> None:
+            """Nạp model lỗi: hiện cảnh báo và mở khoá lại nút."""
             self.load_models_btn.setEnabled(True)
             QMessageBox.warning(self, tr("schedtask.editor_title_new"), err)
 
@@ -586,6 +599,11 @@ class TaskEditorDialog(QDialog):
         w.start()
 
     def _check_chain(self) -> None:
+        """Kiểm tra chuỗi task nối tiếp có tạo thành vòng lặp không, và cảnh báo ngay
+        trên form.
+
+        Không chặn thì hai task trỏ vào nhau sẽ chạy vòng vô tận.
+        """
         candidates = self.all_tasks + ([self._original] if self._original else [self.task])
         err = chain_error(candidates, self.task["task_id"], self.next_combo.currentData())
         nxt_id = self.next_combo.currentData()
@@ -597,6 +615,7 @@ class TaskEditorDialog(QDialog):
         self.chain_warn.setText(warn)
 
     def _checked_depends_on(self) -> list:
+        """Id các task đang được tick trong danh sách phụ thuộc."""
         ids = []
         for i in range(self.depends_list.count()):
             item = self.depends_list.item(i)
@@ -621,12 +640,14 @@ class TaskEditorDialog(QDialog):
         ctx = self.ctx
 
         def job(worker: AgentWorker):
+            """Chạy nền: nhờ model soạn prompt cho task từ phần mô tả."""
             from ..core.ai_task_planner import generate_prompt_from_description
 
             return {"prompt": generate_prompt_from_description(
                 ctx.build_active_provider(), description, cancel=worker.is_cancelled)}
 
         def done(result: dict) -> None:
+            """Đổ prompt vừa soạn vào ô nội dung task."""
             self._gen_worker = None
             self.gen_desc_btn.setEnabled(True)
             self._apply_generated_prompt(result.get("prompt", ""), description)
@@ -690,6 +711,7 @@ class TaskEditorDialog(QDialog):
         self.manual_text.setPlainText(prompt or description_fallback)
 
     def _save(self) -> None:
+        """Kiểm tra hợp lệ rồi dựng bản ghi task từ form; thiếu tiêu đề thì không đóng."""
         title = self.title_edit.text().strip()
         if not title:
             QMessageBox.warning(self, tr("schedtask.editor_title_new"), tr("schedtask.title_required"))

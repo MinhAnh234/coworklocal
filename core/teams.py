@@ -17,12 +17,21 @@ ACCENT = "F37021"
 
 
 class TeamsNotifier:
+    """Gửi thông báo lên Microsoft Teams qua webhook.
+
+    Tự thử hai khuôn thẻ: Adaptive Card (webhook Workflows mới) rồi tới
+    MessageCard (webhook Connector cũ) — hai loại webhook không nhận chung một khuôn.
+    """
     def __init__(self, webhook_url: str = "", ca_bundle: str = ""):
+        """``webhook_url`` rỗng nghĩa là chưa cấu hình — mọi lượt gửi về sau lặng lẽ bỏ
+        qua thay vì lỗi.
+        """
         self.webhook_url = (webhook_url or "").strip()
         self.ca_bundle = (ca_bundle or "").strip()
 
     @property
     def configured(self) -> bool:
+        """Đã cấu hình webhook hợp lệ chưa."""
         return self.webhook_url.startswith("http")
 
     def send(
@@ -113,6 +122,7 @@ class TeamsNotifier:
 
     @staticmethod
     def _explain(resp) -> str:
+        """Đổi phản hồi lỗi của Teams thành câu đọc được, kèm mã HTTP và 200 ký tự thân."""
         code = resp.status_code
         body = (getattr(resp, "text", "") or "")[:200]
         if code == 405:
@@ -127,6 +137,7 @@ class TeamsNotifier:
 
     @staticmethod
     def _message_card(title: str, text: str, facts: Optional[Dict[str, str]]) -> Dict:
+        """Dựng payload khuôn MessageCard (webhook Connector cũ)."""
         section: Dict = {"activityTitle": title, "text": text}
         if facts:
             section["facts"] = [{"name": k, "value": v} for k, v in facts.items()]
@@ -140,6 +151,7 @@ class TeamsNotifier:
 
     @staticmethod
     def _adaptive_card(title: str, text: str, facts: Optional[Dict[str, str]]) -> Dict:
+        """Dựng payload khuôn Adaptive Card (webhook Workflows mới)."""
         body: List[Dict] = [
             {"type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium"},
             {"type": "TextBlock", "text": text, "wrap": True},

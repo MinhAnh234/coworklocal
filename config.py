@@ -16,6 +16,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
 from typing import Any, Dict, List
 
 CONFIG_DIR = Path.home() / ".cowork_local"
@@ -273,6 +274,11 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
 
 
 def _apply_env_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Cho phép biến môi trường ghi đè cấu hình.
+
+    Dùng khi chạy trong container/CI: đặt endpoint và khoá qua biến môi trường mà
+    không phải sửa file cấu hình.
+    """
     data = copy.deepcopy(data)
     oc = data["providers"]["openai_compat"]
     if os.getenv("OPENAI_API_KEY"):
@@ -343,274 +349,45 @@ def _migrate_connectors(data: Dict[str, Any]) -> None:
         data["mcp_servers"] = []   # migrated — the UI no longer manages this
 
 
-@dataclass
-class AppConfig:
-    """In-memory view of the configuration with load/save helpers."""
+# Deferred: JsonConfigRepository's own import chain (infrastructure.persistence
+# .json -> task_repository_impl -> core.tasks) reads CONFIG_DIR back from this
+# module, so importing it before CONFIG_DIR exists here is a circular import.
+from .infrastructure.config.json_config_repository import JsonConfigRepository
 
-    data: Dict[str, Any] = field(default_factory=lambda: copy.deepcopy(DEFAULT_CONFIG))
-    path: Path = CONFIG_PATH
 
-    # ---- persistence -------------------------------------------------
+class AppConfig(JsonConfigRepository):
+    """Vỏ tương thích — R02 đã thay lớp này bằng :class:`JsonConfigRepository`.
+
+    Ngày 25/08 app chuyển hẳn sang repository (ghi nguyên tử, khoá nằm trong
+    kho bí mật của hệ điều hành). Nhưng cái tên ``AppConfig`` còn nằm ở 41 file
+    — 23 checker trong ``tools/`` và 18 file test, trong đó có test của cả ba
+    người. Sửa hết 41 chỗ trong một commit là đổi thứ không cần đổi và làm
+    review không đọc nổi.
+
+    Nên giữ tên, đổi ruột: mọi lối vào đều dẫn tới repository.
+
+    Bỏ hẳn được khi ``tools/`` và ``tests/`` chuyển sang gọi
+    ``presentation.shell.bootstrap.build_context()``.
+    """
+
+    def __init__(self, data=None, path: Path = CONFIG_PATH, **kw):
+        """Mở cấu hình từ đĩa, hoặc dựng thẳng từ dict khi truyền ``data``.
+
+        Dạng ``AppConfig(data=..., path=...)`` là để 13 file test dựng cấu hình mà
+        không chạm đĩa; giữ nguyên vì bỏ đi là phải sửa cả 13 file.
+        """
+        if data is None:
+            super().__init__(Path(path), **kw)
+            return
+        # Dạng AppConfig(data=..., path=...) mà 13 file test đang dùng: dựng
+        # thẳng từ dict, không đụng đĩa.
+        built = JsonConfigRepository.from_data(data, Path(path))
+        self.__dict__.update(built.__dict__)
+
     @classmethod
-    def load(cls, path: Path = CONFIG_PATH) -> "AppConfig":
-        merged = copy.deepcopy(DEFAULT_CONFIG)
-        if path.exists():
-            try:
-                stored = json.loads(path.read_text(encoding="utf-8"))
-                merged = _deep_merge(merged, stored)
-            except (json.JSONDecodeError, OSError):
-                # Corrupt config should never block startup.
-                merged = copy.deepcopy(DEFAULT_CONFIG)
-        merged = _apply_env_overrides(merged)
-        # "unlocked" is a runtime-only Settings-panel state (see the "ms365"
-        # comment in DEFAULT_CONFIG) — never trust a stored/hand-edited value,
-        # every launch starts locked.
-        merged.setdefault("ms365", {})["unlocked"] = False
-        _migrate_connectors(merged)   # office→ms365 + legacy mcp_servers→other
-        return cls(data=merged, path=path)
+    def load(cls, path: Path = CONFIG_PATH) -> "JsonConfigRepository":
+        """Điểm vào cũ. Giờ đi qua Composition Root nên checker và app dùng
+        chung một đường dựng — kể cả phần ráp kho bí mật."""
+        from .presentation.shell.bootstrap import build_config
+        return build_config(Path(path))
 
-    def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        to_write = self.data
-        if self.data.get("ms365", {}).get("unlocked"):
-            # Defense in depth: even if some caller saves without having gone
-            # through the Settings dialog's own auto-lock-after-save flow, the
-            # unlock state must never reach disk.
-            to_write = copy.deepcopy(self.data)
-            to_write["ms365"]["unlocked"] = False
-        self.path.write_text(
-            json.dumps(to_write, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-
-    # ---- convenience accessors --------------------------------------
-    @property
-    def active_provider(self) -> str:
-        # Migrate configs that still point at a removed provider (e.g. an older
-        # install saved "ollama") to a supported one, so the app never tries to
-        # build an unknown provider.
-        val = self.data.get("active_provider", "openai_compat")
-        return val if val in PROVIDER_LABELS else "openai_compat"
-
-    @active_provider.setter
-    def active_provider(self, value: str) -> None:
-        self.data["active_provider"] = value
-
-    def provider_conf(self, name: str | None = None) -> Dict[str, Any]:
-        name = name or self.active_provider
-        return self.data["providers"].get(name, {})
-
-    @property
-    def ca_bundle(self) -> str:
-        """Path to a custom CA/certificate PEM file, or '' for normal validation.
-
-        Used as ``requests``' ``verify=`` argument for every outbound HTTPS call
-        — see the "tls_ca_bundle" comment above for when this is needed."""
-        return (self.data.get("tls_ca_bundle") or "").strip()
-
-    @ca_bundle.setter
-    def ca_bundle(self, value: str) -> None:
-        self.data["tls_ca_bundle"] = (value or "").strip()
-
-    # ---- Microsoft 365 connections (Settings-panel lock, see DEFAULT_CONFIG) --
-    @property
-    def ms365(self) -> Dict[str, Any]:
-        return self.data.setdefault("ms365", copy.deepcopy(DEFAULT_CONFIG["ms365"]))
-
-    # ---- Login / RBAC / shared cross-machine store (see DEFAULT_CONFIG) ------
-    @property
-    def auth(self) -> Dict[str, Any]:
-        return self.data.setdefault("auth", copy.deepcopy(DEFAULT_CONFIG["auth"]))
-
-    @property
-    def shared_dir(self) -> str:
-        return (self.auth.get("shared_dir") or "").strip()
-
-    def ms365_try_unlock(self, code: str) -> bool:
-        """Unlock the MS365 Settings group for this session if ``code`` matches.
-
-        This is a client-side UI lock (prevents casually toggling a sensitive
-        section), NOT Microsoft authentication — see the DEFAULT_CONFIG
-        comment. Never persisted as unlocked; see ``save()``."""
-        if (code or "") and code == self.ms365.get("unlock_code", ""):
-            self.data["ms365"]["unlocked"] = True
-            return True
-        return False
-
-    def ms365_lock(self) -> None:
-        self.data.setdefault("ms365", {})["unlocked"] = False
-
-    @property
-    def theme(self) -> str:
-        return self.data.get("theme", "dark")
-
-    @theme.setter
-    def theme(self, value: str) -> None:
-        self.data["theme"] = value
-
-    @property
-    def language(self) -> str:
-        from .i18n import DEFAULT_LANGUAGE, LANGUAGES
-        val = self.data.get("language", DEFAULT_LANGUAGE)
-        return val if val in LANGUAGES else DEFAULT_LANGUAGE
-
-    @language.setter
-    def language(self, value: str) -> None:
-        self.data["language"] = value
-
-    @property
-    def code(self) -> Dict[str, Any]:
-        return self.data["code"]
-
-    @property
-    def tools_disabled(self) -> list:
-        """Built-in agent tool names the admin has turned off (Monitoring → Tools)."""
-        return self.data.setdefault("tools", {}).setdefault("disabled", [])
-
-    def set_tool_enabled(self, name: str, enabled: bool) -> None:
-        """Enable/disable a built-in agent tool by name and persist it."""
-        disabled = set(self.tools_disabled)
-        if enabled:
-            disabled.discard(name)
-        else:
-            disabled.add(name)
-        self.data.setdefault("tools", {})["disabled"] = sorted(disabled)
-        self.save()
-
-    @property
-    def connect_external(self) -> bool:
-        """Master switch (Monitoring → Tools → Connector): when off, the agent
-        connects to NO external connectors (CAD/CAE/MS365/Other MCP + REST).
-        Defaults ON so existing setups keep working."""
-        return bool(self.data.setdefault("tools", {}).get("connect_external", True))
-
-    def set_connect_external(self, enabled: bool) -> None:
-        self.data.setdefault("tools", {})["connect_external"] = bool(enabled)
-        self.save()
-
-    # ---- one-time seeding bookkeeping (built-in skill library / flows) -------
-    @property
-    def seeded_library_skills(self) -> List[str]:
-        """Slugs of bundled library skills already seeded into the user's Skill
-        Manager — so a user-deleted one is never silently re-seeded."""
-        return list(self.data.setdefault("seeded_library_skills", []))
-
-    @seeded_library_skills.setter
-    def seeded_library_skills(self, slugs) -> None:
-        self.data["seeded_library_skills"] = list(dict.fromkeys(slugs or []))
-
-    @property
-    def seeded_builtin_flows(self) -> List[str]:
-        """Ids of built-in Co4E flows already seeded (same respect-user-deletion
-        rule as seeded_library_skills)."""
-        return list(self.data.setdefault("seeded_builtin_flows", []))
-
-    @seeded_builtin_flows.setter
-    def seeded_builtin_flows(self, ids) -> None:
-        self.data["seeded_builtin_flows"] = list(dict.fromkeys(ids or []))
-
-    @property
-    def teams(self) -> Dict[str, Any]:
-        return self.data["teams"]
-
-    @property
-    def history(self) -> Dict[str, Any]:
-        return self.data["history"]
-
-    @property
-    def codebase_memory(self) -> Dict[str, Any]:
-        return self.data["codebase_memory"]
-
-    @property
-    def agent_security(self) -> Dict[str, Any]:
-        return self.data["agent_security"]
-
-    @property
-    def mcp_servers(self) -> List[Dict[str, Any]]:
-        return self.data.setdefault("mcp_servers", [])
-
-    @property
-    def ext_connectors(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Unified Connectors (MCP), grouped by category CAD/CAE/MS365/Other —
-        see core/ext_connectors.py for the per-entry shape and CATEGORIES."""
-        d = self.data.setdefault("ext_connectors", {"cad": [], "cae": [], "ms365": [], "other": []})
-        for cat in ("cad", "cae", "ms365", "other"):
-            d.setdefault(cat, [])
-        return d
-
-    @property
-    def cowork(self) -> Dict[str, Any]:
-        return self.data["cowork"]
-
-    @property
-    def routing(self) -> Dict[str, Any]:
-        """Auto Model Assessment & Routing behaviour config (see DEFAULT_CONFIG).
-
-        Always returns a dict with every expected key present, backfilling any
-        missing sub-keys from the defaults so older configs upgrade seamlessly."""
-        d = self.data.setdefault("routing", copy.deepcopy(DEFAULT_CONFIG["routing"]))
-        for k, v in DEFAULT_CONFIG["routing"].items():
-            d.setdefault(k, copy.deepcopy(v))
-        d.setdefault("surface_modes", {})
-        for surface in ("cowork", "co4e", "ai_edit"):
-            d["surface_modes"].setdefault(surface, "")
-        return d
-
-    def routing_mode_for(self, surface: str) -> str:
-        """Effective Off/Auto/Manual mode for a chat surface.
-
-        A per-surface override ("auto"/"manual"/"off") wins; an empty override
-        falls back to the global ``switch_mode``."""
-        routing = self.routing
-        override = (routing.get("surface_modes", {}) or {}).get(surface, "")
-        mode = override or routing.get("switch_mode", "off")
-        return mode if mode in ("off", "auto", "manual") else "off"
-
-    def set_routing_mode_for(self, surface: str, mode: str) -> None:
-        """Persist a chat surface's Off/Auto/Manual toggle selection."""
-        mode = mode if mode in ("off", "auto", "manual") else "off"
-        self.routing.setdefault("surface_modes", {})[surface] = mode
-        self.save()
-
-    @property
-    def structure(self) -> Dict[str, Any]:
-        return self.data.setdefault("structure", {"max_nodes": 400, "max_edges": 400})
-
-    @property
-    def monitoring_visibility(self) -> Dict[str, bool]:
-        return self.data.setdefault(
-            "monitoring_visibility", copy.deepcopy(DEFAULT_CONFIG["monitoring_visibility"]))
-
-    def cowork_output_dir(self) -> Path:
-        """Where Cowork saves generated files (OneDrive folder by default)."""
-        custom = (self.cowork.get("output_dir") or "").strip()
-        if custom:
-            return Path(custom).expanduser()
-        from . import paths  # local import avoids any import cycle
-        root = paths.primary_onedrive_root()
-        if root is not None:
-            return root / "CoworkLocal" / "output"
-        return CONFIG_DIR / "output" / "cowork"
-
-    def history_dir(self) -> Path:
-        """Resolve where conversation history is stored.
-
-        When a project is open, its history is stored INSIDE the project's
-        workspace folder (``_project_history_dir``, set by the Workspace screen)
-        so that sharing/syncing that folder shares the history — another machine
-        opening the same folder sees the conversations and can continue them.
-        Otherwise: Local (default) or OneDrive."""
-        rt = getattr(self, "_project_history_dir", None)
-        if rt:
-            return Path(rt)
-        custom = (self.history.get("custom_dir") or "").strip()
-        if custom:
-            return Path(custom).expanduser()
-        if self.history.get("location") == "onedrive":
-            from . import paths  # local import avoids any import cycle
-            root = paths.primary_onedrive_root()
-            if root is not None:
-                return root / "CoworkLocal" / "history"
-        return HISTORY_DIR
-
-    def model_label(self) -> str:
-        return str(self.provider_conf().get("model", "?"))
