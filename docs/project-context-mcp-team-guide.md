@@ -51,8 +51,27 @@ COWORK_MCP_ACTOR_ID=<actor> \
 COWORK_MCP_ORG_UNIT=<org> \
 COWORK_MCP_CUSTOMER=<customer> \
 COWORK_MCP_PROJECT=<project> \
+GITEA_BASE_URL=<https://gitea.example> \
+GITEA_TOKEN=<service-account-token> \
+PROJECT_CONTEXT_REPO_MAP='{"<org>/<customer>/<project>":"<owner>/<repo>"}' \
+PROJECT_CONTEXT_KNOWLEDGE_ROOT=<path chứa 1 thư mục con cho mỗi project> \
 python -m cowork_local.mcp_servers.project_context_server
 ```
 
-Không commit giá trị môi trường hoặc credential. Cowork kết nối bằng stdio với command Python và
-args `-m cowork_local.mcp_servers.project_context_server`.
+Target map ưu tiên key đủ `org_unit/customer/project`; key `project` chỉ là legacy fallback cho pilot
+env cũ. Không commit giá trị môi trường hoặc credential. Cowork kết nối bằng stdio với command Python
+và args `-m cowork_local.mcp_servers.project_context_server`.
+
+## Knowledge search (`search_project_knowledge`)
+
+Corpus là workspace của chính project: `PROJECT_CONTEXT_KNOWLEDGE_ROOT/<identity.project>` — cùng
+định nghĩa "knowledge" mà `core/projects.py` đã dùng (file ở workspace root), và tái sử dụng
+`core/doc_extract.py` để đọc docx/pptx/xlsx/pdf/text. Không thêm vector DB, embedding pipeline hay
+RAG framework mới.
+
+- Thư mục được resolve từ **identity**, không bao giờ từ `project_id` trong request; `project_id`
+  chỉ dùng để verify scope. Symlink trỏ ra ngoài workspace bị loại.
+- `score` là term-coverage (lexical), không phải similarity giả. Upgrade path: thay riêng
+  `_score_chunk` bằng semantic ranker khi corpus đủ lớn.
+- Bound theo `detail`: `summary` 3 kết quả / 200 ký tự, `standard` 5 / 600, `full` 10 / 1200.
+  `top_k` chỉ thu hẹp, không nới rộng. Không có unlimited mode.

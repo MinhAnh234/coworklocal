@@ -15,8 +15,8 @@ from typing import Any, Callable, Dict, List, Optional
 from ..application.conversations.tool_policy_gateway import ToolPolicyGateway
 from ..domain.tools import ToolCapability, ToolDescriptor, ToolRegistry
 from ..providers.base import Provider
-from . import agent_roles
-from . import agent_security
+from . import agent_roles, agent_security
+from .mcp_client import UNTRUSTED_MCP_CONTENT_RULE
 from .ms365_tools import MS365_WRITE_TOOLS
 from .permissions import PermissionGate
 from .plan import UPDATE_PLAN_SPEC, normalize_plan_steps
@@ -83,6 +83,7 @@ def code_system_prompt(workdir: Path, has_memory: bool = False, plan: bool = Fal
         "'.scratch/' folder. Only the final requested file(s) should remain — never leave "
         "generator scripts or intermediate files behind.\n"
         "Every path must stay inside the working folder.\n"
+        + UNTRUSTED_MCP_CONTENT_RULE + "\n"
         "If a command or tool fails, do NOT stop and hand the error back to the user — read the "
         "error, fix the cause (edit the code, install a missing package, correct the command) and "
         "retry. Keep iterating until the task actually works, then run it once more so you can "

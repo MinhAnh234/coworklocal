@@ -85,6 +85,23 @@ class ProviderError(RuntimeError):
         self.retryable = retryable
 
 
+def decode_offset_cursor(cursor: str | None) -> int:
+    """Shared opaque-cursor decoding for every paginated provider.
+
+    Rejected before any backend call so an invalid cursor never costs an
+    upstream request.
+    """
+    if cursor is None:
+        return 0
+    try:
+        offset = int(cursor)
+    except ValueError as exc:
+        raise ProviderError("INVALID_INPUT", "cursor is not valid.", retryable=False) from exc
+    if offset < 0:
+        raise ProviderError("INVALID_INPUT", "cursor is not valid.", retryable=False)
+    return offset
+
+
 ToolHandler = Callable[[ContractModel, Any], dict[str, Any]]
 
 

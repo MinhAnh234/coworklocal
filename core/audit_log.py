@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from ..config import CONFIG_DIR
 from ..infrastructure.telemetry.audit_logger import CanonicalAuditLogger
@@ -42,11 +43,55 @@ def set_identity(account: str, machine: str, role: str = "", shared_dir: str = "
 
 
 def record(kind: Kind, name: str, ok: bool, detail: str = "",
-          agent_role: str = "") -> None:
+          agent_role: str = "", correlation_id: str = "") -> None:
     """Append one audit event. Never raises — audit logging must never break
     a chat turn, a permission decision, or a tool call."""
-    _logger.record(kind, name, ok, detail=detail, agent_role=agent_role)
+    try:
+        now = datetime.now()
+        if kind == "mcp_call":
+            safe_code = detail.removeprefix("code=")
+            detail = (
+                detail
+                if detail in {"completed", "failed"}
+                or (detail.startswith("code=") and safe_code.replace("_", "").isalnum())
+                else ("completed" if ok else "failed")
+            )
+            correlation_id = correlation_id or str(uuid4())
+        event = {
+            "ts": now.isoformat(timespec="seconds"),
+            "kind": kind,
+            "agent_role": agent_role or "",
+            "name": name or "",
+            "ok": bool(ok),
+            "detail": (detail or "")[:2000],   # bounded — never let a huge blob bloat the log
+            "correlation_id": correlation_id or "",
+            "account": _identity_account,
+            "role": _identity_role,
+            "machine": _identity_machine,
+        }
+        AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+        path = AUDIT_DIR / f"{now.strftime('%Y-%m-%d')}.jsonl"
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        _write_shared(event, now)
+    except Exception:  # noqa: BLE001
+        pass
 
+
+def _write_shared(event: Dict[str, Any], now: datetime) -> None:
+    """Best-effort mirror of ``event`` into the shared cross-machine store —
+    one file PER MACHINE per day, so no two machines ever write the same
+    file. Never raises."""
+    if not _identity_shared_dir or not _identity_machine:
+        return
+    try:
+        shared = Path(_identity_shared_dir).expanduser() / "telemetry" / "audit"
+        shared.mkdir(parents=True, exist_ok=True)
+        path = shared / f"{_identity_machine}-{now.strftime('%Y-%m-%d')}.jsonl"
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
 
 def load_events(start: Optional[date] = None, end: Optional[date] = None,
                 kind: Optional[Kind] = None,

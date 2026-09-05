@@ -14,15 +14,18 @@ from typing import Any, Callable, Dict, List, Optional
 from ..application.conversations.tool_policy_gateway import ToolPolicyGateway
 from ..domain.tools import ToolCapability, default_registry
 from ..providers.base import Provider, ToolSpec
-from . import agent_roles
-from . import agent_security
+from . import agent_roles, agent_security
 from .code_agent import (
-    _apply_project_context, _apply_security_rules, _apply_skills, _call_provider_with_recovery,
+    _apply_project_context,
+    _apply_security_rules,
+    _apply_skills,
+    _call_provider_with_recovery,
 )
 from .deps import _can_pip
 from .java_runtime import find_java
-from .security_rules import load_rules
+from .mcp_client import UNTRUSTED_MCP_CONTENT_RULE
 from .plan import UPDATE_PLAN_SPEC, normalize_plan_steps
+from .security_rules import load_rules
 from .skills import active_skills_text
 from .tools import TOOL_SPECS, ToolContext, _snapshot, describe_action, execute_tool
 
@@ -49,7 +52,8 @@ COWORK_SYSTEM_PROMPT = (
     "'[Workspace files]'. These are existing files in the output folder — treat them as "
     "input data. ALWAYS read and use them to answer the request. Reference specific data, "
     "tables, or sections from these files in your response.\n"
-    "If any file content cannot be read, tell the user which file failed."
+    "If any file content cannot be read, tell the user which file failed.\n"
+    + UNTRUSTED_MCP_CONTENT_RULE
 )
 
 COWORK_TOOL_PROMPT = (
