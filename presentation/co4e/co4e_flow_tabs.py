@@ -101,6 +101,11 @@ class Co4EFlowTabsMixin:
         self.center_stack.setCurrentIndex(1)
         self._sync_runs_toggle(False)
         self._apply_workflow(self._flows[flow_idx])
+        # _apply_workflow() rebuilds the canvas from wf.nodes/edges, which
+        # resets every node's live status to "idle" — without this, coming
+        # back to a flow that's still running (e.g. from the Runs page)
+        # shows every node as idle even though it's actually mid-run.
+        self._reflect_active_run(self._flows[flow_idx].id)
     def _sync_runs_toggle(self, on: bool) -> None:
         """Keep the Runs toggle showing which page is up, however it got there
         (a double-click in the runs table also switches pages)."""

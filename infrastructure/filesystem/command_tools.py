@@ -62,7 +62,9 @@ def run_command(ctx: ToolContext, args: Dict[str, Any],
     """
     from cowork_local.core.deps import network_blocked_env, run_cancellable, sandbox_env
     from cowork_local.core.sandbox_manager import ExecutionConfig, SandboxManager
-    from cowork_local.security.command_risk_classifier import classify_command
+    from cowork_local.security.command_risk_classifier import (
+        classify_command, command_bypasses_network_proxy,
+    )
 
     command = str(args.get("command", "")).strip()
     if not command:
@@ -73,6 +75,21 @@ def run_command(ctx: ToolContext, args: Dict[str, Any],
     if risk.blocked:
         denial = "Command blocked by security policy: " + "; ".join(risk.reasons)
         return {"ok": False, "output": denial}
+
+    # Every sandbox backend's network block is a proxy-env-var trick (see
+    # core/deps.py::network_blocked_env) — it does nothing against a tool
+    # that reaches the network without an HTTP proxy (ping/ICMP, nslookup/
+    # direct DNS, ssh/ftp/raw TCP...). Deny those BY NAME here instead, so
+    # "Chặn mạng cho lệnh do agent chạy" actually blocks them too.
+    if ctx.block_network:
+        bypass_tool = command_bypasses_network_proxy(command)
+        if bypass_tool:
+            return {"ok": False, "output": (
+                f"Command blocked: '{bypass_tool}' can reach the network without going through "
+                "an HTTP proxy, so the sandbox's network block (which only filters proxy-aware "
+                "traffic) cannot stop it by itself — blocked by name instead while "
+                "'Chặn mạng cho lệnh do agent chạy' is on."
+            )}
 
     # Route through SandboxManager for risk-based isolation
     mgr = SandboxManager(ExecutionConfig(

@@ -37,6 +37,7 @@ from . import skills_dialog as _skills_dialog
 from . import libreoffice_view as _libreoffice_view
 from . import agents_admin_tab as _agents_admin_tab
 from . import monitoring_overview as _monitoring_overview
+from . import cloud_workspace as _cloud_workspace
 
 # Gộp theo đúng thứ tự cũ: khoá trùng thì cụm sau thắng, y như khi tất cả
 # còn nằm chung một dict literal.
@@ -51,6 +52,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     **_libreoffice_view.STRINGS,
     **_agents_admin_tab.STRINGS,
     **_monitoring_overview.STRINGS,
+    **_cloud_workspace.STRINGS,
 }
 
 

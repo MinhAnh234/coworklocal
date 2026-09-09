@@ -65,6 +65,13 @@ class Project:
     #   auto_run: None → follow the global agent_security.cowork_confirm_commands;
     #     True → auto-approve commands (no confirm); False → always confirm.
     auto_run: Optional[bool] = None
+    # {} = an ordinary local/managed workspace. Non-empty when ``output_dir``
+    # is a LOCAL MIRROR of a OneDrive/SharePoint folder (see
+    # core/cloud_workspace_sync.py) — {"provider": "onedrive"|"sharepoint",
+    # "site_id": "", "site_name": "", "remote_path": ""}. ``output_dir`` itself
+    # always stays a real local path; nothing that reads ``workspace_dir()``
+    # needs to change because of this field.
+    cloud_source: Dict[str, str] = field(default_factory=dict)
 
     def workspace_dir(self, base: Path = None) -> Path:
         """The project's sandbox root. Every chat of the project writes inside

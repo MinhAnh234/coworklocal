@@ -17,6 +17,7 @@ from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox, QTableWidget, QT
 from ...core import co4e
 from ...i18n import tr
 from ...theme import current_palette
+from .co4e_workflow_crud import _LOCKED_NODE_STATUSES
 
 
 class Co4ERunsMixin:
@@ -155,7 +156,14 @@ class Co4ERunsMixin:
         t = ev.get("type")
         if t == "node_status":
             if shown:
-                self.canvas.update_node_status(ev.get("node_id"), ev.get("status"))
+                nid = ev.get("node_id")
+                self.canvas.update_node_status(nid, ev.get("status"))
+                # If the panel is showing THIS node right now (e.g. it was
+                # idle and the user had it open when the run started), keep
+                # the lock in sync instead of waiting for the next click.
+                if nid == getattr(self.config, "_node_id", None):
+                    self.config.set_locked(
+                        self.canvas.node_status(nid) in _LOCKED_NODE_STATUSES)
         elif t == "node_output":
             if run_wf is not None:
                 self._outputs_for(run_wf)[ev["node_id"]] = ev.get("output", "")

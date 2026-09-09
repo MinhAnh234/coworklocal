@@ -16,13 +16,13 @@ from typing import Callable, Dict, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-    QTableWidget, QVBoxLayout, QWidget,
+    QApplication, QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QSplitter, QTableWidget, QVBoxLayout, QWidget,
 )
 
 from ....i18n import tr
 from ....ui.icons import icon
-from .event_table import ClickOutsideCloser, EventTable
+from .event_table import PAGE_SIZE_OPTIONS, ClickOutsideCloser, EventTable
 from .event_detail_panel import EventDetailPanel
 
 
@@ -47,11 +47,12 @@ def _sync_event_detail(table: EventTable, panel: EventDetailPanel) -> None:
 def build_filter_scaffold(
     page: QWidget, table: QTableWidget, *, on_refresh: Callable[[], None],
     title_key: Optional[str] = None, with_search: bool = True,
-    with_detail: bool = False,
+    with_detail: bool = False, with_page_size: bool = False,
     on_ai_filter: Optional[Callable[[QLineEdit, QPushButton], None]] = None,
 ) -> Dict[str, object]:
     """Dựng khung chung cho một tab sự kiện: tiêu đề, nút làm mới, ô tìm kiếm,
-    nút lọc bằng AI và panel chi tiết.
+    nút lọc bằng AI, control "Số dòng/trang" (nếu ``with_page_size``) và panel
+    chi tiết.
 
     Bốn tab sự kiện của màn Giám sát chỉ khác nhau ở nguồn dữ liệu, nên phần vỏ
     này được dựng một lần và dùng chung.
@@ -88,6 +89,23 @@ def build_filter_scaffold(
             ai_btn.clicked.connect(lambda: on_ai_filter(search, ai_btn))
         row.addWidget(search, 1)
         row.addWidget(ai_btn)
+        if with_page_size and isinstance(table, EventTable):
+            # DF-006: the item-per-page count was never surfaced anywhere in
+            # the UI (design called for it) — EventTable already trims to a
+            # page size internally (default 300), this just makes that
+            # number visible AND user-choosable instead of a fixed constant.
+            page_size_lbl = QLabel(tr("monitoring.page_size_label"))
+            page_size_combo = QComboBox()
+            for n in PAGE_SIZE_OPTIONS:
+                page_size_combo.addItem(str(n), n)
+            current = table.page_size()
+            page_size_combo.setCurrentIndex(
+                PAGE_SIZE_OPTIONS.index(current) if current in PAGE_SIZE_OPTIONS else 2)
+            page_size_combo.currentIndexChanged.connect(
+                lambda i: table.set_page_size(page_size_combo.itemData(i)))
+            row.addWidget(page_size_lbl)
+            row.addWidget(page_size_combo)
+            parts.update(page_size_label=page_size_lbl, page_size_combo=page_size_combo)
         lay.addLayout(row)
         parts.update(filter_edit=search, ai_filter_btn=ai_btn)
 

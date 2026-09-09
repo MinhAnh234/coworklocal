@@ -10,6 +10,7 @@ the ``status_message`` signal, ``select_subtab(index)``, ``nav_subtabs()``,
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import List
 
 from PySide6.QtCore import QTimer, Signal
@@ -25,11 +26,24 @@ from .tabs.overview_tab import OverviewTab
 from .tabs.security_events_tab import SecurityEventsTab
 
 _REFRESH_MS = 3000
-# Comfortably larger than any realistic audit-log size — the event tables
-# have never had pagination controls, so every tab still shows "all matching
-# events" exactly like before; MonitoringQueryService's pagination support
-# is exercised for real here, just not surfaced as UI (yet).
+# Comfortably larger than any realistic audit-log size for the WINDOW of
+# events _load_events() now actually reads (see _LOG_WINDOW_DAYS below) — this
+# is MonitoringQueryService's query-side page size, kept unbounded so it
+# always returns every matching event within the window; the user-facing
+# "Số dòng/trang" control (DF-006 — see shared/event_table.py::set_page_size,
+# shared/filter_scaffold.py::build_filter_scaffold's with_page_size) trims
+# that down for DISPLAY, client-side, per event tab.
 _UNBOUNDED_PAGE_SIZE = 100_000
+# _load_events() re-reads the audit log from disk every _REFRESH_MS (3s) via
+# _auto_refresh(), and audit_log.load_events()/load_shared_audit_events() are
+# day-sharded JSONL — unbounded start/end means EVERY day file ever written
+# gets re-read and re-parsed on EVERY tick, which is what actually made
+# Monitoring "gây nặng khi log lớn" (see DF-006): the slowness was never in
+# rendering (EventTable already caps display at 300 rows — see
+# shared/event_table.py::_MAX_ROWS), it was this repeated full-history read.
+# 30 days is a live-monitoring window, not a hard retention limit — nothing
+# is deleted, older days are simply not re-read on every 3s tick.
+_LOG_WINDOW_DAYS = 30
 
 
 class MonitoringTab(QWidget):
@@ -259,14 +273,20 @@ class MonitoringTab(QWidget):
 
         Có cấu hình thư mục chia sẻ VÀ đọc ra được dữ liệu thì dùng nó, để cả đội
         nhìn chung một bức tranh; rỗng thì rơi về nhật ký của máy này.
+
+        Chỉ đọc ``_LOG_WINDOW_DAYS`` ngày gần nhất — cả hai nguồn đều lưu theo
+        file JSONL từng ngày, nên bounding ở đây tránh việc đọc lại TOÀN BỘ
+        lịch sử mỗi 3 giây (xem ``_auto_refresh``), là nguyên nhân thật của
+        DF-006 (gây nặng khi log lớn).
         """
+        start = date.today() - timedelta(days=_LOG_WINDOW_DAYS)
         shared_dir = self.ctx.config.shared_dir
         if shared_dir:
             from ...core import telemetry_shared
-            shared_events = telemetry_shared.load_shared_audit_events(shared_dir)
+            shared_events = telemetry_shared.load_shared_audit_events(shared_dir, start=start)
             if shared_events:
                 return shared_events
-        return audit_log.load_events()
+        return audit_log.load_events(start=start)
 
     def _apply_events_to_event_tabs(self, events: List[dict]) -> None:
         """Filters the ALREADY-LOADED event list (see ``_load_events`` — one

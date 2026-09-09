@@ -199,6 +199,14 @@ class _NodeItem(QGraphicsObject):
             e.accept()
             return
         super().mousePressEvent(e)
+        if self.isSelected():
+            # itemChange() only emits node_selected when the SELECTION STATE
+            # actually flips (ItemSelectedHasChanged) — clicking a node that
+            # was already selected (e.g. left selected when a run started)
+            # never re-fires it, so the property panel silently kept showing
+            # stale data and looked "locked" while the node ran. Emit
+            # explicitly on every click so the panel always reloads.
+            self.canvas.node_selected.emit(self.node.id)
 
     def mouseMoveEvent(self, e):
         """Rê chuột trong lúc kéo nối: vẽ lại đường nét đứt theo con trỏ."""

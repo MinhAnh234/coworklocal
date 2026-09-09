@@ -73,6 +73,38 @@ _MODERATE_PATTERNS = [
     r'\b(test|pytest|jest|mocha)\b',
 ]
 
+# Tools that reach the network over ICMP/raw sockets/direct DNS instead of an
+# HTTP(S) connection — none of them read HTTP_PROXY/HTTPS_PROXY, so
+# core/deps.py::network_blocked_env()'s proxy-env-var block (the only network
+# control this sandbox actually enforces) has no effect on them at all. Used
+# by command_bypasses_network_proxy() to deny these BY NAME when the user has
+# "Chặn mạng cho lệnh do agent chạy" on, since the proxy trick alone silently
+# lets them through (see DF-005 in Defect Management).
+_NETWORK_PROXY_BYPASS_PATTERNS = [
+    r'\bping\b', r'\btracert\b', r'\btraceroute\b', r'\bnslookup\b', r'\bdig\b',
+    r'\btelnet\b', r'\bftp\b', r'\bsftp\b', r'\bscp\b', r'\bssh\b',
+    r'\bnc\b', r'\bncat\b', r'\bnetcat\b', r'\barp\b',
+    r'\btest-netconnection\b', r'\btest-connection\b', r'\bresolve-dnsname\b',
+]
+
+
+def command_bypasses_network_proxy(command: str) -> Optional[str]:
+    """Tên công cụ mạng đầu tiên khớp trong ``command`` mà không tôn trọng
+    HTTP_PROXY/HTTPS_PROXY — None nếu không có công cụ nào như vậy.
+
+    ``network_blocked_env()`` chỉ set biến proxy, nên chỉ chặn được các công
+    cụ có ĐỌC biến đó (curl/pip/requests...). ``ping`` (ICMP), ``nslookup``
+    (DNS trực tiếp), ``ssh``/``ftp`` (TCP thô)... đều đi qua giao thức khác,
+    biến proxy không có tác dụng gì với chúng — phải chặn riêng theo tên lệnh
+    khi ``block_network`` đang bật.
+    """
+    cmd_lower = command.lower()
+    for pattern in _NETWORK_PROXY_BYPASS_PATTERNS:
+        m = re.search(pattern, cmd_lower, re.IGNORECASE)
+        if m:
+            return m.group()
+    return None
+
 
 def classify_command(command: str, is_cowork_mode: bool = True) -> RiskResult:
     """Chấm điểm rủi ro một lệnh shell.

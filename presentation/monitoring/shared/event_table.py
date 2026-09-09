@@ -18,6 +18,7 @@ from .badges import action_label
 from .formatters import agent_avatar_icon, fmt_event_time
 
 _MAX_ROWS = 300
+PAGE_SIZE_OPTIONS = (50, 100, 300, 500, 1000)
 
 
 class _TimeItem(QTableWidgetItem):
@@ -70,6 +71,8 @@ class EventTable(QTableWidget):
         là thất bại nên cột ấy chỉ tốn chỗ.
         """
         self._show_result = show_result
+        self._page_size = _MAX_ROWS
+        self._last_events: List[dict] = []
         super().__init__(0, 7 if show_result else 6)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectRows)
@@ -98,13 +101,25 @@ class EventTable(QTableWidget):
         cols += [tr("monitoring.col_detail_block") if not self._show_result else tr("monitoring.col_detail")]
         self.setHorizontalHeaderLabels(cols)
 
+    def page_size(self) -> int:
+        """Số dòng đang hiển thị mỗi trang."""
+        return self._page_size
+
+    def set_page_size(self, n: int) -> None:
+        """Đổi số dòng hiển thị mỗi trang rồi vẽ lại với dữ liệu đã có sẵn
+        (không cần refresh lại từ nguồn — set_events() đã lưu lại lần đổ gần nhất)."""
+        self._page_size = n
+        self.set_events(self._last_events)
+
     def set_events(self, events: List[dict]) -> None:
-        """Đổ danh sách sự kiện vào bảng: mới nhất lên đầu, cắt ở ``_MAX_ROWS``.
+        """Đổ danh sách sự kiện vào bảng: mới nhất lên đầu, cắt ở ``self._page_size``
+        (đổi được qua ``set_page_size`` — control "Số dòng/trang" ở filter_scaffold.py).
 
         Tắt sắp xếp trong lúc đổ dữ liệu — để bật, Qt sắp lại sau mỗi dòng và việc
         nạp chậm đi theo bậc hai.
         """
-        events = sorted(events, key=lambda e: e.get("ts", ""), reverse=True)[:_MAX_ROWS]
+        self._last_events = events
+        events = sorted(events, key=lambda e: e.get("ts", ""), reverse=True)[:self._page_size]
         self.setSortingEnabled(False)
         self.setRowCount(len(events))
         for row, ev in enumerate(events):

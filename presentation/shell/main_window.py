@@ -212,6 +212,11 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
             self._set_nav_width_range(_NAV_MIN_WIDTH, self._nav_max_width())
         # Keep the floating Help assistant pinned to the bottom-right corner.
         if getattr(self, "help_agent", None) is not None:
+            # The Cowork composer can wrap an extra control row as the window
+            # narrows/widens, which changes how much bottom guard the dock
+            # needs — recompute it on every resize, not just reposition with
+            # whatever guard height was last measured at tab-entry time.
+            self._update_dock_guard()
             self.help_agent.reposition()
 
     def showEvent(self, event):  # noqa: N802 - Qt override

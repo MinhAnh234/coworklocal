@@ -81,7 +81,7 @@ class NavRailMixin:
         # 16px icon up with the nav items' icons below (1px list frame + item
         # padding) — same indent level, same icon size as e.g. Dashboard.
         toggle_row = QHBoxLayout()
-        toggle_row.setContentsMargins(0, 8, 10, 8)
+        toggle_row.setContentsMargins(10, 8, 10, 8)
         toggle_row.addWidget(self._nav_toggle_btn, 0, Qt.AlignLeft)
         toggle_row.addStretch(1)
         nvl.addLayout(toggle_row)
@@ -111,7 +111,7 @@ class NavRailMixin:
         self.nav_project_btn.menu().aboutToShow.connect(self._fill_rail_project_menu)
         self.nav_project_btn.setVisible(False)
         head = QVBoxLayout()
-        head.setContentsMargins(6, 0, 6, 6)
+        head.setContentsMargins(10, 0, 10, 6)
         head.setSpacing(6)
         head.addWidget(self.nav_project)
         head.addWidget(self.nav_project_btn)
@@ -136,7 +136,7 @@ class NavRailMixin:
         self._nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll_body = QWidget()
         sv = QVBoxLayout(scroll_body)
-        sv.setContentsMargins(0, 0, 0, 0)
+        sv.setContentsMargins(6, 0, 6, 0)
         sv.setSpacing(0)
         sv.addWidget(self.nav, 0)
         # RECENTS — the threads of the project named in the picker above, right

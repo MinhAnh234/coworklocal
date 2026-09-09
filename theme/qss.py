@@ -45,7 +45,7 @@ QWidget#contentArea { background: $bg; }
    carries a 2px accent marker, so which section you are in survives even at a
    glance or for anyone who cannot separate the two greys. */
 QWidget#navWrap QTreeWidget::item, QWidget#navWrap QListWidget::item {
-    padding: 6px 4px; border-radius: ${radius}px;
+    padding: 6px 10px; border-radius: ${radius}px;
 }
 QWidget#navWrap QTreeWidget::item:hover, QWidget#navWrap QListWidget::item:hover {
     background: $nav_hover;

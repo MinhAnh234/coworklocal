@@ -232,6 +232,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "ja": "行をフィルター（質問を入力しても可）…",
         "vi": "Lọc dòng (hoặc gõ câu hỏi rồi bấm )…"},
     "monitoring.ai_filter_btn": {"en": "AI", "ja": "AI", "vi": "AI"},
+    "monitoring.page_size_label": {
+        "en": "Rows/page:", "ja": "1ページの行数:", "vi": "Số dòng/trang:"},
     "monitoring.pricing_title": {
         "en": "Model pricing (USD / 1M tokens)", "ja": "モデル価格表 (USD / 100万トークン)",
         "vi": "Bảng giá model (USD / 1 triệu token)"},

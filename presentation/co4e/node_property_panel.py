@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...config import PROVIDER_LABELS
-from ...core.co4e import PERMISSION_PRESETS, Step
+from ...core.co4e import PERMISSION_PRESETS, STEP_DONE, STEP_RUNNING, Step
 from ...i18n import tr
 from ...ui.icons import icon, icon_picker_combo
 from .node_property_actions_mixin import _StepConfigActionsMixin
@@ -65,6 +65,8 @@ class StepConfigPanel(_StepConfigActionsMixin, QScrollArea):
         self._step: Optional[Step] = None
         self._node_id = ""
         self._loading = False
+        self._ctx_available = ctx is not None
+        self._locked = False
         self.setWidgetResizable(True)
         host = QWidget()
         self.setWidget(host)
@@ -280,6 +282,27 @@ class StepConfigPanel(_StepConfigActionsMixin, QScrollArea):
             for sub in step.sub_agents:
                 self.sub_list.addItem(sub.agent)
         self._loading = False
+
+    def set_locked(self, locked: bool) -> None:
+        """Khoá/mở khoá các trường chỉnh sửa theo trạng thái chạy của bước.
+
+        Bước đang chạy hoặc đã chạy xong thì khoá lại — tránh sửa nhầm cấu
+        hình trong lúc đang xem kết quả của chính lần chạy đó (sửa xong
+        không rõ là áp dụng cho lần chạy đã xong hay lần chạy tiếp theo).
+        Nút Chạy/Chạy từ đây/Xoá bước vẫn hoạt động bình thường khi khoá —
+        chỉ ô nhập liệu bị khoá, không phải cả panel.
+        """
+        self._locked = locked
+        editable = not locked
+        for w in (self.label_edit, self.role_edit, self.icon_edit,
+                  self.instructions_edit, self.context_edit,
+                  self.model_combo, self.perm_combo, self.verify_chk,
+                  self.rounds_spin, self.skills_list,
+                  self.attach_add_btn, self.attach_del_btn,
+                  self.sub_add_btn, self.sub_del_btn, self.sub_list):
+            w.setEnabled(editable)
+        self.gen_btn.setEnabled(editable and self._ctx_available)
+        self.load_models_btn.setEnabled(editable and self._ctx_available)
 
     def clear_step(self) -> None:
         """Xoá bảng khi không có bước nào được chọn."""

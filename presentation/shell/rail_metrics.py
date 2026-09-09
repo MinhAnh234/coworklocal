@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QStyledItemDelegate
 # ---- kích thước ---------------------------------------------------------
 _NAV_EXPANDED_WIDTH = 150
 _NAV_COLLAPSED_WIDTH = 54
-_NAV_ROW_INSET = 4
+_NAV_ROW_INSET = 8
 _NAV_ROW_GAP = 6
 _NAV_MIN_WIDTH = 132
 _NAV_MAX_SHARE = 0.22

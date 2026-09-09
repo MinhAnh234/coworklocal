@@ -100,10 +100,26 @@ if defined PYTHONPATH (
 set "PYTHONIOENCODING=utf-8"
 cd /d "%REPO%"
 
+rem --------------------------------------------------------------------------
+rem  4. An cua so console trong luc chay
+rem
+rem  App la GUI (Qt), khong can console — nhung no chia se console cua chinh
+rem  cmd nay (khong tu mo cua so rieng), nen cua so den cua run.bat cu the
+rem  hien suot phien lam viec neu khong lam gi. An no ngay truoc khi chay, roi
+rem  chi hien lai NEU app thoat loi, de thong bao loi ben duoi van doc duoc.
+rem --------------------------------------------------------------------------
+set "CONSOLE_VIS=%REPO%\scripts\console_visibility.ps1"
+if exist "%CONSOLE_VIS%" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 0 >nul 2>&1
+)
+
 !RUNPY! -m cowork_local %*
 set "RC=%ERRORLEVEL%"
 
 if not "%RC%"=="0" (
+    if exist "%CONSOLE_VIS%" (
+        powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 5 >nul 2>&1
+    )
     echo.
     echo  Ứng dụng thoát với mã lỗi %RC%. Xem thông báo ở trên.
     echo.

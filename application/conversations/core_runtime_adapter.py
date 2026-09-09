@@ -74,6 +74,14 @@ class CoreToolRuntime:
         đều phải tra tên, tra trên danh sách sẽ chậm dần theo số tool.
         """
         self._output_dir = Path(output_dir)
+        # Every sandboxed tool (run_command included) gets this as its cwd —
+        # it must exist BEFORE the first tool call, same as the older
+        # run_cowork() (core/chat_agent.py) already does at its output_dir.
+        # Without this, a per-turn ".turns/<id>" folder that was never created
+        # makes run_command's subprocess.Popen(cwd=...) fail immediately with
+        # WinError 267 ("directory name is invalid") before the command even
+        # starts — no network, no output, just an opaque OS error.
+        self._output_dir.mkdir(parents=True, exist_ok=True)
         self._title = title
         self._extra_tools = list(extra_tools or ())
         self._extra_names = {getattr(t, "name", "") for t in self._extra_tools}

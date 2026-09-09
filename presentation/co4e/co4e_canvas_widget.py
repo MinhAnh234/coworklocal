@@ -273,6 +273,15 @@ class Co4ECanvas(_CanvasInteractionMixin, QGraphicsView):
             item.status = status
             item.update()
 
+    def node_status(self, node_id: str) -> str:
+        """Trạng thái chạy hiện tại của một node — "idle" nếu không tìm thấy.
+
+        Dùng để quyết định có khóa bảng thuộc tính bên phải hay không khi
+        người dùng chọn node (xem ``StepConfigPanel.set_locked``).
+        """
+        item = self._nodes.get(node_id)
+        return item.status if item is not None else "idle"
+
     def reset_statuses(self) -> None:
         """Đưa mọi node về trạng thái chờ — gọi trước mỗi lần chạy lại luồng."""
         for it in self._nodes.values():

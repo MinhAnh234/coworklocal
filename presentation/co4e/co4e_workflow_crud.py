@@ -10,9 +10,12 @@ from typing import List, Optional
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QInputDialog, QMenu
 from ...core import co4e
+from ...core.co4e import STEP_DONE, STEP_RUNNING
 from ...i18n import tr
 from ...ui.icons import icon
 from ...presentation.co4e.co4e_chat_view import _skill_names
+
+_LOCKED_NODE_STATUSES = (STEP_RUNNING, STEP_DONE)
 
 
 class Co4EWorkflowCrudMixin:
@@ -163,10 +166,15 @@ class Co4EWorkflowCrudMixin:
         self.canvas.add_palette_step(co4e.Step(label="New Step"),
                                      self.canvas.mapToScene(self.canvas.rect().center()))
     def _on_node_selected(self, node_id: str) -> None:
-        """Chọn một node thì nạp bước đó vào bảng thuộc tính, tự mở bảng nếu đang gập."""
+        """Chọn một node thì nạp bước đó vào bảng thuộc tính, tự mở bảng nếu đang gập.
+
+        Bước đang chạy hoặc đã chạy xong thì khoá ô nhập liệu ngay khi nạp —
+        tránh sửa nhầm cấu hình của lần chạy đang xem kết quả.
+        """
         for n in self.canvas.nodes():
             if n.id == node_id:
                 self.config.load_step(node_id, n.data, _skill_names())
+                self.config.set_locked(self.canvas.node_status(node_id) in _LOCKED_NODE_STATUSES)
                 if self._config_collapsed:
                     self._toggle_config()
                 return

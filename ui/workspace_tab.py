@@ -309,6 +309,28 @@ class WorkspaceTab(QWidget):
         folder_row.addWidget(self._open_btn)
         rl.addLayout(folder_row)
 
+        # DF-007 — an ALTERNATIVE way to set output_dir: browse OneDrive/
+        # SharePoint via Graph API and download a local mirror instead of
+        # picking an already-local folder. output_dir still always ends up a
+        # real local path (see Project.cloud_source) — nothing downstream
+        # (run_command/read_file/...) needs to know the difference.
+        cloud_row = QHBoxLayout()
+        self._cloud_pick_btn = QPushButton()
+        self._cloud_pick_btn.setIcon(icon("cloud"))
+        self._cloud_pick_btn.clicked.connect(self._pick_cloud_folder)
+        self._cloud_sync_btn = QPushButton()
+        self._cloud_sync_btn.setIcon(icon("refresh"))
+        self._cloud_sync_btn.clicked.connect(self._sync_cloud_folder)
+        self._cloud_sync_btn.hide()
+        cloud_row.addWidget(self._cloud_pick_btn)
+        cloud_row.addWidget(self._cloud_sync_btn)
+        cloud_row.addStretch(1)
+        rl.addLayout(cloud_row)
+        self._cloud_badge_lbl = QLabel()
+        self._cloud_badge_lbl.setWordWrap(True)
+        self._cloud_badge_lbl.hide()
+        rl.addWidget(self._cloud_badge_lbl)
+
         rl.addStretch(1)      # the drawing floats Lưu project at the bottom
         save_row = QHBoxLayout()
         self._save_btn = QPushButton()
@@ -494,6 +516,9 @@ class WorkspaceTab(QWidget):
         self._browse_btn.setText(tr("workspace.browse"))
         self._browse_btn.setToolTip(tr("workspace.browse_tooltip"))
         self._open_btn.setText(tr("workspace.open_folder"))
+        self._cloud_pick_btn.setText(tr("workspace.cloud_pick"))
+        self._cloud_sync_btn.setText(tr("workspace.cloud_sync"))
+        self._refresh_cloud_badge()
         self._save_btn.setText(tr("workspace.save"))
         self._proj_collapse_btn.setToolTip(tr("workspace.collapse_projects_tooltip"))
         self._projects_strip.setToolTip(tr("workspace.expand_projects_tooltip"))
@@ -692,6 +717,7 @@ class WorkspaceTab(QWidget):
                 self.instr_edit.clear()
                 self.folder_lbl.setText("")
                 self._del_btn.setEnabled(False)
+            self._refresh_cloud_badge(project)
             # Show Cowork/GraphRAG ONLY when a project is actually selected.
             self._update_tab_visibility(project is not None)
             # Bind the embedded Cowork/GraphRAG/History to this project's sandbox.
@@ -948,3 +974,105 @@ class WorkspaceTab(QWidget):
         wd = project.workspace_dir()
         wd.mkdir(parents=True, exist_ok=True)
         open_folder(str(wd))
+
+    def _cloud_token(self):
+        """Lấy access token MS365 hiện tại theo cấu hình — raise
+        ``Ms365AuthError`` nếu chưa đăng nhập/hết hạn (gọi picker trước nên
+        thường đã có sẵn phiên đăng nhập)."""
+        from ..core.ms365_auth import get_access_token
+
+        ms365 = (self.ctx.config.ms365 or {})
+        return get_access_token(ms365.get("tenant_id", ""), ms365.get("client_id", ""))
+
+    def _pick_cloud_folder(self) -> None:
+        """DF-007 — duyệt OneDrive/SharePoint qua Graph API, tải một bản
+        mirror cục bộ xuống rồi dùng bản mirror đó làm output_dir của
+        project. Xem core/cloud_workspace_sync.py cho giới hạn (một chiều,
+        thủ công, không đồng bộ liên tục, không xử lý xung đột)."""
+        from ..core.cloud_workspace_sync import download_folder
+        from ..core.ms365_auth import Ms365AuthError
+        from ..core.projects import WORKSPACES_DIR, load_project, save_project
+        from .cloud_folder_picker_dialog import pick_cloud_folder
+
+        pid = self._current_id
+        project = load_project(pid) if pid else None
+        if project is None:
+            return
+        cloud_source = pick_cloud_folder(self, self.ctx.config)
+        if not cloud_source:
+            return
+        local_dir = WORKSPACES_DIR / project.project_id / "_cloud_mirror"
+        self._cloud_pick_btn.setEnabled(False)
+        try:
+            token = self._cloud_token()
+            report = download_folder(token, cloud_source, local_dir)
+        except Ms365AuthError as exc:
+            QMessageBox.warning(self, tr("workspace.cloud_pick"), str(exc))
+            return
+        finally:
+            self._cloud_pick_btn.setEnabled(True)
+        project.output_dir = str(local_dir)
+        project.cloud_source = cloud_source
+        save_project(project)
+        self.folder_lbl.setText(str(local_dir))
+        self._refresh_cloud_badge(project)
+        self.projects_changed.emit()
+        if report.errors:
+            QMessageBox.warning(self, tr("workspace.cloud_pick"),
+                                 tr("workspace.cloud_sync_errors", n=len(report.errors)))
+        self.status_message.emit(tr("workspace.saved", name=project.name))
+
+    def _sync_cloud_folder(self) -> None:
+        """DF-007 — đẩy thay đổi cục bộ lên cloud rồi tải lại (một chiều mỗi
+        bước, thủ công, chạy khi bấm nút). Không xoá file 2 phía, không phát
+        hiện xung đột — xem core/cloud_workspace_sync.py."""
+        from ..core.cloud_workspace_sync import download_folder, upload_folder
+        from ..core.ms365_auth import Ms365AuthError
+        from ..core.projects import load_project
+
+        pid = self._current_id
+        project = load_project(pid) if pid else None
+        if project is None or not project.cloud_source:
+            return
+        self._cloud_sync_btn.setEnabled(False)
+        try:
+            token = self._cloud_token()
+            up_report = upload_folder(token, project.cloud_source, project.workspace_dir())
+            down_report = download_folder(token, project.cloud_source, project.workspace_dir())
+        except Ms365AuthError as exc:
+            QMessageBox.warning(self, tr("workspace.cloud_sync"), str(exc))
+            return
+        finally:
+            self._cloud_sync_btn.setEnabled(True)
+        lines = [tr("workspace.cloud_sync_result",
+                     up=up_report.transferred, down=down_report.transferred)]
+        n_errors = len(up_report.errors) + len(down_report.errors)
+        if n_errors:
+            lines.append(tr("workspace.cloud_sync_errors", n=n_errors))
+        n_skipped = len(up_report.skipped_too_large)
+        if n_skipped:
+            lines.append(tr("workspace.cloud_sync_skipped", n=n_skipped))
+        QMessageBox.information(self, tr("workspace.cloud_sync"), "\n".join(lines))
+
+    def _refresh_cloud_badge(self, project=None) -> None:
+        """Hiện/ẩn badge ☁ + nút Đồng bộ theo project đang mở có phải một
+        mirror cloud hay không (``project.cloud_source``)."""
+        if project is None:
+            from ..core.projects import load_project
+
+            project = load_project(self._current_id) if self._current_id else None
+        cloud_source = project.cloud_source if project is not None else None
+        if not cloud_source:
+            self._cloud_badge_lbl.hide()
+            self._cloud_sync_btn.hide()
+            return
+        if cloud_source.get("provider") == "sharepoint":
+            text = tr("workspace.cloud_badge_sharepoint",
+                      site=cloud_source.get("site_name", ""),
+                      path=cloud_source.get("remote_path", "") or "/")
+        else:
+            text = tr("workspace.cloud_badge_onedrive",
+                      path=cloud_source.get("remote_path", "") or "/")
+        self._cloud_badge_lbl.setText(text)
+        self._cloud_badge_lbl.show()
+        self._cloud_sync_btn.show()

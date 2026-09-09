@@ -196,6 +196,40 @@ def write_onedrive_file(token: str, path: str, content: str) -> dict:
     return resp.json()
 
 
+# Graph's "simple upload" (a single PUT to .../content) is documented to only
+# support items up to 4 MiB; anything larger needs a chunked "upload session"
+# (createUploadSession + PUT-per-range), which this module does not implement
+# (see DF-007 cloud workspace picker — v1 explicitly skips large files rather
+# than silently truncating or corrupting them).
+MAX_SIMPLE_UPLOAD_BYTES = 4 * 1024 * 1024
+
+
+def _check_upload_size(data: bytes) -> None:
+    if len(data) > MAX_SIMPLE_UPLOAD_BYTES:
+        raise Ms365GraphError(
+            f"File too large for simple upload ({len(data)} bytes > "
+            f"{MAX_SIMPLE_UPLOAD_BYTES} bytes) — chunked upload sessions are not "
+            "implemented yet."
+        )
+
+
+def download_onedrive_file_bytes(token: str, path: str) -> bytes:
+    """Đọc RAW BYTES một tệp OneDrive (không ép UTF-8/không cắt) — dùng cho
+    mirror thư mục cloud xuống local, khác với :func:`read_onedrive_file` vốn
+    chỉ dành cho việc đọc nội dung văn bản vào ngữ cảnh chat."""
+    resp = _request("GET", f"/me/drive/root:/{_path_segment(path)}:/content", token)
+    return resp.content
+
+
+def upload_onedrive_file_bytes(token: str, path: str, data: bytes) -> dict:
+    """Ghi RAW BYTES vào một tệp OneDrive (tạo mới hoặc ghi đè). Xem
+    :data:`MAX_SIMPLE_UPLOAD_BYTES`."""
+    _check_upload_size(data)
+    resp = _request("PUT", f"/me/drive/root:/{_path_segment(path)}:/content", token,
+                     data=data, headers={"Content-Type": "application/octet-stream"})
+    return resp.json()
+
+
 def _encode_share_url(url: str) -> str:
     """Encode a OneDrive/SharePoint sharing URL into Graph's ``u!<base64url>``
     share-id form (see Microsoft's 'Get access to shared items' docs)."""
@@ -227,6 +261,24 @@ def list_sharepoint_files(token: str, site_id: str, path: str = "") -> List[dict
            else f"/sites/{quote(site_id)}/drive/root:/{_path_segment(path)}:/children")
     resp = _request("GET", url, token)
     return resp.json().get("value", [])
+
+
+def download_sharepoint_file_bytes(token: str, site_id: str, path: str) -> bytes:
+    """Đọc RAW BYTES một tệp trong thư viện tài liệu SharePoint — xem
+    :func:`download_onedrive_file_bytes`."""
+    resp = _request(
+        "GET", f"/sites/{quote(site_id)}/drive/root:/{_path_segment(path)}:/content", token)
+    return resp.content
+
+
+def upload_sharepoint_file_bytes(token: str, site_id: str, path: str, data: bytes) -> dict:
+    """Ghi RAW BYTES vào một tệp trong thư viện tài liệu SharePoint. Xem
+    :data:`MAX_SIMPLE_UPLOAD_BYTES`."""
+    _check_upload_size(data)
+    resp = _request(
+        "PUT", f"/sites/{quote(site_id)}/drive/root:/{_path_segment(path)}:/content", token,
+        data=data, headers={"Content-Type": "application/octet-stream"})
+    return resp.json()
 
 
 # ---- Teams meeting transcripts ------------------------------------------

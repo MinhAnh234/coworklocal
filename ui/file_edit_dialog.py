@@ -96,11 +96,20 @@ class FileEditDialog(QDialog):
 
         # ---- AI edit row ---------------------------------------------------
         ai_row = QHBoxLayout()
+        ai_row.setContentsMargins(0, 6, 0, 2)
         self.instruction_edit = QLineEdit()
         self.instruction_edit.setPlaceholderText(tr("fileedit.instruction_placeholder"))
+        self.instruction_edit.setMinimumHeight(38)
+        self.instruction_edit.setStyleSheet(
+            "QLineEdit { padding: 8px 12px; font-size: 13px; border-radius: 6px; }"
+        )
         self.instruction_edit.returnPressed.connect(self._ai_edit)
         self.ai_btn = QPushButton(tr("fileedit.ai_btn"))
         self.ai_btn.setIcon(icon("sparkle"))
+        self.ai_btn.setMinimumHeight(38)
+        self.ai_btn.setStyleSheet(
+            "QPushButton { padding: 0 16px; font-size: 13px; border-radius: 6px; }"
+        )
         self.ai_btn.clicked.connect(self._ai_edit)
         ai_row.addWidget(self.instruction_edit, 1)
         ai_row.addWidget(self.ai_btn)

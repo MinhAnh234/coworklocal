@@ -21,15 +21,54 @@ from __future__ import annotations
 from typing import List, Optional
 
 from PySide6.QtWidgets import (
-    QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
+    QComboBox, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
 )
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 
 from cowork_local.i18n import on_language_changed, tr
 from cowork_local.presentation.folder.ai_edit_model_resolver import AiEditModelResolver
 from cowork_local.presentation.folder.ai_edit_pipeline import AiEditPipeline
 from cowork_local.theme import current_palette
 from cowork_local.ui.chat_view import ChatView
+
+
+class _AutoExpandInput(QPlainTextEdit):
+    """Instruction box: grows with content (1..~6 lines, then scrolls), Enter
+    submits, Shift+Enter inserts a newline — same convention as the Cowork
+    composer (``presentation/chat/chat_input_box.py::_Input``), minus its
+    ``/skill``/``/agent`` popups and drag-drop attachment handling, which
+    don't apply to a single AI-edit instruction. DF-008: a fixed-height
+    single-line ``QLineEdit`` read as cramped for a full instruction; this
+    replaces it instead of just nudging the height up further."""
+
+    submit = Signal()
+
+    MIN_HEIGHT = 36    # matches the old QLineEdit's bumped-up height
+    MAX_HEIGHT = 140   # ~6 lines, then it scrolls instead of growing further
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTabChangesFocus(True)   # Tab moves focus, doesn't insert a tab
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.textChanged.connect(self._adjust_height)
+        self._adjust_height()
+
+    def _adjust_height(self) -> None:
+        # QPlainTextEdit reports the document height in LINES, not pixels —
+        # convert via line spacing (same approach as chat_input_box.py).
+        lines = self.document().size().height() or 1
+        line_px = self.fontMetrics().lineSpacing()
+        h = int(lines * line_px + 2 * self.frameWidth() + 12)
+        h = max(self.MIN_HEIGHT, min(self.MAX_HEIGHT, h))
+        if h != self.height():
+            self.setFixedHeight(h)
+
+    def keyPressEvent(self, e) -> None:  # noqa: N802
+        if e.key() in (Qt.Key_Return, Qt.Key_Enter) and not (e.modifiers() & Qt.ShiftModifier):
+            self.submit.emit()
+            return
+        super().keyPressEvent(e)
 
 
 class AiFileEditorDialog(QWidget):
@@ -94,9 +133,9 @@ class AiFileEditorDialog(QWidget):
             ctx, self.ai_model_combo, self.ai_chat.add_status, self._confirm_routing_switch)
 
         row = QHBoxLayout()
-        self.ai_input = QLineEdit()
+        self.ai_input = _AutoExpandInput()
         self.ai_input.setPlaceholderText(tr("folder.ai_placeholder"))
-        self.ai_input.returnPressed.connect(self._ai_send)
+        self.ai_input.submit.connect(self._ai_send)
         row.addWidget(self.ai_input, 1)
         self.ai_send_btn = QPushButton(tr("folder.ai_send"))
         self.ai_send_btn.setObjectName("primary")
@@ -170,7 +209,7 @@ class AiFileEditorDialog(QWidget):
         if not self.preview.root:
             self.ai_chat.add_error(tr("folder.ai_no_file"))
             return
-        instruction = self.ai_input.text().strip()
+        instruction = self.ai_input.toPlainText().strip()
         if not instruction:
             return
         self.ai_input.clear()
