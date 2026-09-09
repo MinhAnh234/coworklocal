@@ -8,10 +8,11 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QInputDialog, QMenu
+from PySide6.QtWidgets import QMenu
 from ...core import co4e
 from ...core.co4e import STEP_DONE, STEP_RUNNING
 from ...i18n import tr
+from ...ui.dialog_buttons import ask_text
 from ...ui.icons import icon
 from ...presentation.co4e.co4e_chat_view import _skill_names
 
@@ -118,8 +119,8 @@ class Co4EWorkflowCrudMixin:
         wf = co4e.get_workflow(ident)
         if wf is None:
             return
-        name, ok = QInputDialog.getText(self, tr("co4e.rename"), tr("co4e.rename_prompt"),
-                                        text=wf.name)
+        name, ok = ask_text(self, tr("co4e.rename"), tr("co4e.rename_prompt"),
+                            text=wf.name)
         name = (name or "").strip()
         if not ok or not name:
             return

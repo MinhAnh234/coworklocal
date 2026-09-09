@@ -26,6 +26,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QEasingCurve, QPropertyAnimation, Signal
 from PySide6.QtWidgets import QFormLayout, QLabel, QVBoxLayout, QWidget
 
+from ...i18n import bind_dynamic, tr
 from ...theme import current_palette
 
 _SECTION_ANIM_MS = 180
@@ -64,7 +65,7 @@ class _SectionHeader(QLabel):
         super().showEvent(event)
 
 
-def _add_section(outer: QVBoxLayout, title: str) -> tuple[QFormLayout, QWidget]:
+def _add_section(outer: QVBoxLayout, title_key: str) -> tuple[QFormLayout, QWidget]:
     """One group of fields, collapsed to just its heading by default and
     independently expandable, so a long step config reads as a short list of
     group names until you open the one you need. Deliberately bare — no card
@@ -74,7 +75,11 @@ def _add_section(outer: QVBoxLayout, title: str) -> tuple[QFormLayout, QWidget]:
     the group's rows to ``form``; ``card`` is the whole section (header +
     body) — hide it to remove the group entirely (e.g. for a section that
     only applies to some steps), rather than hiding individual rows inside
-    an always-visible header."""
+    an always-visible header.
+
+    Nhận KHOÁ dịch, không nhận chuỗi đã dịch: nhãn mục do hàm này tự dựng nên
+    nơi gọi không giữ tham chiếu nào để áp lại: truyền ``tr(...)`` vào đây thì
+    bốn tiêu đề đứng nguyên ở ngôn ngữ lúc dựng panel."""
     p = current_palette()
     card = QWidget()
     card_lay = QVBoxLayout(card)
@@ -96,7 +101,6 @@ def _add_section(outer: QVBoxLayout, title: str) -> tuple[QFormLayout, QWidget]:
     # diacritics.
     header.ensurePolished()
     header.setFixedHeight(header.fontMetrics().height())
-    header.setText(f"▶ {title}")
     card_lay.addWidget(header)
 
     body = QWidget()
@@ -111,6 +115,14 @@ def _add_section(outer: QVBoxLayout, title: str) -> tuple[QFormLayout, QWidget]:
     anim.setEasingCurve(QEasingCurve.InOutCubic)
 
     is_open = False
+
+    def _sync_header() -> None:
+        """Nhãn mục: dấu gập/mở hiện tại + tiêu đề theo ngôn ngữ đang chọn."""
+        header.setText(f"{'▼' if is_open else '▶'} {tr(title_key)}")
+
+    # Ràng buộc ĐỘNG chứ không bind cứng một chuỗi: nhãn này mang cả trạng thái
+    # gập/mở, nên bind cứng sẽ trả nó về ▶ mỗi lần người dùng đổi ngôn ngữ.
+    bind_dynamic(header, _sync_header)
 
     def _on_finished() -> None:
         """Hiệu ứng gập/mở chạy xong: bỏ trần chiều cao khi đang mở, để bước có nhiều
@@ -130,7 +142,7 @@ def _add_section(outer: QVBoxLayout, title: str) -> tuple[QFormLayout, QWidget]:
         """Lật trạng thái gập/mở của một mục và chạy hiệu ứng tương ứng."""
         nonlocal is_open
         is_open = not is_open
-        header.setText(f"{'▼' if is_open else '▶'} {title}")
+        _sync_header()
         anim.stop()
         if is_open:
             body.setVisible(True)

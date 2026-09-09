@@ -114,12 +114,41 @@ class RailProjectMixin:
         tree.blockSignals(blocked)
         self.nav_recents_hdr.setVisible(not self._nav_collapsed)
         self.nav_recents.setVisible(not self._nav_collapsed)
+    def goto_all_projects(self) -> None:
+        """Mở khung "Tất cả project…": Workspace ▸ Cowork, bảng lịch sử bung ra.
+
+        Phải đi qua ``_goto``, không được gọi thẳng ``show_history_pane()``:
+        ``_goto`` là chỗ duy nhất dời vệt sáng trên thanh menu theo nội dung.
+        Gọi tắt thì nội dung sang Cowork còn vệt sáng ở lại Project — và vì
+        ``QTreeWidget`` không phát ``currentItemChanged`` khi bấm lại đúng dòng
+        đang chọn, bấm "Project" sẽ KHÔNG có tác dụng gì cho tới khi người dùng
+        bấm sang mục khác rồi bấm về.
+
+        Gom vào một hàm vì có hai đường vào: link "Tất cả project…" ở mục GẦN
+        ĐÂY, và màn hình mặc định lúc mở app.
+        """
+        sub = self.workspace._cowork_tab_idx
+        # Chua chon project thi cong project dang giu sub-tab Cowork dong.
+        # show_history_pane() mo no bang cua sau, bo qua cong — the la noi dung
+        # o Cowork trong khi ca cong lan vet sang deu noi la Project. Man hinh
+        # dung cho nguoi chua co project chinh la man quan ly project.
+        if sub < 0 or not self.workspace.subtab_available(sub):
+            self._goto(self._ROW_WORKSPACE, self.workspace._project_tab_idx)
+            return
+        self._goto(self._ROW_WORKSPACE, sub)
+        self.workspace.show_history_pane()
+        # Bang lich su duoc nhung trong sub-tab Cowork cua MOT project, nen
+        # WorkspaceTab._bind_project da dat set_project_filter(pid) — no chi hien
+        # thread cua project dang chon. Vao day bang link "Tat ca project…" ma van
+        # con bo loc thi nguoi dung tao 5 project chi thay 1. Xoa bo loc SAU
+        # show_history_pane(), vi ham do di qua duong doi sub-tab.
+        self.sidebar.set_project_filter("")
+
     def _on_rail_recent(self, item, _col: int = 0) -> None:
         """Bấm một dòng trong mục GẦN ĐÂY: mở hội thoại đó, hoặc mở khung "Tất cả project…"."""
         data = item.data(0, Qt.UserRole) or {}
         if data.get("all"):
-            self._goto(self._ROW_WORKSPACE, self.workspace._cowork_tab_idx)
-            self.workspace.show_history_pane()
+            self.goto_all_projects()
             return
         path = data.get("path")
         if path:

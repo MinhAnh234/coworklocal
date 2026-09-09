@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from cowork_local.i18n import tr
+from cowork_local.i18n import bind_dynamic, bind_tip, tr
 from cowork_local.theme import current_palette
 from cowork_local.ui.icons import icon
 
@@ -57,7 +57,7 @@ class AudioRecorderWidget(QWidget):
         # Record / Stop toggle button
         self.record_btn = QPushButton()
         self.record_btn.setIcon(icon("microphone"))
-        self.record_btn.setToolTip(tr("chat.record_audio_start") if tr("chat.record_audio_start") != "chat.record_audio_start" else "Record Voice Note")
+        bind_dynamic(self.record_btn, self._sync_record_tip)
         self.record_btn.setFixedSize(32, 32)
         self.record_btn.clicked.connect(self.toggle_recording)
         layout.addWidget(self.record_btn)
@@ -78,7 +78,7 @@ class AudioRecorderWidget(QWidget):
 
         self.cancel_btn = QPushButton()
         self.cancel_btn.setIcon(icon("x"))
-        self.cancel_btn.setToolTip("Cancel recording")
+        bind_tip(self.cancel_btn, "chat.record_audio_cancel")
         self.cancel_btn.setFixedSize(24, 24)
         self.cancel_btn.clicked.connect(self.cancel_recording)
         status_layout.addWidget(self.cancel_btn)
@@ -106,7 +106,7 @@ class AudioRecorderWidget(QWidget):
         self.timer_label.setText("00:00")
         self.status_container.setVisible(True)
         self.record_btn.setIcon(icon("square"))
-        self.record_btn.setToolTip("Stop Recording")
+        self._sync_record_tip()
         self.record_btn.setStyleSheet("background-color: #fca5a5; color: #991b1b;")
         self._timer.start()
         self.recording_started.emit()
@@ -137,7 +137,12 @@ class AudioRecorderWidget(QWidget):
         self.status_container.setVisible(False)
         self.record_btn.setIcon(icon("microphone"))
         self.record_btn.setStyleSheet("")
-        self.record_btn.setToolTip("Record Voice Note")
+        self._sync_record_tip()
+
+    def _sync_record_tip(self) -> None:
+        """Tooltip nút ghi âm nói việc nó sẽ làm tiếp, theo trạng thái hiện tại."""
+        self.record_btn.setToolTip(tr("chat.record_audio_stop" if self._is_recording
+                                      else "chat.record_audio_start"))
 
     def _on_tick(self) -> None:
         """Update recording duration display every second."""

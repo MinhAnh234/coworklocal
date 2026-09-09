@@ -93,7 +93,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Enable the predefined Req→Demo flow feature (off by default).",
         "ja": "定義済みの Req→Demo フロー機能を有効化（初期値はオフ）。",
         "vi": "Bật tính năng Flow Req→Demo dựng sẵn (mặc định tắt)."},
-    "code.flow_btn": {"en": "Flow Management", "ja": "Flow Management", "vi": "Flow Management"},
+    "code.flow_btn": {"en": "Flow Management", "ja": "フロー管理", "vi": "Flow Management"},
     "code.flow_btn_tooltip": {
         "en": "Build and run a multi-stage flow from requirement to demo.",
         "ja": "要件からデモまでの多段フローを作成・実行します。",
@@ -152,7 +152,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
     # because until the index existed nothing had to refer to it.
     "settings.group.general": {"en": "General", "ja": "一般", "vi": "Chung"},
     "settings.group.provider": {"en": "AI Provider", "ja": "AI プロバイダー", "vi": "Nhà cung cấp AI"},
-    "settings.group.parameter": {"en": "Parameter", "ja": "Parameter", "vi": "Parameter"},
+    "settings.group.parameter": {"en": "Parameter", "ja": "パラメータ", "vi": "Tham số"},
+    "settings.group.about": {"en": "About", "ja": "このアプリについて", "vi": "Giới thiệu"},
     "settings.param_section_pricing": {
         "en": "Model pricing", "ja": "モデル価格", "vi": "Bảng giá model"},
     "settings.pricing_url_label": {
@@ -328,6 +329,27 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "settings.group.sandbox": {
         "en": "Sandbox Security Layer", "ja": "サンドボックス セキュリティ層",
         "vi": "Sandbox Security Layer"},
+    "settings.sec_enabled": {
+        "en": "Enable Agent Security (command validation)",
+        "ja": "エージェントセキュリティを有効化（コマンド検証）",
+        "vi": "Bật Agent Security (kiểm tra lệnh)"},
+    "settings.sec_enabled_tooltip": {
+        "en": "Turn the whole Agent Security layer on or off.",
+        "ja": "エージェントセキュリティ層全体をオン/オフします。",
+        "vi": "Bật/tắt toàn bộ tầng Agent Security."},
+    "settings.ai_check": {
+        "en": "AI check commands", "ja": "AIによるコマンド検査",
+        "vi": "AI kiểm tra lệnh"},
+    "settings.ai_check_tooltip": {
+        "en": "Let the control agent review a command with AI before it runs.",
+        "ja": "実行前に制御エージェントがAIでコマンドを確認します。",
+        "vi": "Cho control-agent dùng AI xét lệnh trước khi chạy."},
+    "settings.sandbox_pw_unset_title": {
+        "en": "Sandbox Security", "ja": "サンドボックスセキュリティ", "vi": "Bảo mật Sandbox"},
+    "settings.sandbox_pw_unset_body": {
+        "en": "No sandbox password is set yet, so these settings stay locked. Set COWORK_SANDBOX_PASSWORD, or ask your administrator.",
+        "ja": "サンドボックスのパスワードが未設定のため、この設定はロックされたままです。COWORK_SANDBOX_PASSWORD を設定するか、管理者にお問い合わせください。",
+        "vi": "Chưa đặt mật khẩu sandbox nên nhóm thiết lập này vẫn khóa. Hãy đặt COWORK_SANDBOX_PASSWORD, hoặc liên hệ quản trị viên."},
     "settings.sandbox_confirm_commands": {
         "en": "Confirm before Cowork runs a command",
         "ja": "Cowork がコマンドを実行する前に確認する",

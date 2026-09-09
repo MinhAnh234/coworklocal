@@ -35,11 +35,14 @@ def test_construction_and_retranslate(qapp, tmp_path) -> None:
 
 
 def test_add_and_delete_pricing_row_round_trip(qapp, tmp_path, monkeypatch) -> None:
-    from PySide6.QtWidgets import QInputDialog
-
     ctx = _FakeCtx(tmp_path)
     panel = PricingPanel(ctx, on_status_message=lambda _m: None)
-    monkeypatch.setattr(QInputDialog, "getText", staticmethod(lambda *a, **k: ("gpt-test", True)))
+    # Panel hỏi tên qua ``ui.dialog_buttons.ask_text`` chứ không gọi thẳng hàm
+    # tĩnh ``QInputDialog.getText`` (hàm tĩnh tự dựng hộp thoại bên trong nên
+    # nút Cancel của nó luôn tiếng Anh). Patch nhầm chỗ thì hộp thoại THẬT mở
+    # ra và test treo cho tới khi hết giờ.
+    monkeypatch.setattr("cowork_local.ui.dialog_buttons.ask_text",
+                        lambda *a, **k: ("gpt-test", True))
     panel._add_pricing_row()
     assert panel.table.rowCount() == 1
     assert panel.table.item(0, 0).text() == "gpt-test"

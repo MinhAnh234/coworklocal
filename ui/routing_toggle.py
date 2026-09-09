@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..i18n import tr
+from ..i18n import on_language_changed, tr
 
 
 class RoutingToggle(QWidget):
@@ -71,6 +71,11 @@ class RoutingToggle(QWidget):
         self._label.setObjectName("hint")
         self._combo = QComboBox()
         self._combo.setToolTip(tr("routing.toggle_tooltip"))
+        # Mode names differ in length per language ("Thủ công" is wider than
+        # "手動"), and a combo only re-measures itself under this policy — without
+        # it the width stays frozen at the language the widget was built in and
+        # the longer translation is cut off.
+        self._combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         # (data value, i18n key) — data is the persisted mode string. Order is
         # least-to-most autonomous, with Fallback (R03-T03) last because it is
         # the "only when something breaks" mode rather than a stronger Auto.
@@ -88,6 +93,11 @@ class RoutingToggle(QWidget):
         self._combo.currentIndexChanged.connect(self._on_changed)
         lay.addWidget(self._label)
         lay.addWidget(self._combo)
+        # Registered HERE, not by the four surfaces that embed this widget
+        # (Cowork, Co4E, AI-Edit): every one of them had forgotten to, so the
+        # control stayed frozen in the language it was built in. Owning it here
+        # means no future embedder can forget either.
+        on_language_changed(self.retranslate)
 
     def current_mode(self) -> str:
         """Chế độ định tuyến đang chọn; 'off' nếu chưa đặt."""
@@ -149,6 +159,7 @@ class AutoRunToggle(QWidget):
         self.refresh()
         self._chk.toggled.connect(self._on_toggled)
         lay.addWidget(self._chk)
+        on_language_changed(self.retranslate)   # same reason as RoutingToggle
 
     def refresh(self) -> None:
         """Đọc lại trạng thái tự chạy của project đang mở lên ô đánh dấu."""

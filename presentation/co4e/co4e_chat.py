@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QSplitter, QWidget
 from ...core import co4e, skills as skills_mod
 from ...core.co4e_builtins import BUILTIN_AGENTS
 from ...core.worker import AgentWorker
-from ...i18n import tr
+from ...i18n import bind_dynamic, tr
 from ...ui.chat_view import ChatView
 from ...ui.icons import icon
 from ...presentation.co4e.co4e_chat_view import ChatPanel
@@ -55,6 +55,12 @@ class Co4EChatMixin:
         self._co4e_routed_provider = None   # routing provider override for the next turn
         self._vsplit_sizes = [540, 220]         # sizes to restore when expanded
         self._msgs_collapsed = True
+        # The tooltip names the action the button would perform, so it depends on
+        # which way the box is folded — and the fold state lives here, not in the
+        # panel. Bound so a language change re-reads it instead of freezing the
+        # wording set when the tab was built.
+        bind_dynamic(self.chat_toggle_btn, lambda: self.chat_toggle_btn.setToolTip(
+            tr("co4e.tt_expand_msgs" if self._msgs_collapsed else "co4e.tt_collapse_msgs")))
         return panel
     def _toggle_messages(self) -> None:
         """Show/hide the WHOLE chat box (message list + composer) below the

@@ -47,6 +47,60 @@ class PageRegistryMixin:
         m.status_message.connect(self.statusBar().showMessage)
         self.monitoring = m
         return m
+    def current_screen_label(self) -> str:
+        """Tên màn hình người dùng đang mở, dạng "Workspace ▸ Project".
+
+        Trợ lý Hỗ trợ không nhìn được màn hình, nên "tôi đang ở đâu" là câu nó
+        không thể tự trả lời — chuỗi này được ghép vào prompt của nó
+        (``core/help_knowledge.py``).
+        """
+        row = self.pages.currentIndex()
+        if not (0 <= row < len(self._nav_defs)):
+            return ""
+        page = tr(self._nav_defs[row][0])
+        if row != self._ROW_WORKSPACE:
+            return page
+        sub = self.workspace.current_subtab()
+        keys = {self.workspace._project_tab_idx: "workspace.tab_project",
+                self.workspace._cowork_tab_idx: "workspace.tab_cowork",
+                self.workspace._co4e_tab_idx: "workspace.tab_co4e",
+                getattr(self.workspace, "_folder_tab_idx", -1): "workspace.tab_folder",
+                self.workspace._graphrag_tab_idx: "workspace.tab_graphrag"}
+        key = keys.get(sub)
+        return f"{page} ▸ {tr(key)}" if key else page
+
+    def help_context(self) -> str:
+        """Ngữ cảnh sống cho Trợ lý Hỗ trợ: đang ở màn nào, và trên đó bấm được gì.
+
+        Vì sao đọc từ WIDGET ĐANG CHẠY chứ không từ ``docs/screens/controls.json``:
+        file đó được trích tự động nhưng đã cũ — 5/41 file trong đó không còn tồn
+        tại, và nó không có file nào trong ``presentation/`` (chưa sinh lại sau
+        refactor R08). Nạp nó vào prompt là dạy trợ lý về nút của những file đã
+        bị xoá. Cây widget thật thì không bao giờ cũ được.
+        """
+        from PySide6.QtWidgets import QPushButton, QTabWidget
+
+        from ...core.help_knowledge import screen_context
+
+        page = self.pages.currentWidget()
+        nhan = []
+        if page is not None:
+            for tabs in page.findChildren(QTabWidget):
+                for i in range(tabs.count()):
+                    if tabs.isTabVisible(i):
+                        nhan.append(f"[tab] {tabs.tabText(i)}")
+            for btn in page.findChildren(QPushButton):
+                text = (btn.text() or "").replace("&", "").strip()
+                if text and btn.isVisible() and btn.isEnabled():
+                    nhan.append(text)
+        # Bo trung, giu nguyen thu tu xuat hien tren man hinh.
+        thay, gon = set(), []
+        for n in nhan:
+            if n not in thay:
+                thay.add(n)
+                gon.append(n)
+        return screen_context(self.current_screen_label(), gon)
+
     def _ensure_page(self, row: int) -> None:
         """Build a lazy nav page on first visit and swap it in for its placeholder."""
         if not (0 <= row < len(self._built)) or self._built[row]:

@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...i18n import tr
+from ...i18n import bind_text, bind_tip
 from ...ui.icons import icon
 
 
@@ -66,13 +66,15 @@ class RunsPagePanel(QWidget):
         hdr = QHBoxLayout()
         # The Runs page covers the flow toolbar, so it carries its own way back —
         # otherwise the toggle that opened it is off screen.
-        self.back_btn = QPushButton(tr("co4e.back_to_flow"))
+        # Bound, not set once: this panel has no retranslate hook of its own, and
+        # Co4ETab (which owns the language callback) cannot reach these strings.
+        self.back_btn = bind_text(QPushButton(), "co4e.back_to_flow")
         self.back_btn.setIcon(icon("chevron-left"))
-        self.back_btn.setToolTip(tr("co4e.tt_back_to_flow"))
+        bind_tip(self.back_btn, "co4e.tt_back_to_flow")
         # KHONG noi .clicked o day: ben goi (Co4ETab) tu quyet dinh slot nao
         # xu ly - panel chi dung widget, khong biet _show_runs la gi.
         hdr.addWidget(self.back_btn)
-        self.title_label = QLabel(tr("co4e.running_flows"))
+        self.title_label = bind_text(QLabel(), "co4e.running_flows")
         self.title_label.setObjectName("hint")
         hdr.addWidget(self.title_label)
         # Show + open the workspace folder where flow outputs land (below the tab,
@@ -85,21 +87,21 @@ class RunsPagePanel(QWidget):
         # ca hai deu thuoc Co4ETab (can ctx/manager de biet duong dan that).
         hdr.addWidget(self.ws_folder_btn)
         hdr.addStretch(1)
-        self.stop_btn = QPushButton(tr("co4e.stop"))
+        self.stop_btn = bind_text(QPushButton(), "co4e.stop")
         self.stop_btn.setIcon(icon("stop"))
         self.stop_btn.setObjectName("danger")
-        self.stop_btn.setToolTip(tr("co4e.tt_stop_run"))
+        bind_tip(self.stop_btn, "co4e.tt_stop_run")
         # KHONG noi .clicked o day: cung ly do nhu back_btn o tren.
-        self.rename_btn = QPushButton(tr("co4e.rename_run"))
+        self.rename_btn = bind_text(QPushButton(), "co4e.rename_run")
         self.rename_btn.setIcon(icon("edit"))
-        self.rename_btn.setToolTip(tr("co4e.tt_rename_run"))
+        bind_tip(self.rename_btn, "co4e.tt_rename_run")
         # KHONG noi .clicked o day: cung ly do nhu back_btn o tren.
-        self.del_btn = QPushButton(tr("co4e.delete_run"))
+        self.del_btn = bind_text(QPushButton(), "co4e.delete_run")
         self.del_btn.setIcon(icon("trash"))
-        self.del_btn.setToolTip(tr("co4e.tt_delete_run"))
+        bind_tip(self.del_btn, "co4e.tt_delete_run")
         # KHONG noi .clicked o day: cung ly do nhu back_btn o tren.
-        self.clear_btn = QPushButton(tr("co4e.clear_done"))
-        self.clear_btn.setToolTip(tr("co4e.tt_clear_runs"))
+        self.clear_btn = bind_text(QPushButton(), "co4e.clear_done")
+        bind_tip(self.clear_btn, "co4e.tt_clear_runs")
         # KHONG noi .clicked o day: cung ly do nhu back_btn o tren. (Ban goc
         # noi thang toi lambda: self.manager.clear_finished(), khong qua mot
         # method rieng - Co4ETab van giu dung quirk do khi noi lai signal nay.)
@@ -113,7 +115,7 @@ class RunsPagePanel(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setToolTip(tr("co4e.tt_runs_list"))
+        bind_tip(self.table, "co4e.tt_runs_list")
         # KHONG noi .itemDoubleClicked o day: cung ly do nhu back_btn o tren.
         # Right-click a run → Open / Delete (delete a single old run from history).
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)

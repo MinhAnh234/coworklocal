@@ -9,7 +9,8 @@ rem      install.bat --force      dung lai moi truong ao tu dau
 rem
 rem  Cai gi va cai o dau:
 rem      %LOCALAPPDATA%\CoworkLocal\venv       moi truong ao
-rem      %LOCALAPPDATA%\CoworkLocal\launcher   lien ket de import duoc goi
+rem      %LOCALAPPDATA%\CoworkLocal\launcher\<khoa>  lien ket de import duoc goi
+rem                                            (mot khoa cho moi thu muc ma nguon)
 rem
 rem  Vi sao KHONG dat venv trong repo: cac cong chat luong
 rem  (scripts/check_orphan_modules.py, check_imports.py) quet TOAN BO cay thu
@@ -88,10 +89,24 @@ if "%FORCE%"=="1" if exist "%VENV%" (
     rmdir /s /q "%VENV%" 2>nul
 )
 
+rem  Chi kiem file python.exe co ton tai la khong du: mot venv dung lai tu ban
+rem  Python da bi nang cap hoac xoa van con nguyen file do, nhung chay vao la loi
+rem  ngay. Goi thu mot lenh that de biet no con song.
+set "VENV_OK=0"
 if exist "%VENV%\Scripts\python.exe" (
+    "%VENV%\Scripts\python.exe" -c "import sys" >nul 2>&1
+    if not errorlevel 1 set "VENV_OK=1"
+)
+
+if "!VENV_OK!"=="1" (
     echo  [2/5] Môi trường ảo đã có — dùng lại
 ) else (
-    echo  [2/5] Tạo môi trường ảo...
+    if exist "%VENV%" (
+        echo  [2/5] Môi trường ảo cũ không chạy được — dựng lại từ đầu...
+        rmdir /s /q "%VENV%" 2>nul
+    ) else (
+        echo  [2/5] Tạo môi trường ảo...
+    )
     %PY% -m venv "%VENV%"
     if errorlevel 1 (
         echo [LỖI] Không tạo được môi trường ảo.
@@ -135,9 +150,23 @@ if /I "%REPO_NAME%"=="cowork_local" (
     goto smoke
 )
 
-if not exist "%LAUNCHER%" mkdir "%LAUNCHER%" >nul 2>&1
+rem  Junction rieng cho TUNG thu muc ma nguon. Ban truoc dung dung mot duong
+rem  dan cho ca may, nen hai ban checkout tranh nhau: cai chay sau tro junction
+rem  ve minh, va tien trinh con cua cai chay truoc (may chu MCP MS365) se import
+rem  ma nguon cua cai kia.
+set "REPO_KEY="
+for /f "delims=" %%K in ('%PY% -c "import hashlib,os,sys;print(hashlib.sha1(os.path.normcase(os.path.abspath(sys.argv[1])).encode()).hexdigest()[:10])" "%REPO%" 2^>nul') do set "REPO_KEY=%%K"
+if not defined REPO_KEY set "REPO_KEY=default"
+set "PKGROOT=%LAUNCHER%\!REPO_KEY!"
+
+rem  Don junction dung chung cua ban cu: de lai la mot cai bay — mot run.bat cu
+rem  o thu muc khac se dung lai no va chay nham ma nguon. rmdir KHONG co /s: voi
+rem  junction thi no xoa lien ket, khong xoa noi dung dich.
 if exist "%LAUNCHER%\cowork_local" rmdir "%LAUNCHER%\cowork_local" >nul 2>&1
-mklink /J "%LAUNCHER%\cowork_local" "%REPO%" >nul
+
+if not exist "!PKGROOT!" mkdir "!PKGROOT!" >nul 2>&1
+if exist "!PKGROOT!\cowork_local" rmdir "!PKGROOT!\cowork_local" >nul 2>&1
+mklink /J "!PKGROOT!\cowork_local" "%REPO%" >nul
 if errorlevel 1 (
     echo [LỖI] Không tạo được liên kết thư mục.
     echo        Thư mục "%REPO_NAME%" không phải tên gói Python hợp lệ nên
@@ -145,7 +174,7 @@ if errorlevel 1 (
     echo        mã nguồn thành "cowork_local".
     goto fail
 )
-echo  [4/5] Đã tạo liên kết: %LAUNCHER%\cowork_local
+echo  [4/5] Đã tạo liên kết: !PKGROOT!\cowork_local
 
 rem --------------------------------------------------------------------------
 rem  5. Chay thu mot lan
@@ -155,12 +184,25 @@ if "%USE_SYSTEM%"=="1" (set "RUNPY=%PY%") else (set "RUNPY="%VENV%\Scripts\pytho
 if /I "%REPO_NAME%"=="cowork_local" (
     for %%I in ("%REPO%\..") do set "PKGPATH=%%~fI"
 ) else (
-    set "PKGPATH=%LAUNCHER%"
+    set "PKGPATH=!PKGROOT!"
 )
 
 echo  [5/5] Kiểm tra lại...
 set "PYTHONPATH=!PKGPATH!"
-%RUNPY% -c "import cowork_local, PySide6; print('        cowork_local + PySide6 nạp được')"
+rem  Kiem ca DANH TINH, khong chi kiem import duoc: neu tren sys.path con mot thu
+rem  muc khac cung ten "cowork_local" (mot ban checkout cu chang han) thi lenh
+rem  import van chay tot, va ca buoc kiem tra nay se xanh trong khi ung dung
+rem  dang chay tu ma nguon KHAC. Duong dan truyen qua bien moi truong de khoi
+rem  phai boc dau nhay long nhau trong chuoi -c.
+set "EXPECT_REPO=%REPO%"
+%RUNPY% -c "import os,sys,cowork_local,PySide6; p=os.path.realpath(os.path.dirname(cowork_local.__file__)); e=os.path.realpath(os.environ['EXPECT_REPO']); print('        cowork_local + PySide6 nap duoc'); print('        goi doc tu: '+p); sys.exit(0 if p==e else 3)"
+if errorlevel 3 (
+    echo [LỖI] Gói import được, nhưng KHÔNG phải từ thư mục mã nguồn này:
+    echo        mong đợi: %REPO%
+    echo        Trên PYTHONPATH hoặc site-packages đang có một "cowork_local" khác
+    echo        chen lên trước. Gỡ nó đi rồi chạy lại install.bat.
+    goto fail
+)
 if errorlevel 1 (
     echo [LỖI] Cài xong nhưng vẫn chưa import được gói.
     goto fail

@@ -9,6 +9,62 @@ from __future__ import annotations
 from typing import Dict
 
 STRINGS: Dict[str, Dict[str, str]] = {
+    # ---- man gioi thieu cua khung chat (trang thai rong) ------------------
+    "welcome.greeting": {
+        "en": "Hi {name} — where would you like to start?",
+        "ja": "{name} さん、どこから始めましょうか？",
+        "vi": "Chào {name} — bắt đầu từ đâu?"},
+    "welcome.greeting_anon": {
+        "en": "Where would you like to start?", "ja": "どこから始めましょうか？",
+        "vi": "Bắt đầu từ đâu?"},
+    "welcome.meta_project": {
+        "en": "Working in {name}", "ja": "{name} で作業中",
+        "vi": "Đang làm trong {name}"},
+    "welcome.meta_files": {
+        "en": "{n} file(s) in the local folder", "ja": "ローカルフォルダに {n} 件",
+        "vi": "{n} tệp trong thư mục local"},
+
+    "welcome.card_docs": {
+        "en": "Summarise documents", "ja": "ドキュメントを要約", "vi": "Tóm tắt tài liệu"},
+    "welcome.card_docs_sub": {
+        "en": "Read the files in the local folder", "ja": "ローカルフォルダのファイルを読む",
+        "vi": "Đọc các tệp trong thư mục local"},
+    "welcome.prompt_docs": {
+        "en": "Read the files in this project's folder and summarise each one.",
+        "ja": "このプロジェクトのフォルダにあるファイルを読み、それぞれ要約してください。",
+        "vi": "Đọc các tệp trong thư mục của project này và tóm tắt từng tệp."},
+
+    "welcome.card_data": {
+        "en": "Analyse data", "ja": "データを分析", "vi": "Phân tích dữ liệu"},
+    "welcome.card_data_sub": {
+        "en": "Spreadsheets, CSV, logs", "ja": "表計算、CSV、ログ",
+        "vi": "Bảng tính, CSV, log"},
+    "welcome.prompt_data": {
+        "en": "Analyse the spreadsheet/CSV/log files in this folder and report what stands out.",
+        "ja": "このフォルダの表計算/CSV/ログを分析し、目立つ点を報告してください。",
+        "vi": "Phân tích các tệp bảng tính/CSV/log trong thư mục này và nêu những điểm đáng chú ý."},
+
+    "welcome.card_schedule": {
+        "en": "Set up a schedule", "ja": "スケジュールを作成", "vi": "Dựng lịch chạy"},
+    "welcome.card_schedule_sub": {
+        "en": "Create a daily Schedule Task", "ja": "毎日実行する Schedule Task を作成",
+        "vi": "Tạo Schedule Task hàng ngày"},
+    "welcome.prompt_schedule": {
+        "en": "Help me set up a Schedule Task that runs every day. Ask me what it should do.",
+        "ja": "毎日実行する Schedule Task の作成を手伝ってください。何をするか質問してください。",
+        "vi": "Giúp tôi dựng một Schedule Task chạy hàng ngày. Hỏi tôi nó cần làm gì."},
+
+    "welcome.card_graph": {
+        "en": "Ask GraphRAG", "ja": "GraphRAG に質問", "vi": "Hỏi GraphRAG"},
+    "welcome.card_graph_sub": {
+        "en": "Query this project's knowledge graph",
+        "ja": "このプロジェクトの知識グラフを検索",
+        "vi": "Truy vấn đồ thị tri thức của project"},
+    "welcome.prompt_graph": {
+        "en": "Using this project's knowledge graph, explain how the main pieces fit together.",
+        "ja": "このプロジェクトの知識グラフを使って、主要な要素の関係を説明してください。",
+        "vi": "Dùng đồ thị tri thức của project này, giải thích các phần chính ghép với nhau thế nào."},
+
     "chatpanel.agent_tooltip": {
         "en": "Model/agent for THIS tab — independent of the other tab",
         "ja": "このタブ専用のモデル/エージェント（他のタブとは独立）",
@@ -112,8 +168,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "composer.manage_skills": {"en": "Manage skills…", "ja": "スキルを管理…", "vi": "Quản lý skill…"},
 
     # ---- schedule_task_tab.py / task_editor_dialog.py -------------------
-    "schedtask.title": {"en": "Schedule Task", "ja": "Schedule Task", "vi": "Schedule Task"},
-    "schedtask.view.kanban": {"en": "Kanban", "ja": "Kanban", "vi": "Kanban"},
+    "schedtask.title": {"en": "Schedule Task", "ja": "タスクスケジュール", "vi": "Schedule Task"},
+    "schedtask.view.kanban": {"en": "Kanban", "ja": "カンバン", "vi": "Kanban"},
     "schedtask.view.calendar": {"en": "Calendar", "ja": "カレンダー", "vi": "Lịch"},
     "schedtask.no_title": {"en": "(untitled)", "ja": "（無題）", "vi": "(chưa có tên)"},
     "schedtask.cal_today": {"en": "Today", "ja": "今日", "vi": "Hôm nay"},
@@ -139,23 +195,23 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Describe what you want in natural language — AI proposes tasks/schedule/chain, you confirm before anything is created.",
         "ja": "自然文で説明すると、AIがタスク・スケジュール・チェーンを提案します。確認後に作成されます。",
         "vi": "Mô tả bằng ngôn ngữ tự nhiên — AI đề xuất task/lịch/chuỗi, bạn xác nhận rồi mới tạo."},
-    "schedtask.no_tasks": {"en": "No tasks", "ja": "タスクなし", "vi": "No tasks"},
+    "schedtask.no_tasks": {"en": "No tasks", "ja": "タスクなし", "vi": "Chưa có task"},
     "schedtask.no_schedule": {"en": "No schedule", "ja": "スケジュールなし", "vi": "Chưa đặt lịch"},
     "schedtask.last_success": {"en": "Last: Success", "ja": "前回: 成功", "vi": "Lần cuối: Thành công"},
     "schedtask.last_failed": {"en": "Last: Failed", "ja": "前回: 失敗", "vi": "Lần cuối: Lỗi"},
     "schedtask.last_never": {"en": "Last: not run", "ja": "前回: 未実行", "vi": "Lần cuối: chưa chạy"},
-    "schedtask.status.backlog": {"en": "Backlog", "ja": "Backlog", "vi": "Backlog"},
-    "schedtask.status.scheduled": {"en": "Scheduled", "ja": "Scheduled", "vi": "Scheduled"},
-    "schedtask.status.running": {"en": "Running", "ja": "Running", "vi": "Running"},
-    "schedtask.status.waiting_input": {"en": "Waiting Input", "ja": "Waiting Input", "vi": "Waiting Input"},
-    "schedtask.status.done": {"en": "Done", "ja": "Done", "vi": "Done"},
-    "schedtask.status.failed": {"en": "Failed", "ja": "Failed", "vi": "Failed"},
-    "schedtask.status.paused": {"en": "Paused", "ja": "Paused", "vi": "Paused"},
+    "schedtask.status.backlog": {"en": "Backlog", "ja": "バックログ", "vi": "Chờ xử lý"},
+    "schedtask.status.scheduled": {"en": "Scheduled", "ja": "予約済み", "vi": "Đã lên lịch"},
+    "schedtask.status.running": {"en": "Running", "ja": "実行中", "vi": "Đang chạy"},
+    "schedtask.status.waiting_input": {"en": "Waiting Input", "ja": "入力待ち", "vi": "Chờ nhập"},
+    "schedtask.status.done": {"en": "Done", "ja": "完了", "vi": "Hoàn thành"},
+    "schedtask.status.failed": {"en": "Failed", "ja": "失敗", "vi": "Thất bại"},
+    "schedtask.status.paused": {"en": "Paused", "ja": "一時停止", "vi": "Tạm dừng"},
     "schedtask.type.cowork": {"en": "Cowork", "ja": "Cowork", "vi": "Cowork"},
     "schedtask.type.co4e_code": {"en": "Code", "ja": "Code", "vi": "Code"},
-    "schedtask.type.flow": {"en": "Flow", "ja": "Flow", "vi": "Flow"},
-    "schedtask.type.script": {"en": "Script", "ja": "Script", "vi": "Script"},
-    "schedtask.type.manual": {"en": "Manual", "ja": "Manual", "vi": "Manual"},
+    "schedtask.type.flow": {"en": "Flow", "ja": "フロー", "vi": "Flow"},
+    "schedtask.type.script": {"en": "Script", "ja": "スクリプト", "vi": "Script"},
+    "schedtask.type.manual": {"en": "Manual", "ja": "手動", "vi": "Thủ công"},
     "schedtask.priority.low": {"en": "Low", "ja": "低", "vi": "Thấp"},
     "schedtask.priority.medium": {"en": "Medium", "ja": "中", "vi": "Trung bình"},
     "schedtask.priority.high": {"en": "High", "ja": "高", "vi": "Cao"},
@@ -173,7 +229,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Double-click một dòng để mở thư mục artifact của lần chạy đó."},
     "schedtask.hist_col_time": {"en": "Finished at", "ja": "完了時刻", "vi": "Hoàn thành lúc"},
     "schedtask.hist_col_status": {"en": "Status", "ja": "状態", "vi": "Trạng thái"},
-    "schedtask.hist_col_run": {"en": "Run ID", "ja": "実行ID", "vi": "Run ID"},
+    "schedtask.hist_col_run": {"en": "Run ID", "ja": "実行ID", "vi": "Mã lần chạy"},
     "schedtask.hist_col_error": {"en": "Error", "ja": "エラー", "vi": "Lỗi"},
     "schedtask.menu_create_next": {
         "en": "Create next task from output", "ja": "出力から次タスクを作成",
@@ -205,7 +261,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "schedtask.no_workspace": {"en": "— No workspace —", "ja": "— ワークスペースなし —", "vi": "— Không có workspace —"},
     "schedtask.f_agent": {"en": "Agent", "ja": "エージェント", "vi": "Agent"},
     "schedtask.no_agent": {"en": "— No agent preset —", "ja": "— エージェントなし —", "vi": "— Không dùng agent —"},
-    "schedtask.f_provider": {"en": "Provider", "ja": "プロバイダー", "vi": "Provider"},
+    "schedtask.f_provider": {"en": "Provider", "ja": "プロバイダー", "vi": "Nhà cung cấp"},
     "schedtask.provider_default": {
         "en": "— Default (Settings) —", "ja": "— 既定（設定）—", "vi": "— Mặc định (Settings) —"},
     "schedtask.f_model": {"en": "Model", "ja": "モデル", "vi": "Model"},
@@ -261,7 +317,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "schedtask.repeat.daily": {"en": "Daily", "ja": "毎日", "vi": "Hằng ngày"},
     "schedtask.repeat.weekly": {"en": "Weekly", "ja": "毎週", "vi": "Hằng tuần"},
     "schedtask.repeat.monthly": {"en": "Monthly", "ja": "毎月", "vi": "Hằng tháng"},
-    "schedtask.repeat.cron": {"en": "Cron expression", "ja": "Cron式", "vi": "Cron expression"},
+    "schedtask.repeat.cron": {"en": "Cron expression", "ja": "Cron式", "vi": "Biểu thức cron"},
     "schedtask.f_task_mode": {"en": "Task type", "ja": "タスク種別", "vi": "Loại task"},
     # Run kind: an AI agent vs a saved Co4E flow + multi-format import
     "schedtask.f_run_kind": {"en": "Run", "ja": "実行対象", "vi": "Chạy"},

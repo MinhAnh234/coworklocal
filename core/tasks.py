@@ -258,9 +258,13 @@ def dependencies_met(task: Dict[str, Any], directory: Path = None) -> bool:
 def depends_cycle_error(tasks: List[Dict[str, Any]], task_id: str,
                         depends_on: List[str]) -> Optional[str]:
     """Validate a proposed depends_on list: no self-wait, no wait-cycle
-    (A waits B while B — directly or transitively — waits A)."""
+    (A waits B while B — directly or transitively — waits A).
+
+    Trả về KHOÁ i18n chứ không phải câu đã dịch: tầng này không biết người dùng
+    đang chọn ngôn ngữ nào, nên nơi hiển thị mới là nơi gọi ``tr()``.
+    """
     if task_id in (depends_on or []):
-        return "A task cannot wait for itself."
+        return "schedtask.err_self_wait"
     by_id = {t["task_id"]: t for t in tasks}
     # DFS from each proposed prerequisite through ITS prerequisites.
     for start in depends_on or []:
@@ -268,7 +272,7 @@ def depends_cycle_error(tasks: List[Dict[str, Any]], task_id: str,
         while stack:
             cur = stack.pop()
             if cur == task_id:
-                return "This would create a circular wait between tasks."
+                return "schedtask.err_wait_cycle"
             if cur in seen:
                 continue
             seen.add(cur)
@@ -280,22 +284,23 @@ def depends_cycle_error(tasks: List[Dict[str, Any]], task_id: str,
 def chain_error(tasks: List[Dict[str, Any]], task_id: str,
                 next_task_id: Optional[str]) -> Optional[str]:
     """Validate assigning ``next_task_id`` as ``task_id``'s next task.
-    Returns an error string (self-link / circular chain / unknown id), or
-    None when the assignment is safe."""
+    Returns an i18n KEY for the problem (self-link / circular chain / unknown
+    id), or None when the assignment is safe. Khoá chứ không phải câu đã dịch —
+    xem ``depends_cycle_error``."""
     if not next_task_id:
         return None
     if next_task_id == task_id:
-        return "A task cannot chain to itself."
+        return "schedtask.err_self_chain"
     by_id = {t["task_id"]: t for t in tasks}
     if next_task_id not in by_id:
-        return "Next task does not exist."
+        return "schedtask.err_next_missing"
     # Walk forward from the proposed next task; reaching task_id again means
     # the new edge would close a cycle.
     seen = {task_id}
     cur = next_task_id
     while cur:
         if cur in seen:
-            return "This would create a circular task chain."
+            return "schedtask.err_chain_cycle"
         seen.add(cur)
         cur = (by_id.get(cur) or {}).get("dependency", {}).get("next_task_id")
     return None

@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QFileDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
 )
 
-from ..config import PROVIDER_LABELS
 from ..core import agent_roles
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
@@ -32,9 +31,6 @@ class CoworkTab(ChatPanel):
 
         self._title_lbl = QLabel()
         self._title_lbl.setStyleSheet("font-weight:700; font-size:15px;")
-        self.model_lbl = QLabel("")
-        self.model_lbl.setObjectName("hint")
-
         self.skills_btn = QPushButton()
         self.skills_btn.setIcon(icon("book"))
         self.skills_btn.clicked.connect(self._open_skills_manager)
@@ -44,7 +40,6 @@ class CoworkTab(ChatPanel):
         self._new_btn.clicked.connect(self.new_session)
 
         self.toolbar_layout.addWidget(self._title_lbl)
-        self.toolbar_layout.addWidget(self.model_lbl)
         self.toolbar_layout.addStretch(1)
         self.toolbar_layout.addWidget(self.skills_btn)
         self.toolbar_layout.addWidget(self._new_btn)
@@ -104,6 +99,10 @@ class CoworkTab(ChatPanel):
 
     def _retranslate(self) -> None:
         """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề và các nút trên thanh công cụ."""
+        # ChatPanel dựng phần chrome dùng chung (nhãn Agent, nút Nén, tiêu đề ba
+        # bảng tệp) nhưng KHÔNG tự đăng ký dịch lại — lớp con là chỗ duy nhất có
+        # đăng ký, nên bỏ dòng này là toàn bộ phần đó đứng ở ngôn ngữ lúc dựng.
+        self._retranslate_base()
         self.refresh_title()
         self.skills_btn.setText(tr("cowork.skills_btn"))
         self.skills_btn.setToolTip(tr("cowork.skills_tooltip"))
@@ -377,10 +376,12 @@ class CoworkTab(ChatPanel):
         self._apply_output_folder_label()
 
     def refresh_header(self) -> None:
-        """Cập nhật dòng "provider · model" trên thanh công cụ Cowork."""
-        cfg = self.ctx.config
-        label = PROVIDER_LABELS.get(cfg.active_provider, cfg.active_provider)
-        self.model_lbl.setText(f"{label} · {cfg.model_label()}")
+        """Cập nhật các nhãn trên thanh công cụ Cowork.
+
+        Dòng "provider · model" từng nằm ngay sau chữ "Cowork" đã được gỡ: nó
+        lặp lại thông tin mà bộ chọn provider ở thanh trên đang hiển thị, và
+        chiếm chỗ đắt nhất trên thanh công cụ cho một thứ chỉ để đọc.
+        """
         self._apply_output_folder_label()  # picks up edits made via Settings too
 
     def build_job(self, text: str, messages, out_dir):

@@ -63,7 +63,7 @@ QUIRK DA DONG DINH (xem case tuong ung ben duoi):
     duoc goi, nhung ``step.sub_agents`` KHONG bi dung vao neu ``is_par`` False
     — du liệu van con trong step, chi khong hien tren UI.
   * ``_add_subagent``: khi ``_available_agent_names()`` tra ve danh sach RONG,
-    code chuyen sang ``QInputDialog.getText`` thay vi ``getItem`` (dong
+    code chuyen sang ``ask_text`` thay vi ``ask_item`` (dong
     401-402) — nhanh fallback nay chi cham toi khi khong con agent nao (builtin
     + custom) de chon, hiem khi xay ra tren du lieu that nhung van la mot
     nhanh code song.
@@ -98,7 +98,7 @@ import sys
 sys.path.insert(0, REPO_PARENT_PLACEHOLDER)
 
 from pathlib import Path as _PP
-from PySide6.QtWidgets import QApplication, QInputDialog, QFileDialog, QListWidgetItem
+from PySide6.QtWidgets import QApplication, QFileDialog, QListWidgetItem
 from PySide6.QtCore import Qt
 
 from cowork_local.config import CONFIG_DIR
@@ -269,25 +269,31 @@ assert p.sub_list.count() == before_n, "_step None -> _add_subagent la no-op"
 print("CASE_ADD_SUBAGENT_NO_STEP_NOOP_OK")
 
 p._step = pstep
-orig_getItem = QInputDialog.getItem
-orig_getText = QInputDialog.getText
+# Panel goi ask_item/ask_text cua ui/dialog_buttons (khong con goi thang ham
+# tinh QInputDialog.get*: ham tinh tu dung hop thoai ben trong nen nut "Cancel"
+# cua no luon tieng Anh). Patch dung namespace cua mixin dang goi — patch vao
+# QInputDialog nhu truoc se KHONG chan duoc gi va hop thoai that se mo ra treo.
+from cowork_local.presentation.co4e import node_property_actions_mixin as _acts
+
+orig_getItem = _acts.ask_item
+orig_getText = _acts.ask_text
 changed_n = {"n": 0}
 p.changed.connect(lambda: changed_n.__setitem__("n", changed_n["n"] + 1))
 
-QInputDialog.getItem = staticmethod(lambda *a, **k: ("Picked Agent", True))
+_acts.ask_item = lambda *a, **k: ("Picked Agent", True)
 p._add_subagent()
 assert [s.agent for s in pstep.sub_agents] == ["Picked Agent"]
 assert [p.sub_list.item(i).text() for i in range(p.sub_list.count())] == ["Picked Agent"]
 assert changed_n["n"] == 1
 print("CASE_ADD_SUBAGENT_PICKED_OK")
 
-QInputDialog.getItem = staticmethod(lambda *a, **k: ("", True))
+_acts.ask_item = lambda *a, **k: ("", True)
 p._add_subagent()
 assert [s.agent for s in pstep.sub_agents] == ["Picked Agent"], "ten rong (sau strip) -> khong them"
 assert changed_n["n"] == 1, "khong them thi khong emit changed"
 print("CASE_ADD_SUBAGENT_EMPTY_NAME_NOOP_OK")
 
-QInputDialog.getItem = staticmethod(lambda *a, **k: ("Should Not Add", False))
+_acts.ask_item = lambda *a, **k: ("Should Not Add", False)
 p._add_subagent()
 assert [s.agent for s in pstep.sub_agents] == ["Picked Agent"], "ok=False -> khong them"
 print("CASE_ADD_SUBAGENT_CANCELLED_NOOP_OK")
@@ -303,12 +309,12 @@ print("CASE_ADD_SUBAGENT_CANCELLED_NOOP_OK")
 # StepConfigPanel de no roi ve lai dung method ke thua tu mixin - tuong duong
 # hanh vi voi cach "luu roi gan lai" cu, khong lam yeu di assert nao.
 StepConfigPanel._available_agent_names = staticmethod(lambda: [])
-QInputDialog.getText = staticmethod(lambda *a, **k: ("Typed Agent", True))
+_acts.ask_text = lambda *a, **k: ("Typed Agent", True)
 p._add_subagent()
 assert [s.agent for s in pstep.sub_agents] == ["Picked Agent", "Typed Agent"]
 del StepConfigPanel._available_agent_names
-QInputDialog.getItem = orig_getItem
-QInputDialog.getText = orig_getText
+_acts.ask_item = orig_getItem
+_acts.ask_text = orig_getText
 print("CASE_ADD_SUBAGENT_EMPTY_NAMES_USES_GETTEXT_QUIRK_OK")
 
 # ---- _edit_subagent (410-428) -----------------------------------------------
@@ -323,7 +329,7 @@ def _fake_get_item(*a, **k):
     return ("Renamed", True)
 
 
-QInputDialog.getItem = staticmethod(_fake_get_item)
+_acts.ask_item = _fake_get_item
 item0 = p.sub_list.item(0)
 p._edit_subagent(item0)
 assert captured["current_index"] == 0, "quirk: cur khong nam trong names -> mo dialog tai index 0"
@@ -335,7 +341,7 @@ foreign_item = QListWidgetItem("not in list")
 snapshot = dict(captured)
 p._edit_subagent(foreign_item)
 assert captured == snapshot, "item khong thuoc sub_list (row=-1) -> no-op"
-QInputDialog.getItem = orig_getItem
+_acts.ask_item = orig_getItem
 print("CASE_EDIT_SUBAGENT_FOREIGN_ITEM_NOOP_OK")
 
 # ---- _del_subagent (430-437) -------------------------------------------------

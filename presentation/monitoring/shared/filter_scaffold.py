@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QSplitter, QTableWidget, QVBoxLayout, QWidget,
 )
 
-from ....i18n import tr
+from ....i18n import bind_tip, tr
 from ....ui.icons import icon
 from .event_table import PAGE_SIZE_OPTIONS, ClickOutsideCloser, EventTable
 from .event_detail_panel import EventDetailPanel
@@ -83,7 +83,10 @@ def build_filter_scaffold(
         search.textChanged.connect(table.apply_filter)
         ai_btn = QPushButton(tr("monitoring.ai_filter_btn"))
         ai_btn.setIcon(icon("sparkle"))
-        ai_btn.setToolTip(tr("monitoring.ai_filter_tooltip"))
+        # Bound rather than set once: this scaffold builds the button for all
+        # three event tabs, and none of their retranslate() methods can reach a
+        # tooltip that was applied here.
+        bind_tip(ai_btn, "monitoring.ai_filter_tooltip")
         ai_btn.setCursor(Qt.PointingHandCursor)
         if on_ai_filter is not None:
             ai_btn.clicked.connect(lambda: on_ai_filter(search, ai_btn))

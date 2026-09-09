@@ -158,7 +158,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Không tìm thấy agent '{name}'."},
 
     # ---- agents_admin_tab.py — Admin-only agent catalog -------------------
-    "agents_admin.page_title": {"en": "Agents Admin", "ja": "Agents Admin", "vi": "Agents Admin"},
+    "agents_admin.page_title": {"en": "Agents Admin", "ja": "エージェント管理", "vi": "Agents Admin"},
     "agents_admin.edit_row_tooltip": {"en": "Edit", "ja": "編集", "vi": "Sửa"},
     "agents_admin.delete_row_tooltip": {"en": "Delete", "ja": "削除", "vi": "Xóa"},
     "agents_admin.hint": {
@@ -179,7 +179,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Extra instructions this agent always follows (optional)…",
         "ja": "このエージェントが常に従う追加指示（任意）…",
         "vi": "Chỉ dẫn bổ sung agent này luôn tuân theo (tùy chọn)…"},
-    "agents_admin.f_provider": {"en": "Provider", "ja": "プロバイダー", "vi": "Provider"},
+    "agents_admin.f_provider": {"en": "Provider", "ja": "プロバイダー", "vi": "Nhà cung cấp"},
     "agents_admin.provider_default": {
         "en": "(machine's active provider)", "ja": "（各マシンの現在のプロバイダー）",
         "vi": "(provider hiện tại của máy)"},

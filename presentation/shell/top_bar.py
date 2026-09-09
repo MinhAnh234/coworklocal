@@ -35,7 +35,7 @@ class TopBarMixin:
         from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton
         from ...i18n import tr
         from ...ui.icons import icon as _icon
-        from .rail_metrics import _NAV_ROW_GAP, _NAV_ROW_INSET
+        from .rail_metrics import _NAV_ROW_GAP, _NAV_ROW_INSET, _NAV_SETTINGS_GAP
 
         # Bottom-pinned group: the places you visit occasionally, kept out of the
         # way of the ones you live in. A hairline (styled via #navrailBottom in
@@ -54,7 +54,12 @@ class TopBarMixin:
         self._nav_settings_btn.setCursor(Qt.PointingHandCursor)
         self._nav_settings_btn.clicked.connect(self._open_settings)
         srow = QHBoxLayout(self._nav_settings_btn)
-        srow.setContentsMargins(_NAV_ROW_INSET, 6, 8, 6)
+        # No vertical padding of its own: ``_rebuild_nav`` pins this button to the
+        # nav rows' OWN height, so the 6px a row pads with is already inside
+        # that number. Adding it again here made the row taller than the button
+        # (28 wanted, 20 given), which both clipped the icon and pushed the text
+        # 8px below an even pitch with Dashboard / Giám sát.
+        srow.setContentsMargins(_NAV_ROW_INSET, 0, 8, 0)
         srow.setSpacing(_NAV_ROW_GAP)
         self._nav_settings_icon = QLabel()
         self._nav_settings_icon.setPixmap(_icon("settings").pixmap(16, 16))
@@ -63,6 +68,15 @@ class TopBarMixin:
         srow.addWidget(self._nav_settings_icon)
         srow.addWidget(self._nav_settings_text)
         srow.addStretch(1)
+        # The first _rebuild_nav() ran before this button existed (it is what
+        # fills the list this row belongs under), so take the height here too.
+        self._nav_settings_btn.setFixedHeight(self.nav_bottom.sizeHintForRow(0))
+        # Khe TRÊN hàng Cài đặt, xin thẳng từ layout — thanh rail đặt
+        # ``setSpacing(0)`` nên không có khoảng nào sẵn, và margin trong QSS thì
+        # không mua được pixel nào (xem ``_NAV_SETTINGS_GAP``). Cài đặt là việc
+        # khác với nhóm Dashboard/Giám sát ngay trên nó; dán sát vào thì hai thứ
+        # đọc thành một khối.
+        nvl.addSpacing(_NAV_SETTINGS_GAP)
         nvl.addWidget(self._nav_settings_btn)
         self._account_row = self._build_account_row()
 
@@ -191,10 +205,42 @@ class TopBarMixin:
         # Reload the Cowork tab's Agent (Model) list for the newly selected provider.
         self.cowork.refresh_agents()
         self.workspace.refresh_ai_models()   # + the Folder AI-edit model picker
-        self.statusBar().showMessage(
-            tr("app.status.using_provider",
-               label=PROVIDER_LABELS.get(self.ctx.config.active_provider))
-        )
+        # Khong bao "dang dung <provider>" o thanh trang thai: chinh bo chon
+        # provider nam ngay tren man hinh va da hien thu vua chon, nen dong thong
+        # bao chi nhac lai mot thu nguoi dung vua tu tay lam.
+    def _lang_busy_overlay(self):
+        """The window's busy cover, built on first use.
+
+        Built lazily so a window that never changes language never gets one —
+        and so ``_open_settings`` can be checked for "no switch, no flash".
+        """
+        overlay = getattr(self, "_lang_busy", None)
+        if overlay is None:
+            from .busy_overlay import BusyOverlay
+            overlay = BusyOverlay(self)
+            self._lang_busy = overlay
+        return overlay
+
+    def _switch_language(self, lang: str) -> None:
+        """Apply a new UI language behind a busy cover.
+
+        ``set_language`` runs every registered widget's re-translation on the
+        GUI thread, which on a large skill library takes long enough to look
+        like a hang. Nothing can raise a cover once that has started (no event
+        loop is left running), so it goes up FIRST — see ``busy_overlay.py``.
+
+        The message is read before the switch on purpose: mid-switch the only
+        language the user can still read is the one being left behind.
+        """
+        message = tr("app.lang.switching")
+        self.language_combo.setEnabled(False)
+        try:
+            self._lang_busy_overlay().run_blocking(message, lambda: set_language(lang))
+        finally:
+            # In a ``finally`` so a listener that raises cannot leave the
+            # switcher locked for the rest of the session.
+            self.language_combo.setEnabled(True)
+
     def _on_language_changed(self, _idx: int) -> None:
         """Đổi ngôn ngữ giao diện; trùng ngôn ngữ hiện tại thì bỏ qua để không dựng lại
         toàn bộ chữ vô ích.
@@ -204,7 +250,7 @@ class TopBarMixin:
             return
         self.ctx.config.language = lang
         self.ctx.save()
-        set_language(lang)   # notifies every registered persistent widget
+        self._switch_language(lang)   # notifies every registered persistent widget
     def _open_settings(self) -> None:
         """Mở hộp thoại Cài đặt; bấm Lưu thì áp lại theme và làm mới thanh trên."""
         dlg = SettingsDialog(self.ctx, self)
@@ -215,7 +261,10 @@ class TopBarMixin:
             from ...ui.icons import icon as _theme_icon
             self.theme_btn.setIcon(
                 _theme_icon(self._THEME_ICONS.get(self.ctx.config.theme, "monitor")))
-            set_language(self.ctx.config.language)   # apply if changed in Settings
+            # Guarded, not left to set_language's own no-op check: the cover
+            # around the switch would otherwise flash on every Save.
+            if self.ctx.config.language != get_language():
+                self._switch_language(self.ctx.config.language)
             # reflect provider/theme/language changes
             i = self.provider_combo.findData(self.ctx.config.active_provider)
             if i >= 0:

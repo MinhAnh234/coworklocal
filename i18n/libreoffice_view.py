@@ -134,6 +134,45 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Bật/tắt các tool tích hợp bên dưới. Tool bị tắt sẽ bị loại khỏi bộ công cụ của agent. "
               "Connector MCP / REST-API được thiết lập ở tab con Connector."},
     "tools_admin.refresh": {"en": "Refresh", "ja": "更新", "vi": "Làm mới"},
+    # Mô tả tool HIỂN THỊ trên thẻ, một khoá cho mỗi ``TOOL_SPECS[].name``.
+    # KHÔNG dùng ``spec.description``: chuỗi đó là mô tả gửi cho mô hình trong
+    # schema function-calling, phải giữ nguyên tiếng Anh và viết cho máy đọc.
+    "tools_admin.desc.read_file": {
+        "en": "Read the contents of a text file in the working folder.",
+        "ja": "作業フォルダー内のテキストファイルの内容を読み取ります。",
+        "vi": "Đọc nội dung một tệp văn bản trong thư mục làm việc."},
+    "tools_admin.desc.list_dir": {
+        "en": "List files and subfolders at a path (defaults to the workdir root).",
+        "ja": "指定パスのファイルとサブフォルダーを一覧表示します（既定は作業フォルダー直下）。",
+        "vi": "Liệt kê tệp và thư mục con tại một đường dẫn (mặc định là gốc thư mục làm việc)."},
+    "tools_admin.desc.write_file": {
+        "en": "Create a new file or fully rewrite one. For small edits, prefer edit_file.",
+        "ja": "ファイルを新規作成、または全体を書き換えます。小さな修正には edit_file を使います。",
+        "vi": "Tạo tệp mới hoặc ghi đè toàn bộ. Sửa nhỏ thì nên dùng edit_file."},
+    "tools_admin.desc.edit_file": {
+        "en": "Replace an exact snippet inside an existing file — preferred for small edits.",
+        "ja": "既存ファイル内の特定の箇所を置き換えます。小さな修正に適しています。",
+        "vi": "Thay chính xác một đoạn trong tệp có sẵn — hợp cho các sửa đổi nhỏ."},
+    "tools_admin.desc.run_command": {
+        "en": "Run a shell command in the working folder and return its output.",
+        "ja": "作業フォルダーでシェルコマンドを実行し、その出力を返します。",
+        "vi": "Chạy một lệnh shell trong thư mục làm việc và trả về kết quả."},
+    "tools_admin.desc.install_package": {
+        "en": "Install a Python package (pip) so the task can use a missing library.",
+        "ja": "不足しているライブラリを使えるよう Python パッケージ（pip）をインストールします。",
+        "vi": "Cài gói Python (pip) để tác vụ dùng được thư viện còn thiếu."},
+    "tools_admin.desc.fetch_url": {
+        "en": "Fetch a web page or online document by URL and return its text.",
+        "ja": "URL から Web ページやオンライン文書を取得し、テキストを返します。",
+        "vi": "Tải trang web hoặc tài liệu trực tuyến theo URL và trả về nội dung văn bản."},
+    "tools_admin.desc.jira_search": {
+        "en": "Search Jira issues with a JQL query and return a summary list. Read-only.",
+        "ja": "JQL クエリで Jira の課題を検索し、一覧を返します。読み取り専用です。",
+        "vi": "Tìm issue Jira bằng truy vấn JQL và trả về danh sách tóm tắt. Chỉ đọc."},
+    "tools_admin.desc.jira_get_issue": {
+        "en": "Read one Jira issue's details by key, e.g. ABX-123.",
+        "ja": "キー（例: ABX-123）を指定して Jira 課題の詳細を読み取ります。",
+        "vi": "Đọc chi tiết một issue Jira theo mã, ví dụ ABX-123."},
     "tools_admin.url_fetch_group": {
         "en": "Web access (fetch_url)", "ja": "Webアクセス (fetch_url)",
         "vi": "Truy cập web (fetch_url)"},
@@ -268,6 +307,12 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "co4e.custom": {"en": "custom", "ja": "カスタム", "vi": "tùy chỉnh"},
     "co4e.parallel_node": {"en": "Parallel (fan-out)", "ja": "並列（ファンアウト）", "vi": "Song song (fan-out)"},
     "co4e.add_step": {"en": "Add step", "ja": "ステップ追加", "vi": "Thêm bước"},
+    "co4e.canvas_add_next": {
+        "en": "Add next step", "ja": "次のステップを追加", "vi": "Thêm bước kế"},
+    "co4e.canvas_connect_from": {
+        "en": "Connect from here", "ja": "ここから接続", "vi": "Nối từ đây"},
+    "co4e.canvas_delete_edge": {
+        "en": "Delete connection", "ja": "接続を削除", "vi": "Xóa liên kết"},
     "co4e.fit": {"en": "Fit", "ja": "全体表示", "vi": "Vừa màn hình"},
     "co4e.fit_tooltip": {
         "en": "Auto-fit: zoom to show every step", "ja": "自動フィット：全ステップを表示",

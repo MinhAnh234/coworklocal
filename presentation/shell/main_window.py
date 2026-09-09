@@ -163,9 +163,10 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
             self._built.append(widget is not None)
 
         self._build_nav_rail(right, rlay)
-        # Landing stays Workspace ▸ Project, exactly as before. Go through _goto
-        # so the page is actually shown — selecting the row alone only moves the
-        # highlight (its signals are blocked to avoid rebuild loops).
+        # Land on the Workspace screen. Go through _goto so the page is actually
+        # shown — selecting the row alone only moves the highlight (its signals
+        # are blocked to avoid rebuild loops). Which Workspace sub-view the user
+        # ends up looking at is settled after _restore_sessions(), below.
         self._goto(self._ROW_WORKSPACE, self.workspace.current_subtab())
         self.toast = Toast(self)   # top-left "task done" popup
         # Floating in-app Help assistant — a robot icon pinned bottom-right on
@@ -176,14 +177,19 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
         self.help_agent.status_message.connect(self.statusBar().showMessage)
 
         self.statusBar().showMessage(tr("app.status.ready"))
-        # Author credit, pinned to the bottom-right corner. A permanent status-bar
-        # widget sits at the right end and is never cleared by showMessage (which
-        # writes on the left).
-        self._credit = QLabel(tr("app.credit"))
-        self._credit.setObjectName("faint")
-        self._credit.setStyleSheet("padding: 0 10px;")
-        self.statusBar().addPermanentWidget(self._credit)
+        # Góc dưới phải: đúng một dòng phiên bản (cùng nguồn với tiêu đề cửa sổ).
+        # Tắt size grip — nó vẽ một vệt ngay bên phải chữ; cửa sổ vẫn kéo được cạnh.
+        self.statusBar().setSizeGripEnabled(False)
+        self.statusBar().addPermanentWidget(QLabel(tr("app.version", v=__version__)))
         self._restore_sessions()
+        # Open on "All projects…" — literally the same call the nav rail's link
+        # of that name makes, so the rail highlight and the content can never
+        # disagree. This runs AFTER the restore on purpose: _restore_sessions
+        # still reloads the last thread, because recovering it after a crash is
+        # the whole point of it, but the user should first see the list of
+        # everything rather than whichever conversation happened to be open when
+        # the app was last closed.
+        self.goto_all_projects()
         self._tray.setup()
         # Start the task scheduler last, once the whole window exists — it
         # catches up any overdue tasks right away (first tick runs inline).
@@ -252,9 +258,14 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
         self._nav_toggle_btn.setText("" if self._nav_collapsed else tr("app.nav.menu_label"))
         self._nav_toggle_btn.setToolTip(
             tr("app.nav.expand_tooltip") if self._nav_collapsed else tr("app.nav.collapse_tooltip"))
-        self._credit.setText(tr("app.credit"))
         if hasattr(self, "provider_lbl"):
             self.provider_lbl.setText(tr("app.provider"))
+            # The label is hidden — the combo names itself through its tooltip
+            # (see top_bar._build_account_row), so that is the one users read.
+            self.provider_combo.setToolTip(tr("app.provider"))
+        if hasattr(self, "nav_project"):
+            self.nav_project.setToolTip(tr("app.nav.project_pick"))
+            self.nav_recents_hdr.setText(tr("app.nav.recents"))
         if hasattr(self, "settings_btn"):
             self.settings_btn.setText(tr("app.settings"))
         if hasattr(self, "theme_btn"):
@@ -266,6 +277,13 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
         if getattr(self, "help_agent", None) is not None:
             self.help_agent.retranslate()
         self._tray.retranslate()
+        # Thanh trạng thái (góc dưới bên trái) nhận thông báo từ hàng chục nơi
+        # qua signal ``status_message``, và signal đó mang CHUỖI ĐÃ DỊCH chứ
+        # không mang khoá — nên không thể dịch lại câu đang hiện. Đưa nó về câu
+        # nền của ngôn ngữ mới: câu cũ không đọng lại bằng thứ tiếng vừa rời đi,
+        # mà chỗ đó cũng không trống trơn. Thông báo là ghi chú về một việc vừa
+        # xong, nên bỏ nó đi khi đổi ngôn ngữ không làm mất thông tin nào.
+        self.statusBar().showMessage(tr("app.status.ready"))
 
     # ---- system tray (run in background when the window is closed) ---
 

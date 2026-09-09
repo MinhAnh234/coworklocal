@@ -35,7 +35,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
-from ...i18n import tr
+from ...i18n import bind_text, bind_tip
 from ...ui.icons import icon
 from .palette_list import _PaletteList
 
@@ -55,9 +55,11 @@ class AgentListPanel(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         """Danh sách agent ở cột trái Co4E Studio, kèm nút tạo mới."""
         super().__init__(parent)
-        self.new_btn = QPushButton(tr("co4e.new"))
+        # Bound, not set once: this panel has no retranslate hook of its own, and
+        # Co4ETab (which owns the language callback) cannot reach these tooltips.
+        self.new_btn = bind_text(QPushButton(), "co4e.new")
         self.new_btn.setIcon(icon("plus"))
-        self.new_btn.setToolTip(tr("co4e.tt_new_agent"))
+        bind_tip(self.new_btn, "co4e.tt_new_agent")
         self.new_btn.setObjectName("co4eSectionAction")
         self.new_btn.setFlat(True)
         self.new_btn.setCursor(Qt.PointingHandCursor)
@@ -75,11 +77,11 @@ class AgentListPanel(QWidget):
         # Edit/delete act on the selected row, so they stay with the list.
         self.edit_btn = QPushButton()
         self.edit_btn.setIcon(icon("edit"))
-        self.edit_btn.setToolTip(tr("co4e.tt_edit_agent"))
+        bind_tip(self.edit_btn, "co4e.tt_edit_agent")
         self.edit_btn.setFixedWidth(34)
         self.del_btn = QPushButton()
         self.del_btn.setIcon(icon("trash"))
-        self.del_btn.setToolTip(tr("co4e.tt_del_agent"))
+        bind_tip(self.del_btn, "co4e.tt_del_agent")
         self.del_btn.setFixedWidth(34)
         # KHONG noi .clicked o day: cung ly do nhu new_btn o tren.
         btns.addWidget(self.edit_btn)

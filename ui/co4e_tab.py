@@ -390,21 +390,35 @@ class Co4ETab(
 
     # ---- i18n -------------------------------------------------------------
     def _retranslate(self) -> None:
-        """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề các mục và tooltip."""
-        for key in self._sections:
-            self._sync_section_arrow(key)
-        self.runs_more_btn.setToolTip(tr("co4e.tt_runs_tab"))
-        self.wf_new_btn.setText(tr("co4e.new"))
-        self.wf_new_btn.setToolTip(tr("co4e.tt_new_wf"))
+        """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề các mục và tooltip.
+
+        Cột trái và trang Flow Status không có mặt ở đây: mỗi widget bên đó tự
+        ràng buộc khoá dịch của mình tại chỗ dựng (``i18n.bind_*``), nên panel
+        dùng ở đâu cũng đúng ngôn ngữ mà không cần ai nhớ hộ.
+        """
         self.runs_btn.setText(tr("co4e.runs_tab"))
         self.runs_btn.setToolTip(tr("co4e.tt_runs_tab"))
-        self.runs_back_btn.setText(tr("co4e.back_to_flow"))
-        self.runs_back_btn.setToolTip(tr("co4e.tt_back_to_flow"))
-        self.runs_title.setText(tr("co4e.running_flows"))
-        self.run_stop_btn.setText(tr("co4e.stop"))
-        self.run_rename_btn.setText(tr("co4e.rename_run"))
-        self.run_del_btn.setText(tr("co4e.delete_run"))
-        self.run_clear_btn.setText(tr("co4e.clear_done"))
+        # Flow toolbar.
+        self.name_edit.setToolTip(tr("co4e.tt_flow_name"))
+        self.add_step_btn.setText(tr("co4e.add"))
+        self.add_step_btn.setToolTip(tr("co4e.tt_add_step"))
+        self.save_btn.setText(tr("co4e.save"))
+        self.save_btn.setToolTip(tr("co4e.tt_save"))
+        self.save_tpl_btn.setToolTip(tr("co4e.tt_save_template"))
+        self.mode_combo.setToolTip(tr("co4e.tt_mode"))
+        # By position, from the same source the items were built from: the mode
+        # string in each item's data is persisted, so it must survive a
+        # translation untouched.
+        for i, mode in enumerate(co4e.RUN_MODES):
+            self.mode_combo.setItemText(i, tr(f"co4e.mode.{mode}"))
+        self.run_btn.setToolTip(tr("co4e.tt_run"))
+        # Not a plain tr(): this button reads "Dừng" while THIS flow is running.
+        self._update_run_btn()
+        # Step-config panel header. The toggle's tooltip names the action it
+        # would perform, which depends on which way the panel is folded.
+        self.config_title.setText(tr("co4e.config_title"))
+        self.config_toggle_btn.setToolTip(tr(
+            "co4e.tt_expand_config" if self._config_collapsed else "co4e.tt_collapse_config"))
         self._refresh_ws_folder_btn()
         self.runs_table.setHorizontalHeaderLabels([
             tr("co4e.runs_col_flow"), tr("co4e.runs_col_status"), tr("co4e.runs_col_steps"),

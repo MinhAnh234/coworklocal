@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
-    QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+    QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
     QMessageBox, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -17,6 +17,7 @@ from ..core import custom_icons
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
 from . import icons as icons_mod
+from .dialog_buttons import ask_multiline, ask_text
 from .icons import icon
 
 
@@ -116,8 +117,8 @@ class IconsAdminTab(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, tr("icons_admin.add"), "", "SVG (*.svg)")
         if not path:
             return
-        name, ok = QInputDialog.getText(self, tr("icons_admin.name_prompt"),
-                                        tr("icons_admin.name_prompt"))
+        name, ok = ask_text(self, tr("icons_admin.name_prompt"),
+                            tr("icons_admin.name_prompt"))
         if not ok:
             return
         try:
@@ -129,12 +130,12 @@ class IconsAdminTab(QWidget):
 
     def _add_from_svg_text(self) -> None:
         """Thêm icon bằng cách dán thẳng mã SVG."""
-        name, ok = QInputDialog.getText(self, tr("icons_admin.name_prompt"),
-                                        tr("icons_admin.name_prompt"))
+        name, ok = ask_text(self, tr("icons_admin.name_prompt"),
+                            tr("icons_admin.name_prompt"))
         if not ok or not name.strip():
             return
-        svg, ok = QInputDialog.getMultiLineText(self, tr("icons_admin.paste"),
-                                                tr("icons_admin.paste_prompt"))
+        svg, ok = ask_multiline(self, tr("icons_admin.paste"),
+                                tr("icons_admin.paste_prompt"))
         if not ok:
             return
         try:

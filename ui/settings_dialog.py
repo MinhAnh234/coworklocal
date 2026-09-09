@@ -13,6 +13,8 @@ chưa từng được gán nên gọi vào là AttributeError.
 """
 from __future__ import annotations
 
+import secrets
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
@@ -23,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..i18n import tr
+from .dialog_buttons import dialog_buttons
 from .icons import IconLabel
 from .widgets import ToggleSwitch
 
@@ -31,6 +34,27 @@ from ..presentation.settings.general_settings_widget import GeneralSettingsWidge
 from ..presentation.settings.provider_settings_widget import ProviderSettingsWidget
 from ..presentation.settings.parameter_settings_widget import ParameterSettingsWidget
 from ..presentation.settings.routing_settings_widget import RoutingSettingsWidget
+from ..presentation.settings.about_widget import AboutSettingsWidget
+
+
+def _sandbox_password_matches(entered: str, stored: str) -> bool:
+    """Whether ``entered`` unlocks the Sandbox Security group.
+
+    An empty ``stored`` must never match. ``DEFAULT_CONFIG`` ships
+    ``agent_security.sandbox_pw = ""`` and the config handed to this dialog is
+    always deep-merged with those defaults, so a plain ``entered == stored``
+    accepts an empty field on every install that never set a password. The MS365
+    unlock guards the same way — see ``json_config_repository.unlock_ms365``.
+
+    Both sides are compared as UTF-8 bytes, not as ``str``:
+    ``compare_digest`` raises ``TypeError`` on ``str`` holding anything outside
+    ASCII, and this app defaults to Vietnamese and ships to Japanese customers,
+    so an accented password is ordinary input rather than an edge case.
+    """
+    if not entered or not stored:
+        return False
+    return secrets.compare_digest(entered.encode("utf-8"), stored.encode("utf-8"))
+
 
 class SettingsDialog(QDialog):
     """Hộp thoại Cài đặt: cột mục lục bên trái, các trang bên phải
@@ -85,23 +109,23 @@ class SettingsDialog(QDialog):
         sbl = QVBoxLayout(self.sandbox_group)
 
         # --- Password protection for Sandbox Security (at top) ---
-        self.sandbox_pw_label = IconLabel("lock", "Sandbox Security Password")
+        self.sandbox_pw_label = IconLabel("lock", tr("settings.sandbox_pw_label"))
         sbl.addWidget(self.sandbox_pw_label)
 
         pw_row = QHBoxLayout()
         self.sandbox_pw_edit = QLineEdit("")
-        self.sandbox_pw_edit.setPlaceholderText("Enter password to edit sandbox settings")
+        self.sandbox_pw_edit.setPlaceholderText(tr("settings.sandbox_pw_placeholder"))
         self.sandbox_pw_edit.setEchoMode(QLineEdit.Password)
         pw_row.addWidget(self.sandbox_pw_edit, 1)
-        self.sandbox_unlock_btn = QPushButton("Unlock")
+        self.sandbox_unlock_btn = QPushButton(tr("settings.sandbox_unlock_btn"))
         self.sandbox_unlock_btn.clicked.connect(self._sandbox_unlock)
         pw_row.addWidget(self.sandbox_unlock_btn)
-        self.sandbox_locked_status = IconLabel("lock", "Locked (changes disabled)", color="#c00")
+        self.sandbox_locked_status = IconLabel("lock", tr("settings.sandbox_locked"), color="#c00")
         self.sandbox_locked_status.text_label().setStyleSheet("color: #c00; font-weight: bold;")
         pw_row.addWidget(self.sandbox_locked_status)
         sbl.addLayout(pw_row)
         self._sandbox_unlocked = False  # Start LOCKED — must enter password first
-        self._sandbox_pw = sec.get("sandbox_pw", "quandh14")
+        self._sandbox_pw = sec.get("sandbox_pw", "")
 
         # Separator line between pw section and sandbox settings
         pw_sep = QLabel("────────────────")
@@ -122,15 +146,15 @@ class SettingsDialog(QDialog):
         # they belong with the other tool toggles — see ToolsAdminTab).
 
         # --- Enable/Disable Agent Security ---
-        self.sec_enabled = ToggleSwitch("Enable Agent Security (command validation)")
+        self.sec_enabled = ToggleSwitch(tr("settings.sec_enabled"))
         self.sec_enabled.setChecked(bool(sec.get("enabled", True)))
-        self.sec_enabled.setToolTip("Bật/tắt toàn bộ Agent Security")
+        self.sec_enabled.setToolTip(tr("settings.sec_enabled_tooltip"))
         sbl.addWidget(self.sec_enabled)
 
         # --- AI Command Check toggle ---
-        self.ai_check = ToggleSwitch("AI check commands")
+        self.ai_check = ToggleSwitch(tr("settings.ai_check"))
         self.ai_check.setChecked(bool(sec.get("command_ai_check", False)))
-        self.ai_check.setToolTip("Cho AI control-agent xét lệnh trước khi chạy")
+        self.ai_check.setToolTip(tr("settings.ai_check_tooltip"))
         sbl.addWidget(self.ai_check)
 
         # Resource limits (CPU/Memory/Disk I/O) moved to the Parameter group
@@ -169,12 +193,18 @@ class SettingsDialog(QDialog):
         from .widgets import section_panels
 
 
+        # Giới thiệu đứng CUỐI: nó không có thiết lập nào để đổi, nên đặt trước
+        # các mục thao tác được sẽ đẩy chúng xuống mà không được gì.
+        self._about_page = AboutSettingsWidget(self.ctx)
+        root.addWidget(self._about_page)
+
         pages = []
         for label, widget in ((tr("settings.group.general"), self._general_box),
                               (tr("settings.group.provider"), prov_group),
                               (tr("settings.group.sandbox"), self.sandbox_group),
                               (tr("settings.group.parameter"), param_group),
-                              (tr("routing.settings_group"), routing_group)):
+                              (tr("routing.settings_group"), routing_group),
+                              (tr("settings.group.about"), self._about_page)):
             root.removeWidget(widget)
             page = QWidget()
             pv = QVBoxLayout(page)
@@ -200,7 +230,7 @@ class SettingsDialog(QDialog):
         widest = max(w.widget().sizeHint().width() for _lab, w in pages)
         self.setMinimumWidth(self.section_list.width() + widest + 60)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)
@@ -276,17 +306,26 @@ class SettingsDialog(QDialog):
         phải cơ chế bảo mật thật.
         """
         pw = self.sandbox_pw_edit.text()
-        if pw == self._sandbox_pw:
+        if not self._sandbox_pw:
+            # No password configured. Refusing with "wrong password" would be a
+            # dead end — the user would keep retrying a password that cannot
+            # exist — so name the actual state instead.
+            QMessageBox.warning(self, tr("settings.sandbox_pw_unset_title"),
+                                tr("settings.sandbox_pw_unset_body"))
+            return
+        if _sandbox_password_matches(pw, self._sandbox_pw):
             self._sandbox_unlocked = True
-            self.sandbox_locked_status.setText("Unlocked")
+            self.sandbox_locked_status.setText(tr("settings.sandbox_unlocked"))
             self.sandbox_locked_status.set_icon("unlock", "#090")
             self.sandbox_locked_status.text_label().setStyleSheet("color: #090; font-weight: bold;")
             # Enable all sandbox widgets
             for w in self._sandbox_widgets:
                 w.setEnabled(True)
-            QMessageBox.information(self, "Sandbox Security", "Sandbox settings unlocked.")
+            QMessageBox.information(self, tr("settings.group.sandbox"),
+                                    tr("settings.sandbox_unlocked_body"))
         else:
-            QMessageBox.warning(self, "Wrong Password", "Password incorrect. Sandbox settings remain locked.")
+            QMessageBox.warning(self, tr("settings.sandbox_pw_wrong_title"),
+                                tr("settings.sandbox_pw_wrong_body"))
 
     def _save(self) -> None:
         """Gom cấu hình từ mọi trang con rồi ghi xuống đĩa."""

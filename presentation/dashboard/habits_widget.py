@@ -116,9 +116,9 @@ class HabitsWidget(QWidget):
         """Apply an AI-suggested cost-saving strategy AFTER the user
         approves: turn on auto-compress and compress earlier (lower
         threshold) + compress content before sending it to the agent."""
-        from PySide6.QtWidgets import QMessageBox
-        if QMessageBox.question(self, tr("dashboard.strategy_title"),
-                                tr("dashboard.strategy_confirm")) != QMessageBox.Yes:
+        from ...ui.dialog_buttons import confirm
+        if not confirm(self, tr("dashboard.strategy_title"),
+                       tr("dashboard.strategy_confirm")):
             return
         cx = self.ctx.config.data.setdefault("context", {})
         cx["auto_compact"] = True

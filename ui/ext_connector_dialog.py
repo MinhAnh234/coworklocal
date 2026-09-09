@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from ..core.ext_connectors import CATEGORIES, PRESETS
 from ..i18n import tr
+from .dialog_buttons import dialog_buttons
 
 # ms365 has no user-created entries here (see ConnectorsPanel) — it auto-connects
 # via its own built-in OneDrive/SharePoint toggles, so it's left off this picker.
@@ -119,7 +120,7 @@ class ExtConnectorEditDialog(QDialog):
 
         self._enabled = bool(connector.get("enabled", False))
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         lay.addWidget(buttons)

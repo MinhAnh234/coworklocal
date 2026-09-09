@@ -70,15 +70,21 @@ def dialog(qapp):
 
 # ---- dialog gồm những mục nào -------------------------------------------
 
-def test_co_dung_nam_muc(dialog):
-    """Năm mục thật trên màn hình. Plan R08-T07 ghi bốn widget và có một cái
-    tên `connector`, nhưng UI connector đã dời khỏi Settings từ trước (xem
-    ghi chú ở settings_dialog.py:180) — nên con số thật là năm, không bốn."""
+def test_co_dung_sau_muc(dialog):
+    """Sáu mục thật trên màn hình.
+
+    Plan R08-T07 ghi bốn widget và có một cái tên `connector`, nhưng UI
+    connector đã dời khỏi Settings từ trước (xem ghi chú ở
+    settings_dialog.py:180) — nên con số thật là năm, không bốn.
+
+    Mục thứ sáu là "Giới thiệu", thêm ngày 2026-09-07 cùng lúc với việc gỡ dòng
+    ghi công tác giả khỏi góc dưới phải cửa sổ. Đây là thay đổi CÓ CHỦ Ý, không
+    phải tách nhầm."""
     dlg, _ = dialog
     labels = [dlg.section_list.item(i).text()
               for i in range(dlg.section_list.count())]
-    assert len(labels) == 5, labels
-    assert dlg.section_stack.count() == 5
+    assert len(labels) == 6, labels
+    assert dlg.section_stack.count() == 6
 
 
 def test_moi_muc_deu_bam_duoc(dialog):

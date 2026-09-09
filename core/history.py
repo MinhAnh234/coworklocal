@@ -132,6 +132,58 @@ def _matches_query(query: str, title: str, messages: List[Dict[str, Any]]) -> bo
     return False
 
 
+def history_dirs() -> list:
+    """Các cặp ``(project_id, thư mục lịch sử)`` của MỌI project, cộng thư mục
+    mặc định cho hội thoại chưa thuộc project nào.
+
+    Có hàm này vì lịch sử KHÔNG nằm chung một chỗ, mà nằm trong thư mục làm việc
+    của từng project. Ai chỉ gọi ``list_conversations()`` một lần sẽ chỉ thấy
+    hội thoại của project đang mở — hoặc, nếu gọi không tham số, không thấy cái
+    nào cả. Đó chính là hai lỗi đã xảy ra: khung "Tất cả project…" hiện nhóm
+    rỗng cho mọi project trừ một, và mọi dòng project đều đếm "0 đoạn chat".
+    """
+    from ..config import HISTORY_DIR
+    from .projects import list_projects, project_history_dir
+
+    pairs = [("default", HISTORY_DIR)]
+    for project in list_projects():
+        pairs.append((project.project_id, project_history_dir(project)))
+    return pairs
+
+
+def list_conversations_by_project(pairs, query: str = "") -> List[Dict[str, Any]]:
+    """Gộp lịch sử hội thoại của NHIỀU project. ``pairs`` là các cặp
+    ``(project_id, directory)``.
+
+    Lịch sử KHÔNG nằm chung một chỗ: ``WorkspaceTab`` đặt
+    ``config._project_history_dir`` thành ``<workspace của project>/.cowork_history``
+    mỗi lần người dùng chọn project khác, nên ``config.history_dir()`` chỉ trả về
+    thư mục của project ĐANG mở. Một lần gọi :func:`list_conversations` vì thế
+    chỉ thấy được hội thoại của project đó — khung "Tất cả project…" dựng đủ
+    tiêu đề nhóm cho mọi project nhưng mọi nhóm trừ một đều rỗng.
+
+    Thư mục là chủ sở hữu có thẩm quyền: hội thoại nằm trong thư mục làm việc của
+    project nào thì thuộc project đó, kể cả khi trường ``project_id`` ghi trong
+    file đã cũ (project bị đổi thư mục chẳng hạn).
+    """
+    seen: set = set()
+    items: List[Dict[str, Any]] = []
+    for project_id, directory in pairs:
+        if directory is None:
+            continue
+        for meta in list_conversations(directory, query=query):
+            key = str(meta["path"])
+            if key in seen:
+                continue
+            seen.add(key)
+            if project_id:
+                meta["project_id"] = project_id
+            items.append(meta)
+    # Cùng thứ tự mà list_conversations dùng: ghim lên đầu, rồi mới nhất trước.
+    items.sort(key=lambda d: (not d["pinned"], -d["mtime"]))
+    return items
+
+
 def list_conversations(directory: Optional[Path] = None, query: str = "") -> List[Dict[str, Any]]:
     """List saved conversations, most recent first (pinned always on top).
 

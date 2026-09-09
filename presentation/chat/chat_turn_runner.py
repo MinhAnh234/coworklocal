@@ -65,6 +65,10 @@ class ChatTurnRunnerMixin:
         attachments = attachments or []
         typed = text
         prefix, request, info = self._apply_skill_command(text)
+        # Moi duong tra ve som duoi day cung them mot bong nguoi dung vao khung,
+        # nen man gioi thieu phai nhuong cho ngay tai day — dat sau tung
+        # add_user() thi de sot dung mot nhanh, va nhanh do se hien ca hai thu.
+        self.show_welcome(False)
         if info is not None:
             # A local /skill command (list / select / error) — answer inline.
             self.chat_view.add_user(typed)

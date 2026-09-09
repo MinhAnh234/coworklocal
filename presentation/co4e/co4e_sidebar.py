@@ -11,12 +11,40 @@ from typing import List
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QHBoxLayout, QListWidget, QListWidgetItem, QPushButton, QSplitter, QVBoxLayout, QWidget
 from ...core import co4e, skills as skills_mod
-from ...i18n import tr
+from ...i18n import bind_dynamic, bind_text, bind_tip, tr
 from ...ui.icons import icon
 from ...presentation.co4e.agent_list_panel import AgentListPanel
-from ...presentation.co4e.co4e_chat_view import _skill_names
 from ...presentation.co4e.palette_list import _PaletteList
 from ...presentation.co4e.skills_list_panel import SkillsListPanel
+
+
+def _skill_prefix_lookup(all_skills):
+    """Answer ``skills.skill_prefix_for`` from an ALREADY-LOADED skill list.
+
+    ``skill_prefix_for`` re-reads the whole skill folder on every call, so
+    asking it once per skill made a sidebar reload cost one full disk scan per
+    skill — measured at ~3.8s of frozen GUI thread on a 121-skill library, and
+    that reload runs on every language switch.
+
+    The scan order and the blank-instructions rule are copied from
+    ``skill_prefix_for`` deliberately: a namesake with no instructions must NOT
+    end the search, or a skill's text silently becomes empty in an agent prompt.
+    """
+    cache: dict = {}
+
+    def lookup(name: str) -> str:
+        """The ``## Skill: <name>\\n<instructions>`` block for one name, or ''."""
+        if not name:
+            return ""
+        low = name.strip().lower()
+        if low not in cache:
+            cache[low] = next(
+                (f"## Skill: {s.name}\n{s.instructions.strip()}" for s in all_skills
+                 if (s.slug == low or s.name.lower() == low) and s.instructions.strip()),
+                "")
+        return cache[low]
+
+    return lookup
 
 
 class Co4ESidebarMixin:
@@ -66,9 +94,12 @@ class Co4ESidebarMixin:
         col = _Col(self.side_split)
 
         # --- WORKFLOWS ---------------------------------------------------
-        self.wf_new_btn = QPushButton(tr("co4e.new"))
+        # Bound, not set once: Co4ETab._retranslate reloads the sidebar's LIST
+        # CONTENTS, but these headings, buttons and tooltips are built here and
+        # nothing re-applied them — they stayed in the language of app start-up.
+        self.wf_new_btn = bind_text(QPushButton(), "co4e.new")
         self.wf_new_btn.setIcon(icon("plus"))
-        self.wf_new_btn.setToolTip(tr("co4e.tt_new_wf"))
+        bind_tip(self.wf_new_btn, "co4e.tt_new_wf")
         self.wf_new_btn.setObjectName("co4eSectionAction")
         self.wf_new_btn.setFlat(True)
         self.wf_new_btn.setCursor(Qt.PointingHandCursor)
@@ -78,7 +109,7 @@ class Co4ESidebarMixin:
         # Draggable: drag a flow onto the canvas to merge it in (Nova-style);
         # double-click loads it onto the canvas.
         self.wf_list = _PaletteList(payload_role=Qt.UserRole + 2)
-        self.wf_list.setToolTip(tr("co4e.drag_hint"))
+        bind_tip(self.wf_list, "co4e.drag_hint")
         self.wf_list.itemDoubleClicked.connect(self._load_selected_workflow)
         self.wf_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.wf_list.customContextMenuRequested.connect(self._wf_context_menu)
@@ -93,8 +124,9 @@ class Co4ESidebarMixin:
         wl.addLayout(wf_btns)
         # Its own row: sharing one line with the three icon buttons cut "Chạy
         # nền" down to "Chạ" as soon as the sidebar hit its narrow width.
-        self.wf_runbg_btn = QPushButton(tr("co4e.run_bg")); self.wf_runbg_btn.setIcon(icon("play"))
-        self.wf_runbg_btn.setToolTip(tr("co4e.tt_run_bg"))
+        self.wf_runbg_btn = bind_text(QPushButton(), "co4e.run_bg")
+        self.wf_runbg_btn.setIcon(icon("play"))
+        bind_tip(self.wf_runbg_btn, "co4e.tt_run_bg")
         self.wf_runbg_btn.clicked.connect(self._run_selected_in_background)
         wl.addWidget(self.wf_runbg_btn)
         col.addWidget(self._section("co4e.tab_workflows", wf_body, self.wf_new_btn), 3)
@@ -135,12 +167,12 @@ class Co4ESidebarMixin:
         self.runs_more_btn.setIcon(icon("chevron-right"))
         self.runs_more_btn.setFixedWidth(30)
         self.runs_more_btn.setFlat(True)
-        self.runs_more_btn.setToolTip(tr("co4e.tt_runs_tab"))
+        bind_tip(self.runs_more_btn, "co4e.tt_runs_tab")
         self.runs_more_btn.clicked.connect(lambda: self._show_runs(True))
         runs_body = QWidget(); rl = QVBoxLayout(runs_body)
         rl.setContentsMargins(0, 0, 0, 0); rl.setSpacing(4)
         self.runs_side_list = QListWidget()
-        self.runs_side_list.setToolTip(tr("co4e.tt_runs_tab"))
+        bind_tip(self.runs_side_list, "co4e.tt_runs_tab")
         self.runs_side_list.itemClicked.connect(self._on_side_run_clicked)
         rl.addWidget(self.runs_side_list, 1)
         col.addWidget(self._section("co4e.runs_tab", runs_body, self.runs_more_btn), 2)
@@ -202,7 +234,10 @@ class Co4ESidebarMixin:
         v.addWidget(body, 1)
 
         self._sections[key] = (head, body, stretch)
-        self._sync_section_arrow(key)
+        # bind_dynamic, not bind_text: the heading is the fold arrow plus the
+        # translated name in caps, so re-applying it means re-running the whole
+        # line rather than pushing one key into setText.
+        bind_dynamic(head, lambda k=key: self._sync_section_arrow(k))
         return box
     def _fold_section(self, key: str, body: QWidget, box: QWidget, on: bool) -> None:
         """Fold/unfold a section AND give its height back to the others.
@@ -223,7 +258,7 @@ class Co4ESidebarMixin:
         head.setText(("▾ " if head.isChecked() else "▸ ") + tr(key).upper())
     def _icon_btn(self, icon_name: str, tip_key: str, slot) -> QPushButton:
         """Dựng một nút icon nhỏ (rộng 34px) kèm tooltip cho hàng công cụ của mục."""
-        b = QPushButton(); b.setIcon(icon(icon_name)); b.setToolTip(tr(tip_key))
+        b = QPushButton(); b.setIcon(icon(icon_name)); bind_tip(b, tip_key)
         b.setFixedWidth(34)
         b.clicked.connect(slot)
         return b
@@ -254,13 +289,16 @@ class Co4ESidebarMixin:
                                     co4e._step_dict(step))
             it.setData(Qt.UserRole + 1, ca.id)
             self.agent_list.addItem(it)
-        # Skills
+        # Skills — the library is read ONCE here and both the names and the
+        # instructions come out of that one read (see _skill_prefix_lookup).
         self.skill_list.clear()
-        for name in _skill_names():
-            content = skills_mod.skill_prefix_for(name)
+        all_skills = skills_mod.list_skills() + skills_mod.builtin_skills()
+        skill_prefix = _skill_prefix_lookup(all_skills)
+        for skill in all_skills:
+            name = skill.name
             payload = co4e._step_dict(co4e.Step(
                 label=name, agent_slug=co4e.slugify(name), role="SKILL", icon="sparkle",
-                instructions=content, skills=[name]))
+                instructions=skill_prefix(name), skills=[name]))
             self.skill_list.addItem(self._palette_item(name, "sparkle", payload))
     @staticmethod
     def _palette_item(text: str, icon_name: str, payload: dict) -> QListWidgetItem:

@@ -13,14 +13,15 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from ..core.ext_connectors import CATEGORIES as EXT_CATEGORIES
 from ..core.worker import AgentWorker
-from ..i18n import on_language_changed, tr
+from ..i18n import bind_text, on_language_changed, tr
 from ..state import AppContext
+from .dialog_buttons import confirm
 from .ext_connector_dialog import ExtConnectorEditDialog
 from .icons import icon
 from .widgets import FlowLayout, ToggleSwitch, enable_height_for_width, style_card
@@ -129,11 +130,13 @@ class ConnectorsPanel(QWidget):
 
     Có một công tắc tổng: tắt là agent không nối ra connector ngoài nào cả.
     """
+    # Khoá dịch, không phải chữ sẵn: nhãn nhóm dựng lại trong _reload_connectors
+    # nên tr() ở đó là đủ (xem i18n/connectors.py).
     _EXT_CATEGORY_LABELS = {
-        "cad": "CAD (NX / CATIA / SolidWorks / AutoCAD)",
-        "cae": "CAE (ANSA / ABAQUS / HyperWorks / ANSYS)",
-        "ms365": "MS365 (Microsoft 365 / OneDrive / SharePoint)",
-        "other": "Other (any generic MCP server)",
+        "cad": "connectors.cat_cad",
+        "cae": "connectors.cat_cae",
+        "ms365": "connectors.cat_ms365",
+        "other": "connectors.cat_other",
     }
     _EXT_CATEGORY_ICONS = {"cad": "wrench", "cae": "ruler", "ms365": "cloud", "other": "plug"}
     # TEMPORARY: only OneDrive + SharePoint (auto-connect via locally-synced
@@ -160,7 +163,7 @@ class ConnectorsPanel(QWidget):
         self.connect_external_sw.toggled.connect(self._on_connect_external_toggled)
         lay.addWidget(self.connect_external_sw)
 
-        hint = QLabel(tr("settings.ext_hint"))
+        hint = bind_text(QLabel(), "settings.ext_hint")
         hint.setObjectName("hint")
         hint.setWordWrap(True)
         lay.addWidget(hint)
@@ -232,7 +235,7 @@ class ConnectorsPanel(QWidget):
         icon_lbl = QLabel()
         icon_lbl.setPixmap(icon(self._EXT_CATEGORY_ICONS.get(cat, "plug"), size=18).pixmap(18, 18))
         hdr.addWidget(icon_lbl)
-        name, _, subtitle = self._EXT_CATEGORY_LABELS.get(cat, cat).partition(" (")
+        name, _, subtitle = tr(self._EXT_CATEGORY_LABELS.get(cat, cat)).partition(" (")
         name_lbl = QLabel(name)
         name_lbl.setStyleSheet("font-weight:700;")
         hdr.addWidget(name_lbl)
@@ -373,9 +376,8 @@ class ConnectorsPanel(QWidget):
 
     def _delete_ext_entry(self, cat: str, entry: dict) -> None:
         """Xoá một connector MCP sau khi hỏi xác nhận."""
-        if QMessageBox.question(
-                self, tr("settings.ext_delete_btn"),
-                tr("settings.ext_delete_confirm", name=entry.get("name", ""))) != QMessageBox.Yes:
+        if not confirm(self, tr("settings.ext_delete_btn"),
+                       tr("settings.ext_delete_confirm", name=entry.get("name", ""))):
             return
         self.ctx.config.ext_connectors[cat].remove(entry)
         self.ctx.save()

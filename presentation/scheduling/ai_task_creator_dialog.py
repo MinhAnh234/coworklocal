@@ -32,6 +32,7 @@ from cowork_local.core.worker import AgentWorker
 from cowork_local.i18n import tr
 from cowork_local.presentation.scheduling.ai_task_import_dialog import ImportTaskPanel
 from cowork_local.state import AppContext
+from cowork_local.ui.dialog_buttons import dialog_buttons
 from cowork_local.ui.icons import icon
 
 
@@ -79,8 +80,8 @@ class AiTaskCreatorDialog(QDialog):
         self.import_panel.tasks_changed.connect(self._on_import_tasks_changed)
         self.tabs.addTab(self.import_panel, tr("schedtask.tab_import"))
 
-        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttons.button(QDialogButtonBox.Ok).setText(tr("schedtask.ai_confirm"))
+        self.buttons = dialog_buttons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+                                      ok="schedtask.ai_confirm")
         self.buttons.button(QDialogButtonBox.Ok).setEnabled(False)
         self.buttons.accepted.connect(self._confirm)
         self.buttons.rejected.connect(self.reject)

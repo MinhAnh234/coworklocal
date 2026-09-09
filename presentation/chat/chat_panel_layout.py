@@ -27,6 +27,7 @@ from ...state import AppContext
 from ...theme import current_palette
 from .chat_bubble_style import ThinkingIndicator
 from .chat_history_widget import ChatView
+from .chat_welcome import ChatWelcome
 from .composer_widget import Composer
 from ...ui.icons import collapse_right_icon, icon as app_icon
 from ...ui.osutil import is_image, open_path
@@ -43,7 +44,13 @@ class ChatPanelLayoutMixin:
         cc = QVBoxLayout(chat_col)
         cc.setContentsMargins(0, 0, 0, 0)
         cc.setSpacing(0)
+        # Man gioi thieu chiem dung cho cua khung chat va thay the no khi hoi
+        # thoai con rong — hai thu khong bao gio cung hien.
+        self.welcome = ChatWelcome()
+        self.welcome.suggestion_picked.connect(self._use_suggestion)
+        cc.addWidget(self.welcome, 1)
         cc.addWidget(self.chat_view, 1)
+        self.chat_view.hide()      # phien moi thi rong -> man gioi thieu di truoc
         self.thinking = ThinkingIndicator()   # animated "working…" line while we wait
         cc.addWidget(self.thinking)
         self.center_split = QSplitter(Qt.Horizontal)
@@ -148,3 +155,54 @@ class ChatPanelLayoutMixin:
         self.center_split.setChildrenCollapsible(False)
         self.center_split.setSizes([820, 220])
         on_language_changed(self._retranslate_base)
+
+    # ---- man gioi thieu ----------------------------------------------------
+    def _use_suggestion(self, text: str) -> None:
+        """Thẻ gợi ý được bấm: ĐIỀN vào ô nhập, không gửi luôn.
+
+        Câu gợi ý là điểm bắt đầu — người dùng gần như luôn cần thêm chi tiết
+        của riêng họ, và gửi ngay sẽ tiêu một lượt gọi model cho một câu hỏi
+        chung chung.
+        """
+        self.composer.input.setPlainText(text)
+        self.composer.input.setFocus()
+
+    def show_welcome(self, show: bool) -> None:
+        """Bật màn giới thiệu (hội thoại rỗng) hoặc khung chat (đã có tin)."""
+        welcome = getattr(self, "welcome", None)
+        if welcome is None:
+            return
+        welcome.setVisible(show)
+        self.chat_view.setVisible(not show)
+        if show:
+            welcome.refresh(**self._welcome_context())
+
+    def _welcome_context(self) -> dict:
+        """Dữ liệu cho dòng bối cảnh. Không biết thì trả -1, KHÔNG trả 0.
+
+        Hiện "0 tệp" khi người dùng vừa nhìn thấy tệp trong thư mục còn tệ hơn
+        là bỏ mảnh đó khỏi dòng meta.
+        """
+        from pathlib import Path as _P
+
+        ten = ""
+        try:
+            from ...core.projects import load_project
+            project = load_project(self.project_id) if getattr(self, "project_id", "") else None
+            ten = project.name if project is not None else ""
+        except Exception:                                    # noqa: BLE001
+            ten = ""
+
+        so_tep = -1
+        try:
+            folder = self.workspace_dir()
+            if folder is not None and _P(folder).is_dir():
+                so_tep = sum(1 for f in _P(folder).rglob("*")
+                             if f.is_file() and f.suffix.lower() in self._INPUT_EXTS)
+        except Exception:                                    # noqa: BLE001
+            so_tep = -1
+
+        # Ten nguoi dung do cua so chinh giu (app.py truyen xuong MainWindow).
+        window = self.window()
+        return {"user_name": getattr(window, "_user_name", "") or "",
+                "project": ten, "files": so_tep}

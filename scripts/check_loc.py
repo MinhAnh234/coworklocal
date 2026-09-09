@@ -63,7 +63,7 @@ SCAN_ROOT_MODULES = True
 #: phải dưới 400 dòng ngay từ đầu. Nới một con số cũng vậy — cách duy nhất
 #: đúng là tách file.
 LEGACY_ALLOWANCE = {
-    "ui/workspace_tab.py": 566,
+    "ui/workspace_tab.py": 523,
     "ui/widgets.py": 466,
     "ui/task_editor_dialog.py": 627,
     "ui/accounts_tab.py": 559,
@@ -75,7 +75,7 @@ LEGACY_ALLOWANCE = {
     "core/task_executors.py": 347,
     "ui/help_agent_widget.py": 313,
     "core/structure_graph.py": 346,
-    "ui/cowork_tab.py": 255,
+    "ui/cowork_tab.py": 248,
     "providers/base.py": 224,
     "ui/co4e_tab.py": 180,
     "providers/openai_compat.py": 279,

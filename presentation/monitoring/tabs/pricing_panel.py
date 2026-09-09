@@ -139,11 +139,11 @@ class PricingPanel(QGroupBox):
 
     def _add_pricing_row(self) -> None:
         """Thêm một dòng đơn giá trống để người dùng điền tay."""
-        from PySide6.QtWidgets import QInputDialog
+        from ....ui.dialog_buttons import ask_text
 
         from ....core import model_pricing as mp
-        name, ok = QInputDialog.getText(self, tr("monitoring.pricing_add"),
-                                        tr("monitoring.pricing_add_prompt"))
+        name, ok = ask_text(self, tr("monitoring.pricing_add"),
+                            tr("monitoring.pricing_add_prompt"))
         name = (name or "").strip()
         if not ok or not name:
             return

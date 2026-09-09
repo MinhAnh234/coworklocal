@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDateTimeEdit, QDialog, QDialogButtonBox, QFileDialog,
-    QFormLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+    QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMessageBox, QPlainTextEdit, QPushButton,
     QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
@@ -30,6 +30,7 @@ from ..core.tasks import (
 from ..core.projects import list_projects
 from ..core.worker import AgentWorker
 from ..i18n import tr
+from .dialog_buttons import ask_text, dialog_buttons
 from .icons import icon
 
 # Only these two task types can be picked when adding/editing a task — Flow,
@@ -451,7 +452,7 @@ class TaskEditorDialog(QDialog):
         # matching the five real group boxes, so you always see which group you
         # are in and how many are left. (Not tabs: the audit page asks for this
         # shape specifically, for consistency with Settings.)
-        from .widgets import section_panels
+        from .widgets import guard_wheel, section_panels
 
         self._step_keys = ["schedtask.g_basic", "schedtask.g_schedule",
                            "schedtask.g_input", "schedtask.g_dependency",
@@ -481,7 +482,7 @@ class TaskEditorDialog(QDialog):
         widest = max(w.widget().sizeHint().width() for _lab, w in pages)
         self.setMinimumWidth(self.section_list.width() + widest + 60)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Save).setIcon(icon("save"))
         buttons.button(QDialogButtonBox.Cancel).setIcon(icon("close"))
         buttons.accepted.connect(self._save)
@@ -490,7 +491,6 @@ class TaskEditorDialog(QDialog):
         self._apply_hints()
         # Scrolling the form must never spin a combo/spin/date box the cursor
         # happens to hover — values only change after clicking into a field.
-        from .widgets import guard_wheel
         guard_wheel(self)
 
     def _retranslate_steps(self) -> None:
@@ -540,8 +540,8 @@ class TaskEditorDialog(QDialog):
 
     def _add_link(self) -> None:
         """Thêm một link vào danh sách dữ liệu đầu vào của task."""
-        url, ok = QInputDialog.getText(self, tr("schedtask.add_link_title"),
-                                       tr("schedtask.add_link_label"))
+        url, ok = ask_text(self, tr("schedtask.add_link_title"),
+                           tr("schedtask.add_link_label"))
         url = url.strip()
         if ok and url:
             self.links_list.addItem(url)
@@ -607,7 +607,7 @@ class TaskEditorDialog(QDialog):
         candidates = self.all_tasks + ([self._original] if self._original else [self.task])
         err = chain_error(candidates, self.task["task_id"], self.next_combo.currentData())
         nxt_id = self.next_combo.currentData()
-        warn = err or ""
+        warn = tr(err) if err else ""
         if not err and nxt_id:
             nxt = next((t for t in self.all_tasks if t["task_id"] == nxt_id), None)
             if nxt and nxt.get("status") == "paused":
@@ -719,12 +719,12 @@ class TaskEditorDialog(QDialog):
         err = chain_error(self.all_tasks + [self.task], self.task["task_id"],
                           self.next_combo.currentData())
         if err:
-            QMessageBox.warning(self, tr("schedtask.g_dependency"), err)
+            QMessageBox.warning(self, tr("schedtask.g_dependency"), tr(err))
             return
         deps = self._checked_depends_on()
         err = depends_cycle_error(self.all_tasks + [self.task], self.task["task_id"], deps)
         if err:
-            QMessageBox.warning(self, tr("schedtask.g_dependency"), err)
+            QMessageBox.warning(self, tr("schedtask.g_dependency"), tr(err))
             return
         t = self.task
         t["title"] = title

@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
-    QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QMessageBox,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox,
     QPushButton, QSplitter, QTableWidget, QTableWidgetItem, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
@@ -28,6 +28,7 @@ from ..core import usage_tracker as ut
 from ..core.worker import AgentWorker
 from ..i18n import on_language_changed, tr
 from ..state import AppContext
+from .dialog_buttons import ask_text, confirm, dialog_buttons
 from .icons import DOT_AMBER, icon
 from .widgets import fmt_tokens
 
@@ -151,7 +152,7 @@ class AccountEditDialog(QDialog):
             self.group_combo.setCurrentIndex(idx)
         self.group_combo.setEnabled(allow_group_edit)
         form.addRow(tr("accounts.f_group"), self.group_combo)
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)
@@ -529,9 +530,8 @@ class AccountsTab(QWidget):
             return
         if not self._is_admin() and account.role != "user":
             return   # Sub-admin can only remove ordinary members, never another sub-admin
-        if QMessageBox.question(
-                self, tr("accounts.delete_title"),
-                tr("accounts.delete_confirm", username=account.username)) != QMessageBox.Yes:
+        if not confirm(self, tr("accounts.delete_title"),
+                       tr("accounts.delete_confirm", username=account.username)):
             return
         accounts.delete_account(account.username, self._accounts_dir())
         if account.group_id:
@@ -703,7 +703,7 @@ class AccountsTab(QWidget):
         """Hỏi tên rồi tạo một nhóm mới. Chỉ Admin."""
         if not self._is_admin():
             return
-        name, ok = QInputDialog.getText(self, tr("accounts.new_group_title"), tr("accounts.f_group_name"))
+        name, ok = ask_text(self, tr("accounts.new_group_title"), tr("accounts.f_group_name"))
         if not (ok and name.strip()):
             return
         group = groups.new_group(name.strip())

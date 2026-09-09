@@ -20,6 +20,7 @@ from ....core import admin_agents, preview_ai
 from ....core.worker import AgentWorker
 from ....i18n import on_language_changed, tr
 from ....state import AppContext
+from ....ui.dialog_buttons import dialog_buttons
 from ....ui.icons import icon
 from ....ui.widgets import ToggleSwitch, badge_pill_widget
 
@@ -95,7 +96,7 @@ class AgentEditDialog(QDialog):
         self.enabled_chk = QCheckBox(tr("agents_admin.f_enabled"))
         self.enabled_chk.setChecked(agent.enabled if agent else True)
         form.addRow("", self.enabled_chk)
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)

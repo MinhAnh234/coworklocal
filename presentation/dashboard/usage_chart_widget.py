@@ -121,6 +121,13 @@ class UsageChartWidget(QWidget):
 
     def retranslate(self) -> None:
         """Áp lại chữ theo ngôn ngữ đang chọn cho nhãn và tooltip."""
+        # setItemText, chứ không clear()+addItem(): cột data của hai combo này
+        # là thứ quyết định kỳ và chỉ số đang xem, dựng lại danh sách sẽ reset cả
+        # hai. Khoá dịch suy ra từ chính cột data nên không phải chép lại danh
+        # sách giá trị ở hai nơi.
+        for combo, prefix in ((self.gran_combo, "gran"), (self.metric_combo, "metric")):
+            for i in range(combo.count()):
+                combo.setItemText(i, tr(f"dashboard.{prefix}_{combo.itemData(i)}"))
         self.currency_lbl.setText(tr("monitoring.overview_currency"))
         self.currency_combo.setToolTip(tr("dashboard.currency_tooltip"))
         self._chart_title.setText(tr("dashboard.chart_title"))

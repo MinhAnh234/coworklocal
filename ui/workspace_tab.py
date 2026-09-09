@@ -21,38 +21,19 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QSplitter, QTabWidget,
+    QPlainTextEdit, QPushButton, QSplitter, QTabWidget,
     QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..i18n import on_language_changed, tr
+from ..presentation.workspace.project_editing import ProjectEditingMixin, ProjectRow
 from ..state import AppContext
 from .icons import collapse_left_icon, icon
 from .osutil import open_folder
 from .widgets import CollapseStrip
 
 
-class _ProjectRow(QWidget):
-    """A project in the list: its name, and under it how much is in it.
-
-    The drawing gives every row a second line — "2 đoạn chat · 3 task" — which
-    is the only thing on this screen that says a project holds anything at all.
-    """
-
-    def __init__(self, name: str, counts: str):
-        """Một dòng dự án trong danh sách: tên ở trên, số liệu tóm tắt ở dưới."""
-        super().__init__()
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(6, 4, 6, 4)
-        lay.setSpacing(0)
-        title = QLabel(name)
-        sub = QLabel(counts)
-        sub.setObjectName("hint")
-        lay.addWidget(title)
-        lay.addWidget(sub)
-
-
-class WorkspaceTab(QWidget):
+class WorkspaceTab(ProjectEditingMixin, QWidget):
     """Trang chủ Workspace: cột project, cột lịch sử, và 5 sub-tab
     (Dự án · Cowork · Co4E · Thư mục · GraphRAG).
 
@@ -265,6 +246,7 @@ class WorkspaceTab(QWidget):
         self._apply_pane_visibility()
 
         self.refresh()
+        self.install_project_editing()
         on_language_changed(self._retranslate)
         self._retranslate()
 
@@ -520,6 +502,7 @@ class WorkspaceTab(QWidget):
         self._cloud_sync_btn.setText(tr("workspace.cloud_sync"))
         self._refresh_cloud_badge()
         self._save_btn.setText(tr("workspace.save"))
+        self.retranslate_project_rows()
         self._proj_collapse_btn.setToolTip(tr("workspace.collapse_projects_tooltip"))
         self._projects_strip.setToolTip(tr("workspace.expand_projects_tooltip"))
         self.tabs.setTabText(self._project_tab_idx, tr("workspace.tab_project"))
@@ -637,7 +620,7 @@ class WorkspaceTab(QWidget):
             if p.description:
                 item.setToolTip(p.description)
             self.project_list.addItem(item)
-            row = _ProjectRow(p.name, tr("workspace.counts", chats=chats, tasks=tasks))
+            row = ProjectRow(p.name, chats, tasks)
             item.setSizeHint(row.sizeHint())
             self.project_list.setItemWidget(item, row)
             if p.project_id == keep:
@@ -652,11 +635,11 @@ class WorkspaceTab(QWidget):
     @staticmethod
     def _project_counts():
         """{project_id: (chats, tasks)} — read once per refresh, not per row."""
-        from ..core.history import list_conversations
+        from ..core.history import history_dirs, list_conversations_by_project
         from ..core.tasks import list_tasks
 
         out: dict = {}
-        for conv in list_conversations():
+        for conv in list_conversations_by_project(history_dirs()):
             pid = conv.get("project_id") or "default"
             chats, tasks = out.get(pid, (0, 0))
             out[pid] = (chats + 1, tasks)
@@ -685,7 +668,7 @@ class WorkspaceTab(QWidget):
 
     def _load_current(self) -> None:
         """Nạp project đang chọn lên form và nối mọi sub-tab vào nó."""
-        from ..core.projects import load_project
+        from ..core.projects import load_project, project_history_dir
 
         pid = self._selected_id()
         self._current_id = pid
@@ -699,7 +682,7 @@ class WorkspaceTab(QWidget):
             # sharing that folder shares the history (another machine can view +
             # continue). No project → global history dir (attribute cleared).
             if project is not None:
-                self.ctx.config._project_history_dir = project.workspace_dir() / ".cowork_history"
+                self.ctx.config._project_history_dir = project_history_dir(project)
             else:
                 self.ctx.config._project_history_dir = None
             if project is not None:
@@ -710,7 +693,7 @@ class WorkspaceTab(QWidget):
                 self._del_btn.setEnabled(True)
                 self._reload_threads()
                 if getattr(self, "_folder", None) is not None:
-                    self._folder.set_root(str(project.workspace_dir()))
+                    self._folder.set_project_root(str(project.workspace_dir()))
             else:
                 self.name_edit.clear()
                 self.desc_edit.clear()
@@ -849,7 +832,7 @@ class WorkspaceTab(QWidget):
         self.ctx.active_project_id = pid or "default"
         self._refresh_mode_toggles()
         if self._structure is not None:
-            self._structure.set_project(pid)
+            self._structure.set_workspace_project(pid)
         if self._sidebar is not None:
             self._sidebar.set_project_filter(pid)   # "" → show all (no project selected)
         # Route Co4E flow output into THIS project's workspace folder (so flow
@@ -902,51 +885,6 @@ class WorkspaceTab(QWidget):
             self.threads.addTopLevelItem(item)
 
     # ---- actions -----------------------------------------------------------
-    def _create(self) -> None:
-        """Tạo project mới với tên mặc định rồi chọn nó."""
-        from ..core.projects import new_project
-
-        project = new_project(tr("workspace.default_new_name"))
-        self._current_id = project.project_id
-        self.refresh()
-        self.projects_changed.emit()
-        self.name_edit.setFocus()
-        self.name_edit.selectAll()
-
-    def _delete(self) -> None:
-        """Xoá project đang chọn sau khi hỏi xác nhận."""
-        from ..core.projects import delete_project, load_project
-
-        pid = self._selected_id()
-        project = load_project(pid) if pid else None
-        if project is None:
-            return
-        if QMessageBox.question(
-                self, tr("workspace.delete"),
-                tr("workspace.delete_confirm", name=project.name)) != QMessageBox.Yes:
-            return
-        delete_project(pid)
-        self._current_id = ""
-        self.refresh()   # empty workspace → Cowork/GraphRAG hidden until a new project
-        self.projects_changed.emit()
-        self.status_message.emit(tr("workspace.deleted", name=project.name))
-
-    def _save(self) -> None:
-        """Lưu tên, mô tả và chỉ dẫn chung của project đang mở."""
-        from ..core.projects import load_project, save_project
-
-        pid = self._current_id
-        project = load_project(pid) if pid else None
-        if project is None:
-            return
-        project.name = self.name_edit.text().strip() or project.name
-        project.description = self.desc_edit.text().strip()
-        project.instructions = self.instr_edit.toPlainText().strip()
-        save_project(project)
-        self.refresh()
-        self.projects_changed.emit()
-        self.status_message.emit(tr("workspace.saved", name=project.name))
-
     def _pick_folder(self) -> None:
         """Chọn thư mục sandbox cho project đang mở."""
         from ..core.projects import load_project, save_project
@@ -966,7 +904,7 @@ class WorkspaceTab(QWidget):
 
     def _open_workspace(self) -> None:
         """Mở thư mục sandbox của project trong trình quản lý tệp của hệ điều hành."""
-        from ..core.projects import load_project
+        from ..core.projects import load_project, project_history_dir
 
         project = load_project(self._current_id) if self._current_id else None
         if project is None:

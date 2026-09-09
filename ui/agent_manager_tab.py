@@ -12,7 +12,7 @@ from typing import Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea,
+    QListWidgetItem, QPlainTextEdit, QPushButton, QScrollArea,
     QSplitter, QVBoxLayout, QWidget,
 )
 
@@ -22,6 +22,7 @@ from ..core.custom_agents import (
 )
 from ..core.worker import AgentWorker
 from ..i18n import tr
+from .dialog_buttons import confirm
 from .icons import icon
 
 
@@ -300,10 +301,8 @@ class AgentManagerTab(QWidget):
         agent = self._current_agent()
         if agent is None:
             return
-        if QMessageBox.question(
-            self, tr("agentmgr.delete_btn"),
-            tr("agentmgr.delete_confirm", name=agent.name),
-        ) != QMessageBox.Yes:
+        if not confirm(self, tr("agentmgr.delete_btn"),
+                       tr("agentmgr.delete_confirm", name=agent.name)):
             return
         delete_agent(agent.name)
         self._reload_list()

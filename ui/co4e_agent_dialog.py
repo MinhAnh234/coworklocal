@@ -9,7 +9,7 @@ from typing import List
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QInputDialog,
+    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
     QLineEdit, QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton,
     QVBoxLayout, QWidget,
 )
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from ..core.co4e import PERMISSION_PRESETS, CustomAgent
 from ..core.worker import AgentWorker
 from ..i18n import tr
+from .dialog_buttons import ask_multiline, dialog_buttons
 from .icons import icon, icon_picker_combo
 
 
@@ -114,7 +115,7 @@ class Co4EAgentDialog(QDialog):
         form.addRow(tr("co4e.f_attachments"), self.attach_list)
         form.addRow("", abtn)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)
@@ -129,7 +130,7 @@ class Co4EAgentDialog(QDialog):
         role = self.role_edit.text().strip()
         if not name and not role:
             return
-        hint, ok = QInputDialog.getMultiLineText(
+        hint, ok = ask_multiline(
             self, tr("co4e.ai_draft_hint_title"), tr("co4e.ai_draft_hint_label"))
         if not ok:
             return

@@ -15,7 +15,7 @@ network control, permission management, audit log). No login required —
 starts directly with full admin access.
 """
 
-__version__ = "2.26.0"
+__version__ = "0.0.1"
 # Internal/technical name — config dir (~/.cowork_local), QSettings org keys,
 # packaging scripts and docs still use this; do NOT rebrand it.
 APP_NAME = "Cowork Local"

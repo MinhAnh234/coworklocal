@@ -179,9 +179,12 @@ class ToolsAdminTab(QWidget):
         hdr.addWidget(sw)
         lay.addLayout(hdr)
 
-        desc = QLabel(spec.description)
+        # spec.description là mô tả gửi cho mô hình (schema function-calling),
+        # luôn tiếng Anh và viết cho máy đọc — thẻ này dùng bản dịch riêng.
+        desc_text = tr(f"tools_admin.desc.{spec.name}")
+        desc = QLabel(desc_text)
         desc.setWordWrap(True)
-        desc.setToolTip(spec.description)
+        desc.setToolTip(desc_text)
         desc.setObjectName("hint")
         desc.setStyleSheet("border: none;")
         lay.addWidget(desc)

@@ -34,6 +34,7 @@ from PySide6.QtGui import QBrush, QColor, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsPathItem, QMenu
 
 from ...core.co4e import STEP_DONE, STEP_ERROR, STEP_PLANNED, STEP_RUNNING, Edge, Node
+from ...i18n import tr
 from ...theme import current_palette
 from .canvas_geometry import _elide, _rounded_path
 
@@ -233,9 +234,9 @@ class _NodeItem(QGraphicsObject):
     def contextMenuEvent(self, e):
         """Menu chuột phải trên node: thêm bước kế, nối từ đây, xoá bước."""
         menu = QMenu()
-        a_add = menu.addAction("＋ Add next step")
-        a_conn = menu.addAction("→ Connect from here")
-        a_del = menu.addAction("🗑 Delete step")
+        a_add = menu.addAction("＋ " + tr("co4e.canvas_add_next"))
+        a_conn = menu.addAction("→ " + tr("co4e.canvas_connect_from"))
+        a_del = menu.addAction("🗑 " + tr("co4e.delete_step"))
         chosen = menu.exec(e.screenPos())
         if chosen is a_add:
             self.canvas.add_step_below(self.node.id)
@@ -342,7 +343,7 @@ class _EdgeItem(QGraphicsPathItem):
     def contextMenuEvent(self, e):
         """Menu chuột phải trên đường nối: xoá liên kết."""
         menu = QMenu()
-        act_del = menu.addAction("🗑 Delete connection")
+        act_del = menu.addAction("🗑 " + tr("co4e.canvas_delete_edge"))
         if menu.exec(e.screenPos()) is act_del:
             self.canvas.delete_edge(self.edge)
         e.accept()

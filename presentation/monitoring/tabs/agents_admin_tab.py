@@ -26,7 +26,7 @@ from typing import Dict, List
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
-    QHBoxLayout, QHeaderView, QLabel, QMessageBox, QPushButton,
+    QHBoxLayout, QHeaderView, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -35,6 +35,7 @@ from ....core import admin_agents
 from ....core.worker import AgentWorker
 from ....i18n import on_language_changed, tr
 from ....state import AppContext
+from ....ui.dialog_buttons import confirm
 from ....ui.icons import icon
 from ....ui.widgets import ToggleSwitch, badge_pill_widget
 from .agent_edit_dialog import AgentEditDialog
@@ -189,9 +190,8 @@ class AgentsAdminTab(QWidget):
         agent = admin_agents.load_agent(agent_id, self._dir())
         if agent is None:
             return
-        if QMessageBox.question(
-                self, tr("agents_admin.delete_title"),
-                tr("agents_admin.delete_confirm", name=agent.name)) != QMessageBox.Yes:
+        if not confirm(self, tr("agents_admin.delete_title"),
+                       tr("agents_admin.delete_confirm", name=agent.name)):
             return
         admin_agents.delete_agent(agent.agent_id, self._dir())
         self.refresh()

@@ -29,7 +29,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
-from ...i18n import tr
+from ...i18n import bind_text, bind_tip
 from .palette_list import _PaletteList
 
 
@@ -50,8 +50,10 @@ class SkillsListPanel(QWidget):
         cái gì.
         """
         super().__init__(parent)
-        self.manage_btn = QPushButton(tr("co4e.manage_skills"))
-        self.manage_btn.setToolTip(tr("co4e.tt_manage_skills"))
+        # Bound, like AgentListPanel's: the panel owns how its own button reads,
+        # so no embedder has to remember it in a retranslate method.
+        self.manage_btn = bind_text(QPushButton(), "co4e.manage_skills")
+        bind_tip(self.manage_btn, "co4e.tt_manage_skills")
         self.manage_btn.setObjectName("co4eSectionAction")
         self.manage_btn.setFlat(True)
         self.manage_btn.setCursor(Qt.PointingHandCursor)

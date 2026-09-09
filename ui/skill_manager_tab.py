@@ -12,7 +12,7 @@ from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFileDialog, QHBoxLayout, QInputDialog, QLabel, QListWidget,
+    QFileDialog, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -22,6 +22,7 @@ from ..core.skills import (
 )
 from ..core.worker import AgentWorker
 from ..i18n import tr
+from .dialog_buttons import ask_multiline
 from .icons import icon
 from .skills_dialog import SkillEditDialog
 
@@ -100,7 +101,7 @@ class SkillManagerTab(QWidget):
             QMessageBox.information(self, tr("skills.auto_generate_title"),
                                     tr("skills.auto_generate_unavailable"))
             return
-        prompt, ok = QInputDialog.getMultiLineText(
+        prompt, ok = ask_multiline(
             self, tr("skills.auto_generate_title"),
             tr("skills.auto_generate_prompt"), "")
         if not ok or not prompt.strip():

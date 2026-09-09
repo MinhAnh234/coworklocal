@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..i18n import tr
+from .dialog_buttons import dialog_buttons
 
 
 class McpServerEditDialog(QDialog):
@@ -41,7 +42,7 @@ class McpServerEditDialog(QDialog):
         self.args.setPlaceholderText(tr("mcp.args_placeholder"))
         lay.addWidget(self.args)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = dialog_buttons(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         lay.addWidget(buttons)

@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QMenu, QMessageBox, QTableWidget, QTableWidgetItem
 from ...core import co4e
 from ...i18n import tr
 from ...theme import current_palette
@@ -337,9 +337,9 @@ class Co4ERunsMixin:
         h = self.manager.get(run_id)
         if h is None:
             return
-        from PySide6.QtWidgets import QInputDialog
-        new, ok = QInputDialog.getText(self, tr("co4e.rename_run"),
-                                       tr("co4e.rename_run_label"), text=h.name)
+        from ...ui.dialog_buttons import ask_text
+        new, ok = ask_text(self, tr("co4e.rename_run"),
+                           tr("co4e.rename_run_label"), text=h.name)
         new = (new or "").strip()
         if not ok or not new or new == h.name:
             return

@@ -202,6 +202,14 @@ class GraphRenderer(QWidget):
             # Mark it and scan on the next visit rather than now — see
             # auto_scan_and_fit()'s docstring for why.
             self._needs_scan = True
+            # ...except when this screen is the one on show. The picker lives HERE,
+            # so a user changing project is already looking at the graph: there is
+            # no "next visit" to defer to, and they had to press Scan by hand.
+            # Deferring still applies when the change came from the Workspace
+            # screen while this one is hidden, which is what it was for.
+            if self.isVisible() and self.path_edit.text().strip():
+                self._needs_scan = False
+                self._scan()
 
     # ---- helpers ---------------------------------------------------------------- #
     def _pick(self) -> None:

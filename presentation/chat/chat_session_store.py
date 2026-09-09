@@ -11,9 +11,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMessageBox
 from ...core.worker import AgentWorker
 from ...i18n import tr
+from ...ui.dialog_buttons import confirm
 
 
 class ChatSessionMixin:
@@ -194,6 +194,8 @@ class ChatSessionMixin:
         """
         from ...core.history import new_session_id
 
+        self.show_welcome(True)     # hội thoại rỗng -> màn giới thiệu
+
         # Allowed while work is running: current turns keep going in the background.
         self._detach_live_turns()
         self.messages = []
@@ -230,6 +232,8 @@ class ChatSessionMixin:
         # turn must NOT tear down its live rendering — just no-op.
         if sid == self.session_id and self._view_busy():
             return
+        # Hoi thoai da luu thi co tin nhan -> khung chat, khong phai man gioi thieu.
+        self.show_welcome(not (conv.get("messages") or []))
         self._detach_live_turns()
         self.session_id = sid
         self.title = conv.get("title", "")
@@ -304,7 +308,7 @@ class ChatSessionMixin:
             prompt = tr("chatpanel.delete_confirm_files", n=len(files), preview=preview)
         else:
             prompt = tr("chatpanel.delete_confirm_plain")
-        if QMessageBox.question(self, tr("chatpanel.delete_confirm_title"), prompt) != QMessageBox.Yes:
+        if not confirm(self, tr("chatpanel.delete_confirm_title"), prompt):
             return
         for bubble in turn.get("bubbles", []):
             bubble.setParent(None)

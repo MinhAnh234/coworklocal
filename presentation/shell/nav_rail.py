@@ -163,6 +163,12 @@ class NavRailMixin:
         self.split = QSplitter(Qt.Horizontal)
         self.split.addWidget(self._nav_wrap)
         self.split.addWidget(right)
+        # A QSplitter lets the user drag a pane past its own minimumWidth and
+        # snap it shut at zero — the minimum only governs LAYOUT, not the drag.
+        # So the rail set a 132px floor and still vanished entirely when dragged
+        # hard left, with no handle left wide enough to notice, let alone grab.
+        # Collapsing is what the MENU button is for, and that stops at 54px.
+        self.split.setChildrenCollapsible(False)
         self.split.setStretchFactor(0, 0)
         self.split.setStretchFactor(1, 1)
         self.split.setSizes([_NAV_EXPANDED_WIDTH, 1000])
@@ -245,12 +251,19 @@ class NavRailMixin:
                 blocked = tree.blockSignals(True)
                 tree.addTopLevelItem(it)
                 tree.blockSignals(blocked)
-            # Both destination lists are exactly as tall as their rows; the
-            # stretch in between belongs to RECENTS.
+            # Rows plus frame, nothing else: the flat ``+ 8`` this replaces
+            # left 6px of dead space under the last row, and since Settings
+            # sits directly under nav_bottom it fell between Giám sát and
+            # Settings alone — 18/26px for rows that read as one list.
+            row_h = 0
             for tree in (self.nav, self.nav_bottom):
                 n = tree.topLevelItemCount()
-                row_h = tree.sizeHintForRow(0) if n else 0
-                tree.setFixedHeight(n * row_h + 8)
+                row_h = tree.sizeHintForRow(0) if n else row_h
+                tree.setFixedHeight(n * row_h + 2 * tree.frameWidth())
+            # Settings is one more row of the list, so it takes the rows' own
+            # height instead of paddings guessed to match it.
+            if row_h and hasattr(self, "_nav_settings_btn"):
+                self._nav_settings_btn.setFixedHeight(row_h)
             if keep:
                 self._select_nav_row(*keep)
         finally:

@@ -38,6 +38,7 @@ from cowork_local.infrastructure.persistence.json.task_repository_impl import (
 )
 from cowork_local.presentation.scheduling.run_history_dialog import RunHistoryDialog
 from cowork_local.theme import current_palette
+from cowork_local.ui.dialog_buttons import confirm
 from cowork_local.ui.osutil import open_path
 
 # Priority shown as a plain text tag (no colored-emoji squares). Only the
@@ -317,9 +318,8 @@ class KanbanBoardWidget(QWidget):
         elif chosen == next_act:
             self._create_next_from_output(task)
         elif chosen == del_act:
-            if QMessageBox.question(self, tr("schedtask.menu_delete"),
-                                    tr("schedtask.delete_confirm", title=task.get("title", ""))
-                                    ) == QMessageBox.Yes:
+            if confirm(self, tr("schedtask.menu_delete"),
+                       tr("schedtask.delete_confirm", title=task.get("title", ""))):
                 self._service.delete(tid)
                 self.refresh()
 
@@ -335,9 +335,8 @@ class KanbanBoardWidget(QWidget):
         """Confirm, then delete every task in ``selected``. Split out of
         _bulk_delete_menu so tests can drive it directly without having to
         fake a real (modal, event-loop-blocking) QMenu popup."""
-        if QMessageBox.question(
-                self, tr("schedtask.menu_delete"),
-                tr("schedtask.delete_multi_confirm", n=len(selected))) != QMessageBox.Yes:
+        if not confirm(self, tr("schedtask.menu_delete"),
+                       tr("schedtask.delete_multi_confirm", n=len(selected))):
             return False
         ids = [it.data(Qt.UserRole) for it in selected if it.data(Qt.UserRole)]
         self._service.bulk_delete(ids)
@@ -381,7 +380,7 @@ class KanbanBoardWidget(QWidget):
         nxt["dependency"]["previous_task_id"] = task["task_id"]
         err = chain_error(self._repo.list() + [nxt], task["task_id"], nxt["task_id"])
         if err:
-            QMessageBox.warning(self, tr("schedtask.g_dependency"), err)
+            QMessageBox.warning(self, tr("schedtask.g_dependency"), tr(err))
             return
         self._repo.save(nxt)
         task["dependency"]["next_task_id"] = nxt["task_id"]

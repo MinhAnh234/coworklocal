@@ -4,8 +4,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QHBoxLayout, QInputDialog, QLabel,
-    QLineEdit, QMenu, QMessageBox, QPushButton, QStyle, QStyledItemDelegate,
+    QAbstractItemView, QApplication, QHBoxLayout, QLabel,
+    QLineEdit, QMenu, QPushButton, QStyle, QStyledItemDelegate,
     QStyleOptionViewItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -14,6 +14,7 @@ from ..core.history import (
     rename_conversation, set_pinned,
 )
 from ..i18n import on_language_changed, tr
+from .dialog_buttons import ask_text, confirm
 from .icons import collapse_left_icon, dot_icon, DOT_BLUE, icon
 from .widgets import CollapseStrip
 from ..state import AppContext
@@ -241,8 +242,17 @@ class HistorySidebar(QWidget):
         for p in projects:
             groups[p.project_id] = _make_group(p.name)
 
+        # Loc theo mot project -> doc dung thu muc cua no. Khong loc ("Tat ca
+        # project…") -> phai doc thu muc lich su cua TUNG project roi gop lai:
+        # lich su nam trong thu muc lam viec cua project, nen mot lan goi
+        # list_conversations chi thay duoc project dang mo, va moi nhom con lai
+        # hien ra rong tuy nguoi dung da chat trong do.
         try:
-            convos = list_conversations(self.ctx.config.history_dir(), query=query)
+            if self._project_filter:
+                convos = list_conversations(self.ctx.config.history_dir(), query=query)
+            else:
+                from ..core.history import history_dirs, list_conversations_by_project
+                convos = list_conversations_by_project(history_dirs(), query=query)
         except Exception:
             convos = []
 
@@ -337,15 +347,14 @@ class HistorySidebar(QWidget):
             set_pinned(path, not pinned)
             self.refresh()
         elif chosen == rename_act:
-            new, ok = QInputDialog.getText(
+            new, ok = ask_text(
                 self, tr("sidebar.rename.title"), tr("sidebar.rename.label"), text=title)
             if ok and new.strip():
                 rename_conversation(path, new.strip())
                 self.refresh()
         elif chosen == del_act:
-            if QMessageBox.question(
-                    self, tr("sidebar.delete.title"), tr("sidebar.delete.confirm", title=title)
-            ) == QMessageBox.Yes:
+            if confirm(self, tr("sidebar.delete.title"),
+                       tr("sidebar.delete.confirm", title=title)):
                 delete_conversation(path)
                 self.refresh()
                 self.history_changed.emit()
@@ -365,9 +374,8 @@ class HistorySidebar(QWidget):
         """Confirm, then delete every conversation in ``selected``. Split out
         of _bulk_delete_menu so tests can drive it directly without having to
         fake a real (modal, event-loop-blocking) QMenu popup."""
-        if QMessageBox.question(
-                self, tr("sidebar.delete.title"),
-                tr("sidebar.delete_multi.confirm", n=len(selected))) != QMessageBox.Yes:
+        if not confirm(self, tr("sidebar.delete.title"),
+                       tr("sidebar.delete_multi.confirm", n=len(selected))):
             return False
         for item in selected:
             path = item.data(0, Qt.UserRole)

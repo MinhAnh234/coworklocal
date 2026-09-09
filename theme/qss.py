@@ -24,6 +24,10 @@ QSplitter::handle:horizontal { width: 1px; }
 QSplitter::handle:vertical { height: 1px; }
 QSplitter::handle:hover { background: $border_strong; }
 QStatusBar { background: $bg; color: $text_faint; border-top: 1px solid $border; }
+/* Dòng phiên bản ở góc phải: đẩy chữ ra khỏi mép cửa sổ. Đặt padding ở nhãn
+   chứ không ở QStatusBar — margin/padding của thanh không dịch được widget mà
+   layout nội bộ của nó ghim vào sát mép phải. */
+QStatusBar QLabel { padding-right: 10px; }
 QToolTip {
     background: $overlay; color: $text; border: 1px solid $border_strong;
     border-radius: ${radius}px; padding: 5px 9px;
@@ -183,10 +187,14 @@ QPushButton#navSettingsBtn {
     /* Padding stays at 0: the row lays its own icon and label out, so that
        the spacing does not change with the platform's button style. */
     padding: 0; text-align: left; border-radius: ${radius}px;
-    /* No side margin: Settings reads as one more row under Dashboard/Giám sát,
-       so its icon has to start on their x. A 6px margin put it at 14 — near
-       enough the middle of the collapsed 54px rail to look centred. */
-    margin: 2px 0px 6px 0px;
+    /* No margin at all. A vertical one here was doing the opposite of what it
+       read as: QVBoxLayout gave this button its geometry with the margin
+       ignored (nav_bottom's bottom edge and this button's top edge measured
+       the same y), while the PAINTER honoured it — so the only thing 10px/14px
+       actually did was inset the hover fill, leaving Settings with a visibly
+       shorter hover pill than the rows above. Spacing above/below the row is
+       nav_rail's, which pins this button to the rows' own height. */
+    margin: 0;
 }
 QPushButton#navSettingsBtn:hover { background: $nav_hover; color: $text; }
 QPushButton#navSettingsBtn:pressed { background: $active; }

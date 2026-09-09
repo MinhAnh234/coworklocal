@@ -276,10 +276,9 @@ class OfficeDocumentRenderer:
         from cowork_local.core import pptx_edit
         o = self._owner
         if not skip_confirm and pptx_edit.image_change_requested(content):
-            from PySide6.QtWidgets import QMessageBox
-            ok = QMessageBox.question(o, tr("folder.ai_image_confirm_title"),
-                                      tr("folder.ai_image_confirm"))
-            if ok != QMessageBox.Yes:
+            from cowork_local.ui.dialog_buttons import confirm
+            if not confirm(o, tr("folder.ai_image_confirm_title"),
+                           tr("folder.ai_image_confirm")):
                 o.status_message.emit(tr("folder.ai_image_declined"))
                 return False
         pptx_edit.apply_text_to_pptx(o.current_file, content)

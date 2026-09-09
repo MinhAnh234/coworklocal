@@ -13,10 +13,19 @@ again every time the language changes. Transient dialogs (Settings, Skills,
 Flow, Permission...) are rebuilt from scratch each time they are opened, so
 they simply call ``tr()`` while constructing their widgets and need no
 registration.
+
+``setText(tr("k"))`` on its own is only correct for the instant it runs, and a
+screen with dozens of such one-shot calls is where "I picked English and half
+the screen is still Vietnamese" comes from. The :func:`bind_text` family
+attaches the key to the widget instead, so every future language change
+re-applies it — one line per widget, and nothing to remember in a separate
+``retranslate`` method. Bindings hold the widget WEAKLY, so they are safe for
+widgets that get rebuilt constantly (Kanban rows, calendar cells).
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, List
+import weakref
+from typing import Any, Callable, Dict, Iterable, List, Tuple
 
 LANGUAGES: Dict[str, str] = {"en": "English", "ja": "日本語", "vi": "Tiếng Việt"}
 # Short codes shown in the compact top-bar switcher (Settings keeps the full names above).
@@ -25,6 +34,8 @@ DEFAULT_LANGUAGE = "vi"
 
 _current = DEFAULT_LANGUAGE
 _listeners: List[Callable[[], None]] = []
+#: (weak ref to the widget, how to re-apply its text) — see :func:`bind_text`.
+_bindings: List[Tuple["weakref.ref", Callable[[Any], None]]] = []
 
 # key -> {"en": ..., "ja": ..., "vi": ...}
 from . import login_dialog as _login_dialog
@@ -38,6 +49,8 @@ from . import libreoffice_view as _libreoffice_view
 from . import agents_admin_tab as _agents_admin_tab
 from . import monitoring_overview as _monitoring_overview
 from . import cloud_workspace as _cloud_workspace
+from . import dialog_buttons as _dialog_buttons
+from . import connectors as _connectors
 
 # Gộp theo đúng thứ tự cũ: khoá trùng thì cụm sau thắng, y như khi tất cả
 # còn nằm chung một dict literal.
@@ -52,7 +65,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
     **_libreoffice_view.STRINGS,
     **_agents_admin_tab.STRINGS,
     **_monitoring_overview.STRINGS,
-    **_cloud_workspace.STRINGS,
+**_cloud_workspace.STRINGS,
+    **_dialog_buttons.STRINGS,
+    **_connectors.STRINGS,
 }
 
 
@@ -64,6 +79,7 @@ def set_language(lang: str) -> None:
     if lang == _current:
         return
     _current = lang
+    _apply_bindings()
     for fn in list(_listeners):
         try:
             fn()
@@ -98,6 +114,87 @@ def on_language_changed(fn: Callable[[], None]) -> None:
     """Register a callback that re-applies translations to a persistent widget.
 
     Called once immediately (to apply the current language) and again on every
-    future call to :func:`set_language`."""
+    future call to :func:`set_language`. For a single widget whose text is one
+    key, prefer :func:`bind_text` and friends — they need no callback of their
+    own and cannot keep a destroyed widget alive."""
     _listeners.append(fn)
     fn()
+
+
+# ---- per-widget bindings -------------------------------------------------
+
+def _bind(widget: Any, apply: Callable[[Any], None]) -> Any:
+    """Attach a text re-application to one widget, run it now, return the widget.
+
+    ``apply`` takes the widget as its argument rather than closing over it: a
+    closure would keep the widget alive for the life of the process, which is
+    exactly what the weak reference here exists to avoid.
+
+    The widget comes back out so a call site can bind IN PLACE of the one-shot
+    call it replaces — ``bind_text(QLabel(), k)`` where ``QLabel(tr(k))`` was —
+    without spending a line, which several screens here cannot afford (Gate S).
+    """
+    _bindings.append((weakref.ref(widget), apply))
+    apply(widget)
+    return widget
+
+
+def _apply_bindings() -> None:
+    """Re-apply every live binding; drop the ones whose widget is gone.
+
+    Both halves of "gone" are handled: the Python wrapper collected (the weak
+    ref answers None) and the C++ object deleted underneath a live wrapper
+    (``RuntimeError``). Neither may stop the remaining widgets from updating.
+    """
+    alive: List[Tuple["weakref.ref", Callable[[Any], None]]] = []
+    for ref, apply in _bindings:
+        widget = ref()
+        if widget is None:
+            continue
+        try:
+            apply(widget)
+        except RuntimeError:
+            continue
+        alive.append((ref, apply))
+    _bindings[:] = alive
+
+
+def bind_text(widget: Any, key: str, **kwargs) -> Any:
+    """Keep ``widget``'s label on ``key`` through every language change."""
+    return _bind(widget, lambda w: w.setText(tr(key, **kwargs)))
+
+
+def bind_tip(widget: Any, key: str, **kwargs) -> Any:
+    """Keep ``widget``'s tooltip on ``key`` through every language change."""
+    return _bind(widget, lambda w: w.setToolTip(tr(key, **kwargs)))
+
+
+def bind_placeholder(widget: Any, key: str, **kwargs) -> Any:
+    """Keep an input's placeholder on ``key`` through every language change."""
+    return _bind(widget, lambda w: w.setPlaceholderText(tr(key, **kwargs)))
+
+
+def bind_items(widget: Any, keys: Iterable[str]) -> Any:
+    """Keep a combo's item LABELS on ``keys``, by position.
+
+    ``setItemText`` on purpose: clearing and re-adding the items would drop the
+    per-item data every caller persists (routing mode, task type) and reset the
+    current selection as a side effect of a translation.
+    """
+    keys = list(keys)
+
+    def _apply(w: Any) -> None:
+        """Re-label each item that still exists, leaving its data alone."""
+        for i, key in enumerate(keys[:w.count()]):
+            w.setItemText(i, tr(key))
+
+    return _bind(widget, _apply)
+
+
+def bind_dynamic(widget: Any, apply: Callable[[], None]) -> Any:
+    """Bind text that is not one plain key — a count, a name, a joined list.
+
+    ``apply`` takes no argument and re-reads whatever it needs itself; the
+    widget is still what decides how long the binding lives.
+    """
+    return _bind(widget, lambda _w: apply())

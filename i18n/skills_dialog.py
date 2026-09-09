@@ -123,7 +123,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Không phân tích được template này. Kiểm tra file .pptx/.xlsx hợp lệ và provider AI trong Settings hoạt động tốt, hoặc tự thêm skill thủ công."},
 
     # ---- flow_dialog.py -----------------------------------------------
-    "flow.title": {"en": "Flow Management", "ja": "Flow Management", "vi": "Flow Management"},
+    "flow.title": {"en": "Flow Management", "ja": "フロー管理", "vi": "Flow Management"},
     "flow.tab_flow": {"en": "Flow", "ja": "フロー", "vi": "Flow"},
     "flow.tab_agents": {"en": "Agents", "ja": "エージェント", "vi": "Agents"},
     "flow.tab_skills": {"en": "Skills", "ja": "スキル", "vi": "Skills"},
@@ -140,7 +140,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "flow.task_prompt": {"en": "Task (prompt)", "ja": "タスク（プロンプト）", "vi": "Nhiệm vụ (prompt)"},
     "flow.skill": {"en": "Skill", "ja": "スキル", "vi": "Skill"},
     "flow.agent": {"en": "AI provider", "ja": "AI プロバイダー", "vi": "AI provider"},
-    "flow.model_label": {"en": "Agent:", "ja": "Agent:", "vi": "Agent:"},
+    "flow.model_label": {"en": "Agent:", "ja": "エージェント:", "vi": "Agent:"},
     "flow.default_model": {"en": "(provider default)", "ja": "（プロバイダー既定）", "vi": "(mặc định của provider)"},
     "flow.gen_task_from_hint": {"en": "Generate task from hint", "ja": "ヒントからタスクを生成", "vi": "Tạo task từ gợi ý"},
     "flow.gen_task_tooltip": {
@@ -336,6 +336,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Nhấp node để mở thư mục, hoặc hỏi agent về đồ thị."},
     "structure.pick_folder_title": {"en": "Choose folder", "ja": "フォルダを選択", "vi": "Chọn thư mục"},
     "structure.scanning": {"en": "Scanning structure…", "ja": "構造をスキャン中…", "vi": "Đang quét cấu trúc…"},
+    "structure.loading_view": {
+        "en": "Loading the graph view…", "ja": "グラフビューを読み込み中…",
+        "vi": "Đang tải khung đồ thị…"},
     "structure.scan_error": {"en": "Scan error: {err}", "ja": "スキャンエラー: {err}", "vi": "Lỗi khi quét: {err}"},
     "structure.graph_summary": {"en": "Graph: {nodes} nodes, {edges} edges.{note}", "ja": "グラフ: ノード {nodes} 個、エッジ {edges} 個。{note}", "vi": "Đồ thị: {nodes} node, {edges} cạnh.{note}"},
     "structure.truncated_note": {"en": "  (truncated — too many nodes)", "ja": "  （切り捨て：ノードが多すぎます）", "vi": "  (đã cắt bớt — quá nhiều node)"},

@@ -46,7 +46,17 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Project của hội thoại này không còn tồn tại — không thể mở."},
     "workspace.name": {"en": "Name", "ja": "名前", "vi": "Tên"},
     "workspace.description": {"en": "Description", "ja": "説明", "vi": "Mô tả"},
-    "workspace.instructions": {"en": "Instructions", "ja": "Instructions", "vi": "Instructions"},
+    "workspace.instructions": {"en": "Instructions", "ja": "指示", "vi": "Hướng dẫn"},
+    "workspace.edit_project": {"en": "Edit project", "ja": "プロジェクトを編集", "vi": "Sửa project"},
+    "workspace.menu_open": {"en": "Open", "ja": "開く", "vi": "Mở"},
+    "workspace.menu_edit": {"en": "Edit", "ja": "編集", "vi": "Sửa"},
+    "workspace.menu_delete": {"en": "Delete", "ja": "削除", "vi": "Xóa"},
+    "workspace.name_taken_title": {
+        "en": "Name already used", "ja": "名前が重複しています", "vi": "Tên đã được dùng"},
+    "workspace.name_taken_body": {
+        "en": "Another project is already called \"{name}\". Project names must be unique — the list shows nothing but the name, so two of them cannot be told apart.",
+        "ja": "「{name}」という名前のプロジェクトが既にあります。一覧には名前しか出ないため、同じ名前が二つあると区別できません。",
+        "vi": "Đã có project khác tên \"{name}\". Tên project phải khác nhau — danh sách chỉ hiện tên, trùng tên là không phân biệt được."},
     "workspace.instructions_placeholder": {
         "en": "e.g. \"All answers in Vietnamese. We are building the X reporting tool; always follow the naming rules …\"",
         "ja": "例:「回答はすべて日本語で。X レポートツールを開発中。命名規則に従うこと …」",
@@ -69,7 +79,10 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "app.status.ready": {"en": "Ready.", "ja": "準備完了。", "vi": "Sẵn sàng."},
     "app.status.using_provider": {"en": "Using {label}.", "ja": "{label} を使用中。", "vi": "Đang dùng {label}."},
     "app.status.settings_saved": {"en": "Settings saved.", "ja": "設定を保存しました。", "vi": "Đã lưu cài đặt."},
-    "app.credit": {"en": "Made by QuanDH14", "ja": "Made by QuanDH14", "vi": "Made by QuanDH14"},
+    # Con số lấy từ ``cowork_local.__version__`` — một nguồn duy nhất cho tiêu
+    # đề cửa sổ, tab Giới thiệu và góc dưới phải. Giữ nguyên dạng ở cả ba ngôn
+    # ngữ (đã khai vào KHOA_KHONG_CAN_DICH).
+    "app.version": {"en": "Version {v}", "ja": "Version {v}", "vi": "Version {v}"},
     "app.tray.open": {"en": "Open Cowork Local", "ja": "Cowork Local を開く", "vi": "Mở Cowork Local"},
     "app.tray.quit": {"en": "Quit", "ja": "終了", "vi": "Thoát"},
     "app.tray.running_body": {
@@ -187,6 +200,15 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "chat.provider_default_short": {
         "en": "the provider's default model", "ja": "プロバイダー既定のモデル",
         "vi": "model mặc định của provider"},
+    "chat.provider_default_item": {
+        "en": "(provider default)", "ja": "（プロバイダー既定）",
+        "vi": "(mặc định của provider)"},
+    "chat.record_audio_start": {
+        "en": "Record Voice Note", "ja": "ボイスメモを録音", "vi": "Ghi âm ghi chú"},
+    "chat.record_audio_stop": {
+        "en": "Stop Recording", "ja": "録音を停止", "vi": "Dừng ghi âm"},
+    "chat.record_audio_cancel": {
+        "en": "Cancel recording", "ja": "録音をキャンセル", "vi": "Hủy ghi âm"},
     "chat.delete_link": {"en": "Delete", "ja": "削除", "vi": "Xóa"},
     "chat.delete_tooltip": {
         "en": "Delete this message and its input/output files",

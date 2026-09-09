@@ -290,9 +290,9 @@ class AiEditPipeline:
         self.pending = None
         self._owner.show_confirm_row(False)
         if p.get("image_gens"):
-            from PySide6.QtWidgets import QMessageBox
-            if QMessageBox.question(self._owner, tr("folder.ai_image_confirm_title"),
-                                    tr("folder.ai_image_confirm_gen")) != QMessageBox.Yes:
+            from ...ui.dialog_buttons import confirm
+            if not confirm(self._owner, tr("folder.ai_image_confirm_title"),
+                           tr("folder.ai_image_confirm_gen")):
                 self._owner.status_message.emit(tr("folder.ai_image_declined"))
                 return
             self._generate_then_finalize(p)

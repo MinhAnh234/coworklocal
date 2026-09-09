@@ -48,7 +48,7 @@ from PySide6.QtWidgets import (
 
 from ...core import co4e, skills as skills_mod
 from ...core.co4e_builtins import BUILTIN_AGENTS
-from ...i18n import tr
+from ...i18n import bind_placeholder, bind_text, tr
 from ...theme import current_palette
 from ...ui.icons import icon
 from ...ui.routing_toggle import RoutingToggle
@@ -223,7 +223,8 @@ class ChatPanel(QWidget):
         self.header = QWidget(); self.header.setObjectName("msgHeader")
         mh = QHBoxLayout(self.header); mh.setContentsMargins(6, 3, 6, 3); mh.setSpacing(6)
         self.msgs_icon = QLabel(); self.msgs_icon.setPixmap(icon("message").pixmap(14, 14))
-        self.msgs_title = QLabel(tr("co4e.messages")); self.msgs_title.setObjectName("hint")
+        self.msgs_title = bind_text(QLabel(), "co4e.messages")
+        self.msgs_title.setObjectName("hint")
         self.chat_toggle_btn = QPushButton()
         self.chat_toggle_btn.setObjectName("msgToggle")
         self.chat_toggle_btn.setFlat(True)
@@ -253,10 +254,11 @@ class ChatPanel(QWidget):
         crow.addWidget(self.usage_total_lbl)
         _inp = QWidget(); row = QHBoxLayout(_inp); row.setContentsMargins(0, 0, 0, 0)
         self.chat_input = _ChatInput()
-        self.chat_input.setPlaceholderText(tr("co4e.chat_placeholder"))
+        bind_placeholder(self.chat_input, "co4e.chat_placeholder")
         # KHONG noi .submit o day: cung ly do nhu chat_toggle_btn o tren
         # (ben goi noi toi _chat_send cua chinh no).
-        self.chat_send_btn = QPushButton(tr("co4e.send")); self.chat_send_btn.setIcon(icon("send"))
+        self.chat_send_btn = bind_text(QPushButton(), "co4e.send")
+        self.chat_send_btn.setIcon(icon("send"))
         # KHONG noi .clicked o day: cung ly do nhu tren.
         row.addWidget(self.chat_input, 1)
         # Off/Auto/Manual routing toggle for Co4E (surface key "co4e").

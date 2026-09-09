@@ -34,6 +34,9 @@ class FolderTab(QWidget):
         super().__init__()
         self.ctx = ctx
         self._root = str(ctx.config.cowork_output_dir())
+        # Goc ma project dang chon ap xuong, de phan biet "doi project" voi
+        # "chi la refresh" — xem set_project_root().
+        self._project_root = ""
 
         root_layout = QVBoxLayout(self)
         split = QSplitter(Qt.Horizontal)
@@ -82,6 +85,10 @@ class FolderTab(QWidget):
         self.terminal.expanded.connect(lambda: self.terminal.set_cwd(self._root))
         root_layout.addWidget(self.terminal)
 
+        # ``root_changed`` truoc day KHONG co ai lang nghe: nguoi dung tu chon
+        # thu muc trong cay thi chi cai cay doi goc, con khung xem va terminal o
+        # lai thu muc cu.
+        self.tree.root_changed.connect(self._on_user_picked_root)
         self.tree.file_selected.connect(self.preview.open_file)
         self.preview.status_message.connect(self.status_message.emit)
         self.ai_panel.status_message.connect(self.status_message.emit)
@@ -104,6 +111,29 @@ class FolderTab(QWidget):
             self._root = path
             self.preview.set_root(path)
             self.terminal.set_cwd(path)
+
+    def _on_user_picked_root(self, path: str) -> None:
+        """Người dùng tự chọn thư mục trong cây: lan sang khung xem và terminal."""
+        self._root = path
+        self.preview.set_root(path)
+        self.terminal.set_cwd(path)
+
+    def set_project_root(self, path: str) -> None:
+        """Áp thư mục gốc theo project đang chọn.
+
+        Bỏ qua nếu project KHÔNG đổi. ``WorkspaceTab.refresh()`` — và qua đó
+        ``_load_current`` — chạy lại mỗi lần người dùng vào lại màn Workspace
+        (``_goto`` gọi nó), nên gọi ``set_root`` vô điều kiện sẽ kéo thư mục về
+        workspace của project và xoá mất lựa chọn tay: chọn folder khác, chuyển
+        tab rồi quay lại là mất.
+
+        Đổi sang project khác thì vẫn re-root — thư mục của màn này thuộc về
+        project, chỉ có lần refresh trong CÙNG một project là không được đụng.
+        """
+        if path == self._project_root:
+            return
+        self._project_root = path
+        self.set_root(path)
 
     def _toggle_ai_panel(self) -> None:
         """Gập/mở panel AI-Edit; mở ra thì báo cho panel biết để nó nạp model lần đầu."""

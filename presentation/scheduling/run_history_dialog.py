@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from cowork_local.i18n import tr
+from cowork_local.ui.dialog_buttons import dialog_buttons
 from cowork_local.ui.osutil import open_path
 
 
@@ -53,7 +54,7 @@ class RunHistoryDialog(QDialog):
         self.table.itemDoubleClicked.connect(self._open_artifact)
         root.addWidget(self.table, 1)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons = dialog_buttons(QDialogButtonBox.Close)
         buttons.rejected.connect(self.reject)
         buttons.accepted.connect(self.accept)
         root.addWidget(buttons)

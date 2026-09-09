@@ -141,7 +141,7 @@ class ChatAgentsMixin:
         if not items and self.agent_combo.count() == 0:
             # No models found and none configured — placeholder with data=None so
             # we fall back to the provider's default model (never a fake name).
-            self.agent_combo.addItem("(provider default)", None)
+            self.agent_combo.addItem(tr("chat.provider_default_item"), None)
         keep_data = (f"{self._ADMIN_AGENT_PREFIX}{self._admin_agent.agent_id}"
                      if getattr(self, "_admin_agent", None) is not None else keep)
         idx = self.agent_combo.findData(keep_data) if keep_data else -1

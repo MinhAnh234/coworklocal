@@ -45,8 +45,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "schedtask.step_prompt_ph": {"en": "Prompt / command", "ja": "プロンプト/コマンド", "vi": "Prompt / lệnh"},
     "schedtask.stepexec.cowork": {"en": "Cowork", "ja": "Cowork", "vi": "Cowork"},
     "schedtask.stepexec.co4e": {"en": "Code", "ja": "Code", "vi": "Code"},
-    "schedtask.stepexec.script": {"en": "Script", "ja": "Script", "vi": "Script"},
-    "schedtask.stepexec.manual": {"en": "Manual", "ja": "Manual", "vi": "Manual"},
+    "schedtask.stepexec.script": {"en": "Script", "ja": "スクリプト", "vi": "Script"},
+    "schedtask.stepexec.manual": {"en": "Manual", "ja": "手動", "vi": "Thủ công"},
     "schedtask.del_step_tooltip": {"en": "Delete the selected step", "ja": "選択したステップを削除",
                                     "vi": "Xóa bước đang chọn"},
     "schedtask.guide_tooltip": {
@@ -168,7 +168,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Safety: the scheduler will NEVER auto-run this — it parks in Waiting Input until you right-click → Run now.",
         "ja": "安全: 自動実行されず、Run nowまで待機します。",
         "vi": "An toàn: scheduler KHÔNG BAO GIỜ tự chạy task này — nó nằm ở Waiting Input tới khi bạn chuột phải → Chạy ngay."},
-    "schedtask.g_input": {"en": "Input", "ja": "入力", "vi": "Input"},
+    "schedtask.g_input": {"en": "Input", "ja": "入力", "vi": "Đầu vào"},
     "schedtask.f_input_mode": {"en": "Input mode", "ja": "入力モード", "vi": "Chế độ input"},
     "schedtask.inmode.empty": {"en": "Empty (default)", "ja": "空（既定）", "vi": "Trống (mặc định)"},
     "schedtask.inmode.manual": {"en": "Manual text", "ja": "手入力テキスト", "vi": "Văn bản nhập tay"},
@@ -199,7 +199,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "ja": "各URLを取得し（ベストエフォート）、テキストをコンテキストとして渡します。",
         "vi": "Mỗi link được tải nội dung (khi có thể) và đưa vào ngữ cảnh cho agent."},
     "schedtask.f_prev_task": {"en": "Previous task", "ja": "前タスク", "vi": "Task trước"},
-    "schedtask.g_output": {"en": "Output", "ja": "出力", "vi": "Output"},
+    "schedtask.g_output": {"en": "Output", "ja": "出力", "vi": "Đầu ra"},
     "schedtask.f_output_mode": {"en": "Output mode", "ja": "出力モード", "vi": "Chế độ output"},
     "schedtask.g_dependency": {"en": "Dependency / Next task", "ja": "依存 / 次タスク", "vi": "Phụ thuộc / Task tiếp theo"},
     "schedtask.f_next_task": {"en": "Next task", "ja": "次タスク", "vi": "Task tiếp theo"},
@@ -244,8 +244,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "ja": "プレビュー（確認するまで作成されません）:",
         "vi": "Xem trước (chưa tạo gì cho tới khi bạn xác nhận):"},
     "schedtask.ai_confirm": {"en": "Create tasks", "ja": "タスクを作成", "vi": "Tạo các task"},
-    "schedtask.tab_ai": {"en": "AI gen task", "ja": "AIタスク生成", "vi": "AI gen task"},
-    "schedtask.tab_import": {"en": "Import", "ja": "インポート", "vi": "Import"},
+    "schedtask.tab_ai": {"en": "AI gen task", "ja": "AIタスク生成", "vi": "Tạo task bằng AI"},
+    "schedtask.tab_import": {"en": "Import", "ja": "インポート", "vi": "Nhập"},
     "schedtask.export_template_btn": {
         "en": "Create Excel template…", "ja": "Excelテンプレートを作成…",
         "vi": "Tạo template Excel…"},
@@ -339,4 +339,23 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "No usage recorded in this period yet — run a chat or a task first.",
         "ja": "この期間の使用記録はまだありません。チャットやタスクを実行してください。",
         "vi": "Chưa có dữ liệu sử dụng trong giai đoạn này — hãy chạy chat hoặc task trước."},
+    # Lỗi hợp lệ hoá phụ thuộc/chuỗi task: ``core/tasks.py`` trả về KHOÁ, nơi
+    # hiển thị mới gọi ``tr()`` (tầng core không biết ngôn ngữ đang chọn).
+    "schedtask.err_self_wait": {
+        "en": "A task cannot wait for itself.", "ja": "タスクは自分自身を待てません。",
+        "vi": "Một task không thể chờ chính nó."},
+    "schedtask.err_wait_cycle": {
+        "en": "This would create a circular wait between tasks.",
+        "ja": "タスク間で待ち合わせが循環してしまいます。",
+        "vi": "Việc này sẽ tạo vòng chờ luẩn quẩn giữa các task."},
+    "schedtask.err_self_chain": {
+        "en": "A task cannot chain to itself.", "ja": "タスクは自分自身に連結できません。",
+        "vi": "Một task không thể nối tiếp chính nó."},
+    "schedtask.err_next_missing": {
+        "en": "Next task does not exist.", "ja": "次のタスクが存在しません。",
+        "vi": "Task kế tiếp không tồn tại."},
+    "schedtask.err_chain_cycle": {
+        "en": "This would create a circular task chain.",
+        "ja": "タスクの連結が循環してしまいます。",
+        "vi": "Việc này sẽ tạo chuỗi task luẩn quẩn."},
 }

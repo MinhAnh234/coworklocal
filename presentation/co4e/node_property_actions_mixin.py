@@ -24,20 +24,21 @@ thứ tự kế thừa không ảnh hưởng hành vi (khác trường hợp
 ``co4e_canvas_widget.py``, nơi thứ tự mixin-trước-Qt-base là bắt buộc vì có
 override trùng tên).
 
-Import trong từng method giữ nguyên y hệt bản gốc (kể cả các import cục bộ có
-vẻ thừa như ``from PySide6.QtWidgets import QInputDialog`` lặp lại bên trong
-``_add_subagent``/``_edit_subagent`` dù đã có ở top-level) — chỉ số cấp `..`
-được nâng lên `...` cho khớp việc file dời từ ``ui/`` (cách gốc 2 cấp) sang
-``presentation/co4e/`` (cách gốc 3 cấp).
+Import trong từng method giữ nguyên y hệt bản gốc — chỉ số cấp `..` được nâng
+lên `...` cho khớp việc file dời từ ``ui/`` (cách gốc 2 cấp) sang
+``presentation/co4e/`` (cách gốc 3 cấp). Riêng các lời gọi ``QInputDialog``
+đã chuyển sang ``ui.dialog_buttons``: hàm tĩnh của Qt tự dựng hộp thoại bên
+trong nên nút "Cancel" của nó luôn là tiếng Anh.
 """
 from __future__ import annotations
 
 from typing import List
 
-from PySide6.QtWidgets import QInputDialog, QListWidgetItem
+from PySide6.QtWidgets import QListWidgetItem
 
 from ...core.co4e import SubAgent
 from ...i18n import tr
+from ...ui.dialog_buttons import ask_item, ask_multiline, ask_text
 
 
 class _StepConfigActionsMixin:
@@ -67,14 +68,12 @@ class _StepConfigActionsMixin:
         """Thêm một sub-agent vào bước đang chọn (chạy song song trong bước đó)."""
         if self._step is None:
             return
-        from PySide6.QtWidgets import QInputDialog
-
         names = self._available_agent_names()
         if names:
-            name, ok = QInputDialog.getItem(self, tr("co4e.pick_agent"), tr("co4e.pick_agent"),
-                                            names, 0, True)   # editable: can type a new one
+            name, ok = ask_item(self, tr("co4e.pick_agent"), tr("co4e.pick_agent"),
+                                names, 0, True)   # editable: can type a new one
         else:
-            name, ok = QInputDialog.getText(self, tr("co4e.pick_agent"), tr("co4e.pick_agent"))
+            name, ok = ask_text(self, tr("co4e.pick_agent"), tr("co4e.pick_agent"))
         name = (name or "").strip()
         if not ok or not name:
             return
@@ -89,13 +88,11 @@ class _StepConfigActionsMixin:
         row = self.sub_list.row(item)
         if not (0 <= row < len(self._step.sub_agents)):
             return
-        from PySide6.QtWidgets import QInputDialog
-
         names = self._available_agent_names()
         cur = self._step.sub_agents[row].agent
         start = names.index(cur) if cur in names else 0
-        name, ok = QInputDialog.getItem(self, tr("co4e.pick_agent"), tr("co4e.pick_agent"),
-                                        names or [cur], start, True)
+        name, ok = ask_item(self, tr("co4e.pick_agent"), tr("co4e.pick_agent"),
+                            names or [cur], start, True)
         name = (name or "").strip()
         if ok and name:
             self._step.sub_agents[row].agent = name
@@ -151,7 +148,7 @@ class _StepConfigActionsMixin:
         role = self.role_edit.text().strip()
         if not name and not role:
             return
-        hint, ok = QInputDialog.getMultiLineText(
+        hint, ok = ask_multiline(
             self, tr("co4e.ai_draft_hint_title"), tr("co4e.ai_draft_hint_label"))
         if not ok:
             return

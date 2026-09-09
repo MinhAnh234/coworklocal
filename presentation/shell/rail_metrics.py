@@ -11,11 +11,20 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QStyledItemDelegate
 
 # ---- kích thước ---------------------------------------------------------
-_NAV_EXPANDED_WIDTH = 150
+_NAV_EXPANDED_WIDTH = 232
 _NAV_COLLAPSED_WIDTH = 54
 _NAV_ROW_INSET = 8
 _NAV_ROW_GAP = 6
-_NAV_MIN_WIDTH = 132
+# Khe TRÊN nút Cài đặt, tính bằng khoảng trống thật trong layout của rail.
+# Không đặt bằng ``margin`` trong QSS: margin của stylesheet được vẽ BÊN TRONG
+# hộp của widget, mà nút này lại bị ``_rebuild_nav`` ghim đúng chiều cao một
+# dòng menu — nên margin không mua được một pixel khoảng cách nào.
+# 10 -> 4: đủ để Cài đặt không dính vào nhóm Dashboard/Giám sát, nhưng không
+# rộng đến mức trông như hai khu tách rời.
+_NAV_SETTINGS_GAP = 4
+# 132 -> 232: o 132px nhan "Cuoc tro chuyen moi" bi cat mat chu. San phai du
+# rong cho nhan DAI NHAT tren thanh, khong phai cho nhan trung binh.
+_NAV_MIN_WIDTH = 232
 _NAV_MAX_SHARE = 0.22
 _NAV_MAX_CEILING = 360
 

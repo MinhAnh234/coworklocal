@@ -110,6 +110,16 @@ def _slugify(name: str) -> str:
     return s or "project"
 
 
+#: Lich su hoi thoai cua mot project nam TRONG thu muc lam viec cua no, de chia
+#: se thu muc do la chia se ca lich su (may khac xem va tiep tuc duoc).
+HISTORY_SUBDIR = ".cowork_history"
+
+
+def project_history_dir(project) -> Path:
+    """Thư mục lịch sử hội thoại của một project."""
+    return project.workspace_dir() / HISTORY_SUBDIR
+
+
 def new_project(name: str, description: str = "", instructions: str = "",
                 output_dir: str = "", directory: Path = None) -> Project:
     """Create + persist a new project with a unique id derived from the name."""

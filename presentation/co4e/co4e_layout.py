@@ -14,7 +14,7 @@ from typing import List
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QSpacerItem, QSplitter, QTabBar, QTabWidget, QVBoxLayout, QWidget
 from ...core import co4e
-from ...i18n import tr
+from ...i18n import bind_text, tr
 from ...theme import current_palette
 from ...ui.co4e_canvas import Co4ECanvas
 from ...ui.icons import icon
@@ -141,7 +141,9 @@ class Co4ELayoutMixin:
         self.runs_btn.setToolTip(tr("co4e.tt_runs_tab"))
         self.runs_btn.toggled.connect(self._show_runs)
 
-        bar.addWidget(QLabel(tr("co4e.flow_name")))
+        # Bound: nothing else holds this label, so a one-shot tr() here would
+        # leave "Flow" stuck in the language the toolbar was built in.
+        bar.addWidget(bind_text(QLabel(), "co4e.flow_name"))
         bar.addWidget(self.name_edit, 1)
         bar.addWidget(self.add_step_btn)
         bar.addWidget(self.save_btn)

@@ -149,8 +149,14 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "app.provider": {"en": "Provider:", "ja": "プロバイダー:", "vi": "Nhà cung cấp:"},
     "app.language": {"en": "Language:", "ja": "言語:", "vi": "Ngôn ngữ:"},
     "app.settings": {"en": "Settings", "ja": "設定", "vi": "Cài đặt"},
-    "app.tab.dashboard": {"en": "Dashboard", "ja": "Dashboard", "vi": "Dashboard"},
-    "app.tab.schedule": {"en": "Schedule Task", "ja": "Schedule Task", "vi": "Schedule Task"},
+    # Shown on the cover while a language switch blocks the GUI thread. It is
+    # deliberately read BEFORE the switch, so it appears in the language the
+    # user is leaving — the only one they can still read at that moment.
+    "app.lang.switching": {
+        "en": "Switching language…", "ja": "言語を切り替えています…",
+        "vi": "Đang đổi ngôn ngữ…"},
+    "app.tab.dashboard": {"en": "Dashboard", "ja": "ダッシュボード", "vi": "Dashboard"},
+    "app.tab.schedule": {"en": "Schedule Task", "ja": "タスクスケジュール", "vi": "Schedule Task"},
     "app.tab.cowork": {"en": "Cowork", "ja": "Cowork", "vi": "Cowork"},
     "app.tab.code": {"en": "Code", "ja": "Code", "vi": "Code"},
     "app.tab.structure": {"en": "GraphRAG", "ja": "GraphRAG", "vi": "GraphRAG"},
@@ -158,7 +164,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "app.tab.monitoring": {"en": "Monitoring", "ja": "モニタリング", "vi": "Giám sát"},
     "app.nav.collapse_tooltip": {"en": "Collapse menu to icons only", "ja": "メニューをアイコンのみに折りたたむ", "vi": "Thu gọn menu về icon"},
     "app.nav.expand_tooltip": {"en": "Expand menu", "ja": "メニューを展開", "vi": "Mở rộng menu"},
-    "app.nav.menu_label": {"en": "MENU", "ja": "MENU", "vi": "MENU"},
+    "app.nav.menu_label": {"en": "MENU", "ja": "メニュー", "vi": "MENU"},
     # Shown on the rail rows the project gate disables (Cowork, GraphRAG) —
     # they stay listed and greyed instead of disappearing from the menu.
     "app.nav.needs_project": {

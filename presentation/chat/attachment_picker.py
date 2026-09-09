@@ -59,9 +59,19 @@ class AttachmentMixin:
         lines = [text] if text else []
 
         # --- User-attached files ---
+        # Đường dẫn đã giải quyết của các tệp đính kèm, để vòng quét thư mục
+        # phía sau không gửi lại chính chúng một lần nữa.
+        da_dinh_kem = set()
         if has_attachments:
-            lines.append("\n[Attachments] — read and use these files to answer the request:")
+            lines.append(
+                "\n[Attachments] — the user attached these files for THIS request. "
+                "They are the PRIMARY subject: read them in full and base the answer "
+                "on them. Anything listed further below is background context only.")
             for p in attachments:
+                try:
+                    da_dinh_kem.add(str(Path(p).resolve()))
+                except OSError:
+                    pass
                 lines.extend(self._read_one_attachment(p, limit, notify))
 
         # --- Auto-load existing workspace/output folder files as input data ---
@@ -74,10 +84,10 @@ class AttachmentMixin:
         if workspace is not None:
             lines.extend(self._folder_input_lines(
                 workspace,
-                "[Workspace files] — existing files in output folder, "
-                "read and use as input data. The user expects you to "
-                "process these files automatically:",
-                limit, max_files, notify))
+                "[Workspace files] — other files that happen to sit in the output "
+                "folder. Background context; do NOT let them displace the "
+                "attached files or the user's own question:",
+                limit, max_files, notify, da_dinh_kem))
 
         # --- Project knowledge (Claude-Projects style) ---
         # Only scanned separately when it's a DIFFERENT folder from the
@@ -88,31 +98,44 @@ class AttachmentMixin:
         if knowledge is not None and knowledge != workspace:
             lines.extend(self._folder_input_lines(
                 knowledge,
-                "[Project files] — shared knowledge files of this project, "
-                "available to every conversation in it. Read and use them "
-                "as context for the request:",
-                limit, max_files, notify))
+                "[Project files] — shared knowledge of this project. Background "
+                "context; do NOT let them displace the attached files or "
+                "the user's own question:",
+                limit, max_files, notify, da_dinh_kem))
 
         return "\n".join(lines)
 
     def _folder_input_lines(self, folder: Path, header: str, limit: int,
-                            max_files: int, notify=None) -> list:
+                            max_files: int, notify=None, skip=frozenset()) -> list:
         """Embed a folder's readable files into the prompt — recursing into
         every sub-folder, any depth, not just the top level, so files placed
         in nested folders are read and processed too (same per-message file
         cap as manual attachments — Settings → Attachments → max files;
         0 = unlimited — so a folder with dozens of files can't blow the
         context window)."""
+        from pathlib import Path as _P
+
         from ...core.doc_extract import find_input_files
 
         out: list = []
         shown, total = find_input_files(folder, self._INPUT_EXTS, max_files)
+        # Bo qua tep nguoi dung DA dinh kem tuong minh. Tep dinh kem thuong nam
+        # ngay trong thu muc workspace, nen khong loc thi cung mot tai lieu di vao
+        # prompt HAI lan: mot lan duoi [Attachments], mot lan duoi [Workspace
+        # files]. Voi tai lieu dai, ban thu hai vua nhan doi ngu canh vua khien
+        # model khong biet ban nao la ban duoc hoi.
+        # Số tệp thư mục này thực sự trả về, ĐO TRƯỚC khi lọc trùng: dòng cảnh
+        # báo bên dưới nói về giới hạn mỗi lượt, nên đếm cả tệp bị lọc vì đã
+        # đính kèm sẽ báo sai là "không nạp được".
+        so_lay_duoc = len(shown)
+        if skip:
+            shown = [f for f in shown if str(_P(f).resolve()) not in skip]
         if shown:
             out.append("\n" + header)
             for f in shown:
                 out.extend(self._read_one_attachment(str(f), limit, notify))
-        if total > len(shown):
-            skipped = total - len(shown)
+        if total > so_lay_duoc:
+            skipped = total - so_lay_duoc
             out.append(f"…({skipped} more files in the folder were not "
                        "loaded — per-message attachment limit; mention a "
                        "file by name if the user asks about it)")

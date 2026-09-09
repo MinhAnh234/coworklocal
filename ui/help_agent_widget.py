@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from ..core import admin_agents
+from ..core import admin_agents, help_knowledge
 from ..core.worker import AgentWorker
 from ..i18n import tr
 from .icons import icon
@@ -217,8 +217,7 @@ class HelpAgentWidget(QWidget):
     # ---- greeting / labels ------------------------------------------------
     def _greeting(self) -> str:
         """Câu chào mở đầu, có tên người dùng nếu biết."""
-        name = self._user_name or tr("help_agent.default_user")
-        return tr("help_agent.greeting", name=name)
+        return help_knowledge.greeting(self._user_name)
 
     # ---- construction -----------------------------------------------------
     def _build_edge_tab(self) -> None:
@@ -464,11 +463,12 @@ class HelpAgentWidget(QWidget):
         agent = admin_agents.ensure_help_agent(
             admin_agents.agents_admin_dir(self.ctx.config.shared_dir))
         history = list(self._history)
+        sys_prompt = help_knowledge.build_prompt(agent.effective_prompt(), getattr(self.parent(), "help_context", lambda: "")())
 
         def job(worker):
             """Chạy nền: gọi provider của Help Agent kèm prompt hệ thống của nó."""
             provider = admin_agents.build_agent_provider(self.ctx, agent)
-            messages = [{"role": "system", "content": agent.effective_prompt()}] + history
+            messages = [{"role": "system", "content": sys_prompt}] + history
             result = provider.chat(messages, tools=None, cancel=worker.is_cancelled)
             content = result.get("content", "") if isinstance(result, dict) else str(result)
             return {"content": provider.strip_think(content) or ""}

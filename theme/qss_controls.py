@@ -141,6 +141,25 @@ QPushButton#danger {
 QPushButton#danger:hover { background: $danger_solid_hover; }
 QPushButton#danger:disabled { background: $surface; color: $text_disabled; border-color: $border; }
 
+/* Tinted, not filled. `warning` and `success` are tuned as TEXT colours — the
+   same reason `accent` and `accent_solid` are separate tokens: a hue readable
+   as ink on a surface is too light to carry white as a fill (dark `warning` is
+   #CCA700, which white fails AA against). A soft ground with the token as ink
+   keeps the contrast that was already verified, in both themes. */
+QPushButton#warning {
+    background: $warning_soft; color: $warning; border: 1px solid $warning; font-weight: 600;
+}
+QPushButton#warning:hover { background: $hover; }
+QPushButton#warning:pressed { background: $active; }
+QPushButton#warning:disabled { background: $surface; color: $text_disabled; border-color: $border; }
+
+QPushButton#success {
+    background: $success_soft; color: $success; border: 1px solid $success; font-weight: 600;
+}
+QPushButton#success:hover { background: $hover; }
+QPushButton#success:pressed { background: $active; }
+QPushButton#success:disabled { background: $surface; color: $text_disabled; border-color: $border; }
+
 /* Ghost buttons: nav section headers and icon-only chrome. */
 QPushButton#navMenuBtn {
     background: transparent; border: none; border-radius: ${radius}px; padding: 5px 6px;
@@ -283,6 +302,39 @@ QPushButton#detailCopyBtn:hover { background: rgba(255,255,255,0.25); }
 
 QLabel { background: transparent; }
 QLabel#hint { color: $text_muted; }
+
+/* Man gioi thieu cua khung chat (trang thai rong). */
+QWidget#chatWelcome { background: $bg; }
+QLabel#welcomeGreeting { color: $text; font-size: 19px; font-weight: 600; }
+QLabel#welcomeMark {
+    background: $accent_soft; border: 1px solid $border_strong;
+    border-radius: ${radius}px;
+}
+QPushButton#welcomeCard {
+    background: $surface; border: 1px solid $border; border-radius: ${radius}px;
+    text-align: left; padding: 0px;
+}
+QPushButton#welcomeCard:hover { background: $hover; border-color: $border_strong; }
+QPushButton#welcomeCard:focus { border: 1px solid $focus_ring; }
+QLabel#welcomeCardTitle { color: $text; font-weight: 600; }
+
+/* Panel "dang tai" phu len khung do thi GraphRAG. Dung khung QWebEngineView la
+   viec DONG BO tren GUI thread (~1-2s), nen thanh tien trinh o day khong chay
+   duoc trong giai doan do — panel van phai nhin thay duoc, va do la ly do no co
+   nen dac cua rieng minh thay vi chi la mot dong chu. */
+QWidget#graphBusy { background: $overlay; border: 1px solid $border_strong; border-radius: ${radius}px; }
+QWidget#graphBusy QLabel { color: $text; font-weight: 600; }
+
+/* Lop phu ca cua so trong luc doi ngon ngu — cung ly do voi #graphBusy o tren:
+   viec chan chay DONG BO tren GUI thread. Nen mo chu khong dac: nguoi dung con
+   thay man hinh cu mo di, nen hieu la app dang lam viec chu khong phai da nhay
+   sang mot man hinh khac. */
+QWidget#busyOverlay { background: rgba(0, 0, 0, 0.45); }
+QWidget#busyOverlayPanel {
+    background: $overlay; border: 1px solid $border_strong;
+    border-radius: ${radius}px;
+}
+QWidget#busyOverlayPanel QLabel { color: $text; font-weight: 600; }
 QLabel#faint { color: $text_faint; }
 QLabel#warning { color: $warning; font-weight: 600; }
 QLabel#error { color: $danger; font-weight: 600; }
