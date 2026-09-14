@@ -19,6 +19,14 @@ set "APPHOME=%LOCALAPPDATA%\CoworkLocal"
 set "VENV=%APPHOME%\venv"
 set "LAUNCHER=%APPHOME%\launcher"
 
+rem  An cua so console NGAY TU DAU, ke ca trong luc kiem tra ben duoi — khong
+rem  chi truoc luc chay app. Moi cho bao loi (echo + pause) ben duoi tu hien
+rem  lai cua so truoc khi in, de thong bao van doc duoc.
+set "CONSOLE_VIS=%REPO%\scripts\console_visibility.ps1"
+if exist "%CONSOLE_VIS%" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 0 >nul 2>&1
+)
+
 rem --------------------------------------------------------------------------
 rem  1. Chon trinh thong dich
 rem
@@ -38,6 +46,7 @@ if exist "%VENV%\Scripts\python.exe" (
 )
 
 if not defined RUNPY (
+    if exist "%CONSOLE_VIS%" powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 5 >nul 2>&1
     echo.
     echo  [LỖI] Không tìm thấy Python. Chạy  install.bat  trước đã.
     echo.
@@ -51,6 +60,7 @@ rem  biet la phai chay install.bat.
 if not exist "%VENV%\Scripts\python.exe" (
     !RUNPY! -c "import PySide6" >nul 2>&1
     if errorlevel 1 (
+        if exist "%CONSOLE_VIS%" powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 5 >nul 2>&1
         echo.
         echo  [LỖI] Thư viện chưa được cài. Chạy  install.bat  trước đã.
         echo.
@@ -94,6 +104,7 @@ if /I "%REPO_NAME%"=="cowork_local" (
     if exist "!PKGPATH!\cowork_local" rmdir "!PKGPATH!\cowork_local" >nul 2>&1
     mklink /J "!PKGPATH!\cowork_local" "%REPO%" >nul 2>&1
     if errorlevel 1 (
+        if exist "%CONSOLE_VIS%" powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 5 >nul 2>&1
         echo.
         echo  [LOI] Khong tao duoc lien ket thu muc:
         echo        "!PKGPATH!\cowork_local"  ->  "%REPO%"
@@ -112,6 +123,7 @@ rem  Chot lai: goi phai THAT SU nhin thay duoc qua duong dan vua dung. Khong co
 rem  buoc nay thi mot junction hong chi hien ra duoi dang loi Python kho hieu
 rem  ("'cowork_local' is a package and cannot be directly executed").
 if not exist "!PKGPATH!\cowork_local\__main__.py" (
+    if exist "%CONSOLE_VIS%" powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 5 >nul 2>&1
     echo.
     echo  [LOI] Khong tim thay  cowork_local\__main__.py  qua duong dan:
     echo        "!PKGPATH!"
@@ -139,18 +151,12 @@ set "PYTHONIOENCODING=utf-8"
 cd /d "%REPO%"
 
 rem --------------------------------------------------------------------------
-rem  4. An cua so console trong luc chay
+rem  4. Chay app
 rem
-rem  App la GUI (Qt), khong can console — nhung no chia se console cua chinh
-rem  cmd nay (khong tu mo cua so rieng), nen cua so den cua run.bat cu the
-rem  hien suot phien lam viec neu khong lam gi. An no ngay truoc khi chay, roi
-rem  chi hien lai NEU app thoat loi, de thong bao loi ben duoi van doc duoc.
+rem  App la GUI (Qt), khong can console — cua so console da bi an tu dau file
+rem  roi (xem khoi CONSOLE_VIS phia tren), chi hien lai NEU app thoat loi, de
+rem  thong bao loi ben duoi van doc duoc.
 rem --------------------------------------------------------------------------
-set "CONSOLE_VIS=%REPO%\scripts\console_visibility.ps1"
-if exist "%CONSOLE_VIS%" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%CONSOLE_VIS%" -Mode 0 >nul 2>&1
-)
-
 !RUNPY! -m cowork_local %*
 set "RC=%ERRORLEVEL%"
 

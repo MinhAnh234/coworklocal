@@ -95,20 +95,52 @@ def build_filter_scaffold(
         if with_page_size and isinstance(table, EventTable):
             # DF-006: the item-per-page count was never surfaced anywhere in
             # the UI (design called for it) — EventTable already trims to a
-            # page size internally (default 300), this just makes that
-            # number visible AND user-choosable instead of a fixed constant.
+            # page size internally, this just makes that number visible AND
+            # user-choosable instead of a fixed constant.
             page_size_lbl = QLabel(tr("monitoring.page_size_label"))
             page_size_combo = QComboBox()
             for n in PAGE_SIZE_OPTIONS:
                 page_size_combo.addItem(str(n), n)
             current = table.page_size()
             page_size_combo.setCurrentIndex(
-                PAGE_SIZE_OPTIONS.index(current) if current in PAGE_SIZE_OPTIONS else 2)
+                PAGE_SIZE_OPTIONS.index(current) if current in PAGE_SIZE_OPTIONS else 0)
             page_size_combo.currentIndexChanged.connect(
                 lambda i: table.set_page_size(page_size_combo.itemData(i)))
             row.addWidget(page_size_lbl)
             row.addWidget(page_size_combo)
-            parts.update(page_size_label=page_size_lbl, page_size_combo=page_size_combo)
+
+            # DF-006 follow-up: trimming to a page size alone silently dropped
+            # every row past it with no way back to see them — prev/next
+            # buttons plus a "trang X/Y" indicator make the rest reachable.
+            page_prev_btn = QPushButton()
+            page_prev_btn.setIcon(icon("chevron-left"))
+            page_prev_btn.setCursor(Qt.PointingHandCursor)
+            bind_tip(page_prev_btn, "monitoring.page_prev")
+            page_next_btn = QPushButton()
+            page_next_btn.setIcon(icon("chevron-right"))
+            page_next_btn.setCursor(Qt.PointingHandCursor)
+            bind_tip(page_next_btn, "monitoring.page_next")
+            page_indicator_lbl = QLabel()
+
+            def _refresh_pager(cur: int = None, total: int = None) -> None:
+                if cur is None or total is None:
+                    cur, total = table.current_page(), table.page_count()
+                page_indicator_lbl.setText(tr("monitoring.page_indicator", page=cur + 1, total=total))
+                page_prev_btn.setEnabled(cur > 0)
+                page_next_btn.setEnabled(cur < total - 1)
+
+            page_prev_btn.clicked.connect(table.prev_page)
+            page_next_btn.clicked.connect(table.next_page)
+            table.page_changed.connect(_refresh_pager)
+            _refresh_pager()
+
+            row.addWidget(page_prev_btn)
+            row.addWidget(page_indicator_lbl)
+            row.addWidget(page_next_btn)
+            parts.update(
+                page_size_label=page_size_lbl, page_size_combo=page_size_combo,
+                page_prev_btn=page_prev_btn, page_next_btn=page_next_btn,
+                page_indicator_label=page_indicator_lbl, page_pager_refresh=_refresh_pager)
         lay.addLayout(row)
         parts.update(filter_edit=search, ai_filter_btn=ai_btn)
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from PySide6.QtCore import QEvent, QObject, QRect, QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem, QWidget
 
@@ -17,8 +17,8 @@ from ....ui.icons import DOT_GREEN, DOT_RED, icon
 from .badges import action_label
 from .formatters import agent_avatar_icon, fmt_event_time
 
-_MAX_ROWS = 300
-PAGE_SIZE_OPTIONS = (50, 100, 300, 500, 1000)
+_DEFAULT_PAGE_SIZE = 20
+PAGE_SIZE_OPTIONS = (5, 10, 20, 50, 100)
 
 
 class _TimeItem(QTableWidgetItem):
@@ -63,6 +63,12 @@ class EventTable(QTableWidget):
         "secret_in_output": "warning",
     }
 
+    # Emitted whenever the rendered page changes (new data, page-size change,
+    # or prev/next navigation) — args are (current_page, page_count), both
+    # 1-based-friendly in that current_page is 0-indexed but page_count is a
+    # plain count. filter_scaffold.py's pager label/buttons listen to this.
+    page_changed = Signal(int, int)
+
     def __init__(self, show_result: bool = True):
         # Security Events drops the result column entirely (see _ACTION_TINTS).
         """Bảng sự kiện dùng chung của các tab Giám sát.
@@ -71,8 +77,10 @@ class EventTable(QTableWidget):
         là thất bại nên cột ấy chỉ tốn chỗ.
         """
         self._show_result = show_result
-        self._page_size = _MAX_ROWS
+        self._page_size = _DEFAULT_PAGE_SIZE
+        self._current_page = 0
         self._last_events: List[dict] = []
+        self._sorted_events: List[dict] = []
         super().__init__(0, 7 if show_result else 6)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectRows)
@@ -105,21 +113,56 @@ class EventTable(QTableWidget):
         """Số dòng đang hiển thị mỗi trang."""
         return self._page_size
 
+    def page_count(self) -> int:
+        """Tổng số trang với dữ liệu và số dòng/trang hiện tại (tối thiểu 1)."""
+        if not self._sorted_events:
+            return 1
+        return -(-len(self._sorted_events) // self._page_size)  # ceil div
+
+    def current_page(self) -> int:
+        """Trang đang hiển thị, đánh số từ 0."""
+        return self._current_page
+
+    def go_to_page(self, page: int) -> None:
+        """Nhảy tới một trang cụ thể (đánh số từ 0), tự kẹp trong khoảng hợp lệ."""
+        self._current_page = page
+        self._render_current_page()
+
+    def next_page(self) -> None:
+        """Sang trang kế — không làm gì nếu đã ở trang cuối."""
+        self.go_to_page(self._current_page + 1)
+
+    def prev_page(self) -> None:
+        """Về trang trước — không làm gì nếu đã ở trang đầu."""
+        self.go_to_page(self._current_page - 1)
+
     def set_page_size(self, n: int) -> None:
-        """Đổi số dòng hiển thị mỗi trang rồi vẽ lại với dữ liệu đã có sẵn
-        (không cần refresh lại từ nguồn — set_events() đã lưu lại lần đổ gần nhất)."""
+        """Đổi số dòng hiển thị mỗi trang, quay về trang đầu, rồi vẽ lại với dữ
+        liệu đã có sẵn (không cần refresh lại từ nguồn)."""
         self._page_size = n
-        self.set_events(self._last_events)
+        self._current_page = 0
+        self._render_current_page()
 
     def set_events(self, events: List[dict]) -> None:
-        """Đổ danh sách sự kiện vào bảng: mới nhất lên đầu, cắt ở ``self._page_size``
-        (đổi được qua ``set_page_size`` — control "Số dòng/trang" ở filter_scaffold.py).
+        """Đổ danh sách sự kiện vào bảng: mới nhất lên đầu, chia trang theo
+        ``self._page_size`` — xem qua trang khác bằng ``next_page``/``prev_page``
+        (nút tiến/lùi ở filter_scaffold.py), không còn bị cắt bỏ vĩnh viễn như
+        trước (DF-006)."""
+        self._last_events = events
+        self._sorted_events = sorted(events, key=lambda e: e.get("ts", ""), reverse=True)
+        self._current_page = 0
+        self._render_current_page()
+
+    def _render_current_page(self) -> None:
+        """Vẽ đúng một trang (theo ``self._current_page``/``self._page_size``)
+        từ ``self._sorted_events`` đã sắp sẵn.
 
         Tắt sắp xếp trong lúc đổ dữ liệu — để bật, Qt sắp lại sau mỗi dòng và việc
         nạp chậm đi theo bậc hai.
         """
-        self._last_events = events
-        events = sorted(events, key=lambda e: e.get("ts", ""), reverse=True)[:self._page_size]
+        self._current_page = max(0, min(self._current_page, self.page_count() - 1))
+        start = self._current_page * self._page_size
+        events = self._sorted_events[start:start + self._page_size]
         self.setSortingEnabled(False)
         self.setRowCount(len(events))
         for row, ev in enumerate(events):
@@ -164,6 +207,7 @@ class EventTable(QTableWidget):
                 self.setItem(row, col, item)
         self.setSortingEnabled(True)
         self.apply_filter(getattr(self, "_filter_needle", ""))
+        self.page_changed.emit(self._current_page, self.page_count())
 
     def apply_filter(self, needle: str) -> None:
         """Ẩn/hiện dòng theo từ khoá tìm kiếm (không phân biệt hoa thường)."""

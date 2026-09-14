@@ -10,13 +10,13 @@ from typing import List, Optional
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QMenu
 from ...core import co4e
-from ...core.co4e import STEP_DONE, STEP_RUNNING
+from ...core.co4e import STEP_RUNNING
 from ...i18n import tr
 from ...ui.dialog_buttons import ask_text
 from ...ui.icons import icon
 from ...presentation.co4e.co4e_chat_view import _skill_names
 
-_LOCKED_NODE_STATUSES = (STEP_RUNNING, STEP_DONE)
+_LOCKED_NODE_STATUSES = (STEP_RUNNING,)
 
 
 class Co4EWorkflowCrudMixin:
@@ -169,8 +169,8 @@ class Co4EWorkflowCrudMixin:
     def _on_node_selected(self, node_id: str) -> None:
         """Chọn một node thì nạp bước đó vào bảng thuộc tính, tự mở bảng nếu đang gập.
 
-        Bước đang chạy hoặc đã chạy xong thì khoá ô nhập liệu ngay khi nạp —
-        tránh sửa nhầm cấu hình của lần chạy đang xem kết quả.
+        Chỉ khoá ô nhập liệu khi bước ĐANG chạy (DF-002) — chạy xong rồi thì
+        vẫn sửa lại được bình thường.
         """
         for n in self.canvas.nodes():
             if n.id == node_id:

@@ -39,8 +39,9 @@ _UNBOUNDED_PAGE_SIZE = 100_000
 # day-sharded JSONL — unbounded start/end means EVERY day file ever written
 # gets re-read and re-parsed on EVERY tick, which is what actually made
 # Monitoring "gây nặng khi log lớn" (see DF-006): the slowness was never in
-# rendering (EventTable already caps display at 300 rows — see
-# shared/event_table.py::_MAX_ROWS), it was this repeated full-history read.
+# rendering (EventTable paginates client-side, 5-100 rows/page — see
+# shared/event_table.py::_DEFAULT_PAGE_SIZE), it was this repeated full-history
+# read.
 # 30 days is a live-monitoring window, not a hard retention limit — nothing
 # is deleted, older days are simply not re-read on every 3s tick.
 _LOG_WINDOW_DAYS = 30

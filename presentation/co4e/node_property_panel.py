@@ -294,11 +294,11 @@ class StepConfigPanel(_StepConfigActionsMixin, QScrollArea):
     def set_locked(self, locked: bool) -> None:
         """Khoá/mở khoá các trường chỉnh sửa theo trạng thái chạy của bước.
 
-        Bước đang chạy hoặc đã chạy xong thì khoá lại — tránh sửa nhầm cấu
-        hình trong lúc đang xem kết quả của chính lần chạy đó (sửa xong
-        không rõ là áp dụng cho lần chạy đã xong hay lần chạy tiếp theo).
-        Nút Chạy/Chạy từ đây/Xoá bước vẫn hoạt động bình thường khi khoá —
-        chỉ ô nhập liệu bị khoá, không phải cả panel.
+        Chỉ khoá khi bước ĐANG chạy — tránh sửa nhầm cấu hình trong lúc chưa
+        biết kết quả (DF-002: trước đây còn khoá cả bước đã chạy xong, khiến
+        không sửa lại được sau khi run xong). Nút Chạy/Chạy từ đây/Xoá bước
+        vẫn hoạt động bình thường khi khoá — chỉ ô nhập liệu bị khoá, không
+        phải cả panel.
         """
         self._locked = locked
         editable = not locked

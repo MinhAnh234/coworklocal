@@ -234,6 +234,12 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "monitoring.ai_filter_btn": {"en": "AI", "ja": "AI", "vi": "AI"},
     "monitoring.page_size_label": {
         "en": "Rows/page:", "ja": "1ページの行数:", "vi": "Số dòng/trang:"},
+    "monitoring.page_indicator": {
+        "en": "Page {page}/{total}", "ja": "{page}/{total} ページ", "vi": "Trang {page}/{total}"},
+    "monitoring.page_prev": {
+        "en": "Previous page", "ja": "前のページ", "vi": "Trang trước"},
+    "monitoring.page_next": {
+        "en": "Next page", "ja": "次のページ", "vi": "Trang sau"},
     "monitoring.pricing_title": {
         "en": "Model pricing (USD / 1M tokens)", "ja": "モデル価格表 (USD / 100万トークン)",
         "vi": "Bảng giá model (USD / 1 triệu token)"},

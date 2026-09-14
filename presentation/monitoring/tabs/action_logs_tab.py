@@ -34,6 +34,7 @@ class ActionLogsTab(QWidget):
         self.ai_filter_btn = parts["ai_filter_btn"]
         self.detail_panel = parts["detail_panel"]
         self.page_size_label = parts["page_size_label"]
+        self.page_pager_refresh = parts["page_pager_refresh"]
 
     def set_events(self, events: List[dict]) -> None:
         """Đổ danh sách sự kiện vào bảng."""
@@ -47,6 +48,7 @@ class ActionLogsTab(QWidget):
         self.title_lbl.setText(tr(self.title_key))
         self.title_refresh_btn.setText(tr("monitoring.refresh"))
         self.page_size_label.setText(tr("monitoring.page_size_label"))
+        self.page_pager_refresh()
 
     def _start_ai_filter(self, search: QLineEdit, ai_btn: QPushButton) -> None:
         """Nhờ AI dịch câu tìm kiếm tự nhiên thành từ khoá lọc."""
