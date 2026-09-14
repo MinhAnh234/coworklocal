@@ -100,11 +100,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "resource_limit_cpu_percent": 80,  # 0 = unlimited; caps a run_command/install_package process TREE's total CPU%
         "resource_limit_memory_mb": 2048,  # 0 = unlimited; caps total RSS memory (MB)
         "resource_limit_disk_mb": 512,     # 0 = unlimited; caps total disk read+write (MB)
-        "block_network": True,             # strip proxy env / point at a black-hole address for agent-run commands
+        # Cut the agent off the network: proxy env pointed at a black hole for
+        # agent-run shell commands, PLUS a flat refusal from every tool tagged
+        # ToolCapability.NETWORK (fetch_url, jira_*, install_package) — those
+        # reach the net in-process, where the proxy trick has nothing to act on.
+        "block_network": True,
         # Allow the agent's fetch_url tool to read web pages / online documents /
-        # SharePoint-OneDrive share links. SEPARATE from block_network (that only
-        # sandboxes agent-run shell commands) — reading a URL for info is safe and
-        # useful, so this defaults ON. Toggle in Settings → Security.
+        # SharePoint-OneDrive share links. Its own toggle — reading a URL for info
+        # is safe and useful, so this defaults ON — but block_network outranks it:
+        # with the network blocked the tool is refused either way.
         "allow_url_fetch": True,
         "sandbox_pw": "",                  # set through COWORK_SANDBOX_PASSWORD
         "rulebase_path": "",               # custom RULEBASE.md — attached to every agent execution

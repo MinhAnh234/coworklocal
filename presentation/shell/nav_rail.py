@@ -197,9 +197,9 @@ class NavRailMixin:
     def _nav_rows(self):
         """(tree, page, sub, label, icon, enabled) for every row, rail order.
 
-        Workspace contributes all five of its sub-views — including the two the
-        project gate currently disables — so the rail never changes shape while
-        the user is looking at it.
+        Workspace contributes all five of its sub-views; ``_rebuild_nav`` bỏ
+        những hàng mà cổng project đang đóng (Cowork, GraphRAG) thay vì hiện
+        chúng ở dạng mờ.
         """
         rows = [(self.nav, self._ROW_WORKSPACE, sub, label, ic, on)
                 for label, sub, ic, on in self.workspace.nav_entries()]
@@ -238,15 +238,13 @@ class NavRailMixin:
                 tree.clear()
                 tree.blockSignals(blocked)
             for tree, page, sub, label, icon_name, enabled in spec:
+                if not enabled:
+                    # Cổng project đóng → bỏ hẳn hàng, không hiện dạng mờ nữa.
+                    continue
                 it = QTreeWidgetItem([""] if self._nav_collapsed else [label])
                 it.setIcon(0, _icon(icon_name))
                 it.setData(0, Qt.UserRole, {"page": page, "sub": sub})
-                if not enabled:
-                    # Same gate as before, shown instead of hidden: the row stays
-                    # in place, greyed, and says why it cannot be opened.
-                    it.setDisabled(True)
-                    it.setToolTip(0, tr("app.nav.needs_project"))
-                elif self._nav_collapsed:
+                if self._nav_collapsed:
                     it.setToolTip(0, label)
                 blocked = tree.blockSignals(True)
                 tree.addTopLevelItem(it)

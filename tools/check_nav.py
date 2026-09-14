@@ -74,22 +74,30 @@ def main() -> int:
 
     main_rows, bottom_rows = rows(win.nav), rows(win.nav_bottom)
     n_total = len(main_rows) + len(bottom_rows)
-    # Five Workspace sub-views + Schedule, then Dashboard + Monitoring.
-    if len(main_rows) != 6:
-        fails.append(f"thanh chinh co {len(main_rows)} dong, cho 6")
+    # Workspace gop cac sub-view DANG MO CONG + Schedule, roi Dashboard +
+    # Monitoring. Cowork/GraphRAG chi co mat khi da chon mot project, nen so
+    # dong doi theo cong thay vi co dinh 6.
+    mo_cong = sum(1 for _l, _i, _ic, on in win.workspace.nav_entries() if on)
+    cho_chinh = mo_cong + 1
+    if len(main_rows) != cho_chinh:
+        fails.append(f"thanh chinh co {len(main_rows)} dong, cho {cho_chinh}")
     if len(bottom_rows) != 2:
         fails.append(f"nhom day co {len(bottom_rows)} dong, cho 2")
     if any(sub is not None for _l, _p, sub, _o in bottom_rows):
         fails.append("nhom day khong duoc mang sub-tab")
 
-    # The two gated rows must be PRESENT (that is the point) — greyed is fine.
+    # Hang bi cong project dong thi BO HAN khoi menu; hang dang mo phai co mat.
     labels = [r[0] for r in main_rows]
-    ws_labels = [lab for lab, _i, _ic, _on in win.workspace.nav_entries()]
-    for lab in ws_labels:
+    ws_mo = [lab for lab, _i, _ic, on in win.workspace.nav_entries() if on]
+    ws_dong = [lab for lab, _i, _ic, on in win.workspace.nav_entries() if not on]
+    for lab in ws_mo:
         if lab not in labels:
-            fails.append(f"mat dong Workspace: {lab}")
-    print(f"du 5 man Workspace tren thanh menu: {all(l in labels for l in ws_labels)}"
-          f"  ({', '.join(ws_labels)})")
+            fails.append(f"mat dong Workspace dang mo cong: {lab}")
+    for lab in ws_dong:
+        if lab in labels:
+            fails.append(f"dong Workspace dang dong cong van tren menu: {lab}")
+    print(f"man Workspace dang mo cong tren menu: {all(l in labels for l in ws_mo)}"
+          f"  ({', '.join(ws_mo) or 'khong co'})")
 
     # Highlight must follow the content for every row, both ways round.
     # Re-fetch items by index every time: navigating can rebuild the rail, which
@@ -145,19 +153,18 @@ def main() -> int:
     if ws_strip:
         fails.append("dai tab Workspace hien lai — trung voi thanh menu")
 
-    # The whole point of the change: with no project selected the two gated rows
-    # must stay in place, greyed — not vanish and resize the menu.
+    # Yeu cau: chua chon project thi Cowork/GraphRAG khong duoc hien tren menu.
     win.workspace._update_tab_visibility(False)
     app.processEvents()
     gated = rows(win.nav)
-    off = [lab for lab, _p, _s, on in gated if not on]
+    nhan_gated = [lab for lab, _p, _s, _on in gated]
     print()
-    print(f"chua chon project   : van du {len(gated)} dong, mo: {off or 'khong'}")
-    if len(gated) != len(main_rows):
-        fails.append(f"chua chon project thi thanh menu con {len(gated)} dong "
-                     f"(truoc {len(main_rows)}) — item van bien mat")
-    if len(off) != 2:
-        fails.append(f"cho 2 dong bi mo (Cowork, GraphRAG), thay {len(off)}")
+    print(f"chua chon project   : con {len(gated)} dong ({', '.join(nhan_gated)})")
+    for lab in ("Cowork", "GraphRAG"):
+        if lab in nhan_gated:
+            fails.append(f"chua chon project ma {lab} van tren menu")
+    if any(not on for _l, _p, _s, on in gated):
+        fails.append("con dong bi mo tren menu — dang le phai bo han")
 
     # --- rail header: project picker + new chat (Phase A) ------------------
     print()

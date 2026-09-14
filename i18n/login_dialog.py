@@ -177,6 +177,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "vi": "Project cho đoạn chat mới"},
     "app.nav.no_project": {
         "en": "No project yet", "ja": "プロジェクトなし", "vi": "Chưa có project"},
+    # KHAC no_project: đã có project, chỉ là người dùng chưa chọn cái nào.
+    "app.nav.pick_project": {
+        "en": "Select a project…", "ja": "プロジェクトを選択…", "vi": "Chọn project…"},
     "app.nav.recents": {"en": "RECENTS", "ja": "最近", "vi": "GẦN ĐÂY"},
     "app.nav.all_projects": {
         "en": "All projects…", "ja": "すべてのプロジェクト…", "vi": "Tất cả project…"},

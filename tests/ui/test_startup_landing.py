@@ -128,19 +128,24 @@ def test_bam_project_tren_thanh_menu_an_ngay_lan_dau(window):
 
 
 def test_khi_cong_project_MO_thi_ha_canh_o_cowork_va_vet_sang_theo(window):
-    """Nhánh của người dùng ĐÃ có project — nhánh mà bug được báo.
+    """Nhánh của người dùng ĐÃ chọn một project — nhánh mà bug được báo.
 
-    Môi trường test không có project nào (cố ý: ``core/projects.py`` ghi vào
-    ``~/.cowork_local`` thật). Mở cổng bằng tay để đi đúng nhánh đó mà không
-    phải tạo project trên đĩa.
+    Trước đây bài này mở cổng bằng cửa sau ``setTabVisible(True)`` vì môi trường
+    test không có project nào (``core/projects.py`` ghi vào ``~/.cowork_local``
+    thật, nên test không tạo project). Cửa sau đó hết tác dụng từ khi cổng được
+    điều khiển bằng ``_current_id``: ``refresh()``/``goto_all_projects()`` đóng
+    lại ngay. Giờ mở cổng bằng đúng đường thật — chọn một project — và bỏ qua
+    bài này trên máy chưa có project nào.
     """
     from PySide6.QtCore import Qt
 
     ws = window.workspace
     if ws._cowork_tab_idx < 0:
         pytest.skip("bản dựng này không có sub-tab Cowork")
+    if ws.project_list.count() == 0:
+        pytest.skip("máy chạy test chưa có project nào — cổng không mở được")
 
-    ws.tabs.setTabVisible(ws._cowork_tab_idx, True)
+    ws.project_list.setCurrentRow(0)
     try:
         window.goto_all_projects()
 
@@ -154,5 +159,5 @@ def test_khi_cong_project_MO_thi_ha_canh_o_cowork_va_vet_sang_theo(window):
             f"nội dung ở Cowork ({ws._cowork_tab_idx}) "
             f"nhưng thanh menu sáng ở {data.get('sub')}")
     finally:
-        ws.tabs.setTabVisible(ws._cowork_tab_idx, False)
+        ws.project_list.setCurrentRow(-1)   # đóng cổng lại đúng đường thật
         window.goto_all_projects()

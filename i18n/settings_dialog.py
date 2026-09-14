@@ -45,28 +45,6 @@ STRINGS: Dict[str, Dict[str, str]] = {
               "ファイアウォールではありません。上のコマンドホワイトリストと併用してください。",
         "vi": "Kiểm soát ở tầng chính sách (trỏ biến môi trường proxy vào hố đen) — không phải "
               "firewall tầng kernel. Kết hợp với whitelist lệnh ở trên để phòng thủ nhiều lớp."},
-    "settings.sandbox_pw_label": {
-        "en": "Sandbox Security Password", "ja": "サンドボックスセキュリティのパスワード",
-        "vi": "Mật khẩu Bảo mật Sandbox"},
-    "settings.sandbox_pw_placeholder": {
-        "en": "Enter password to edit sandbox settings",
-        "ja": "サンドボックス設定を変更するにはパスワードを入力してください",
-        "vi": "Nhập mật khẩu để sửa thiết lập sandbox"},
-    "settings.sandbox_unlock_btn": {"en": "Unlock", "ja": "ロック解除", "vi": "Mở khoá"},
-    "settings.sandbox_locked": {
-        "en": "Locked (changes disabled)", "ja": "ロック中（変更できません）",
-        "vi": "Đang khoá (không sửa được)"},
-    "settings.sandbox_unlocked": {
-        "en": "Unlocked", "ja": "ロック解除済み", "vi": "Đã mở khoá"},
-    "settings.sandbox_unlocked_body": {
-        "en": "Sandbox settings unlocked.", "ja": "サンドボックス設定のロックを解除しました。",
-        "vi": "Đã mở khoá thiết lập sandbox."},
-    "settings.sandbox_pw_wrong_title": {
-        "en": "Wrong Password", "ja": "パスワードが違います", "vi": "Sai mật khẩu"},
-    "settings.sandbox_pw_wrong_body": {
-        "en": "Password incorrect. Sandbox settings remain locked.",
-        "ja": "パスワードが正しくありません。サンドボックス設定はロックされたままです。",
-        "vi": "Mật khẩu không đúng. Thiết lập sandbox vẫn bị khoá."},
     "settings.sandbox_unlimited": {"en": "Unlimited", "ja": "無制限", "vi": "Không giới hạn"},
     "settings.sandbox_cpu_label": {"en": "CPU limit", "ja": "CPU 制限", "vi": "Giới hạn CPU"},
     "settings.sandbox_memory_label": {"en": "Memory limit", "ja": "メモリ制限", "vi": "Giới hạn bộ nhớ"},

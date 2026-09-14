@@ -344,12 +344,6 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Let the control agent review a command with AI before it runs.",
         "ja": "実行前に制御エージェントがAIでコマンドを確認します。",
         "vi": "Cho control-agent dùng AI xét lệnh trước khi chạy."},
-    "settings.sandbox_pw_unset_title": {
-        "en": "Sandbox Security", "ja": "サンドボックスセキュリティ", "vi": "Bảo mật Sandbox"},
-    "settings.sandbox_pw_unset_body": {
-        "en": "No sandbox password is set yet, so these settings stay locked. Set COWORK_SANDBOX_PASSWORD, or ask your administrator.",
-        "ja": "サンドボックスのパスワードが未設定のため、この設定はロックされたままです。COWORK_SANDBOX_PASSWORD を設定するか、管理者にお問い合わせください。",
-        "vi": "Chưa đặt mật khẩu sandbox nên nhóm thiết lập này vẫn khóa. Hãy đặt COWORK_SANDBOX_PASSWORD, hoặc liên hệ quản trị viên."},
     "settings.sandbox_confirm_commands": {
         "en": "Confirm before Cowork runs a command",
         "ja": "Cowork がコマンドを実行する前に確認する",

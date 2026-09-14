@@ -37,12 +37,16 @@ class ToolContext:
     # None (default) = no limits, matching pre-existing behavior.
     resource_limits: Optional[Dict[str, float]] = None
     # Sandbox Security Layer — Settings' "Block network for agent commands"
-    # (policy-level, see deps.py::network_blocked_env). False (default) =
+    # — the proxy-env block for shell commands (deps.py::network_blocked_env)
+    # AND a flat refusal from every NETWORK-capability tool, which reaches the
+    # net in-process where proxy env vars mean nothing. False (default) =
     # unrestricted, matching pre-existing behavior.
     block_network: bool = False
-    # Whether the fetch_url tool may read URLs — SEPARATE from block_network
-    # (reading a web page/share link for info is safe; running networked shell
-    # commands is the risk). Defaults True; set from agent_security.allow_url_fetch.
+    # Whether the fetch_url tool may read URLs. Its own toggle, but NOT a way
+    # around block_network: with the network blocked every NETWORK-capability
+    # tool is refused first (fetch_tools.py::_network_refusal), so this flag only
+    # decides anything while the network is open. Defaults True; set from
+    # agent_security.allow_url_fetch.
     allow_url_fetch: bool = True
     # Jira read connector config (base_url/email/api_token) — None disables the
     # jira_* tools' ability to connect. Populated from config.data["jira"].

@@ -26,7 +26,7 @@ from capture_screens import _apply_theme, _isolate_home, _load_fonts  # noqa: E4
 SETTINGS_FIELDS = [
     "language_combo", "theme_combo", "tray_chk", "notify_chk",
     "provider_combo", "prov_base", "prov_key", "prov_model",
-    "sandbox_pw_edit", "sandbox_unlock_btn", "sandbox_confirm",
+    "sandbox_confirm",
     "sandbox_block_network", "sec_enabled", "ai_check",
 ]
 TASK_FIELDS = [

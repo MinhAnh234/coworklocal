@@ -128,6 +128,15 @@ def install_package(ctx: ToolContext, args: Dict[str, Any],
     package = str(args.get("package", "")).strip()
     if not package:
         return {"ok": False, "output": "No package specified."}
+    # ``pip install`` bắt buộc phải ra internet, mà ``deps.pip_install`` chạy
+    # subprocess với ``os.environ`` nguyên vẹn — biến proxy hố đen của
+    # ``network_blocked_env`` không chạm tới nó. Từ chối thẳng ở đây (giống cách
+    # run_command chặn theo tên các công cụ không đi qua proxy) thay vì để pip
+    # thử 600 giây rồi báo một lỗi proxy khó hiểu.
+    if ctx.block_network:
+        return {"ok": False, "output": (
+            "install_package: network access is blocked by the Sandbox Security Layer "
+            "(\"Block network for agent-run commands\" is on in Settings).")}
     python = _sandbox_python(ctx, cancel, on_output)
     ok, detail = pip_install(package, cancel=cancel, on_output=on_output, python=python)
     head = f"Installed {package}." if ok else f"Could not install {package}."

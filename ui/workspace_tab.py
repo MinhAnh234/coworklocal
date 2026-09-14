@@ -63,10 +63,9 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
         """(label, index, icon_name, enabled) for EVERY sub-tab, hidden ones
         included.
 
-        The rail lists all five all the time and greys out the ones the project
-        gate is currently closing (Cowork, GraphRAG) instead of removing them —
-        same gate, shown rather than hidden, so the menu stops changing shape
-        under the user's hand. See nav_subtabs() for the visible-only view.
+        Cột ``enabled`` là trạng thái cổng project; ``NavRailMixin._rebuild_nav``
+        bỏ hẳn những hàng đang đóng (Cowork, GraphRAG) khỏi menu trái cho tới khi
+        người dùng chọn một project. See nav_subtabs() for the visible-only view.
         """
         icons = {self._project_tab_idx: "folder", self._cowork_tab_idx: "chat",
                  self._co4e_tab_idx: "flow", self._folder_tab_idx: "folder",
@@ -78,8 +77,8 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
     def subtab_available(self, index: int) -> bool:
         """False while the project gate is holding this sub-tab shut.
 
-        The rail greys those rows out, but that only guards the rail. This lets
-        every other route ask the same question of the same state.
+        Rail bỏ hẳn những hàng đó khỏi menu, nhưng đó chỉ chắn được đường vào
+        qua rail. Hàm này để mọi đường vào khác hỏi cùng một trạng thái.
         """
         return bool(0 <= index < self.tabs.count() and self.tabs.isTabVisible(index))
 
@@ -610,7 +609,12 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
         counts = self._project_counts()
         self.project_list.blockSignals(True)
         self.project_list.clear()
-        row_to_select = 0
+        # -1 chứ không phải 0: chưa chọn gì thì KHÔNG tự chọn hộ project đầu
+        # danh sách. Chọn hộ là mở luôn cổng Cowork/GraphRAG (xem
+        # _update_tab_visibility) cho một project người dùng chưa hề bấm vào —
+        # lúc mở app, và cả sau khi xoá project đang mở. Có ``keep`` khớp thì
+        # vẫn giữ đúng dòng cũ như trước.
+        row_to_select = -1
         for i, p in enumerate(list_projects()):
             chats, tasks = counts.get(p.project_id, (0, 0))
             # No text on the item: the row widget paints the name, and setting

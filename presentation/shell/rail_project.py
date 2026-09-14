@@ -42,6 +42,12 @@ class RailProjectMixin:
                 # No project yet: say so, and say what to do about it, instead of
                 # leaving an empty box and a button that silently does nothing.
                 self.nav_project.addItem(tr("app.nav.no_project"), "")
+            elif not current:
+                # Có project nhưng CHƯA chọn cái nào (mở app lên, hoặc vừa xoá
+                # project đang mở). Không có mục này thì combo rơi về mục 0 và
+                # chỉ bừa vào project đầu danh sách, trong khi cổng
+                # Cowork/GraphRAG vẫn đóng — hai chỗ nói hai đằng.
+                self.nav_project.insertItem(0, tr("app.nav.pick_project"), "")
             idx = self.nav_project.findData(current)
             if idx >= 0:
                 self.nav_project.setCurrentIndex(idx)
