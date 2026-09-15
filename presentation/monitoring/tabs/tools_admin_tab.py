@@ -216,7 +216,8 @@ class ToolsAdminTab(QWidget):
         result. Respects the fetch_url toggle: when web access is OFF the agent
         cannot reach the internet, so the test reports that instead of probing."""
         disabled = ("fetch_url" in self.ctx.config.tools_disabled
-                    or not bool(self.ctx.config.agent_security.get("allow_url_fetch", True)))
+                    or not bool(self.ctx.config.agent_security.get("allow_url_fetch", True))
+                    or bool(self.ctx.config.agent_security.get("block_network", False)))
         if disabled:
             self.test_internet_status.setText(tr("tools_admin.internet_disabled"))
             self.test_internet_status.setStyleSheet("color: #c00;")

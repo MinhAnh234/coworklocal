@@ -233,6 +233,10 @@ class AppContext:
         connections across calls/turns (spawning a subprocess per turn would
         be slow and wasteful). A server/connector that fails to connect is
         skipped, not a hard failure for the turn."""
+        # Sandbox Security Layer blocks agent-owned network connectors before
+        # they can spawn a server or issue a REST request.
+        if self.config.agent_security.get("block_network", False):
+            return [], None
         # Master switch (Monitoring → Tools → Connector): when the admin turns
         # "Connect to external" off, the agent connects to NO external
         # connectors/MCP at all — no subprocesses spawned, no REST calls.

@@ -527,6 +527,15 @@ def run_cowork(
                     preview = {"kind": "info", "title": name, "text": str(args)}
                     emit({"type": "tool_proposed", "id": tc_id, "name": name, "args": args,
                           "preview": preview})
+                    if ctx.block_network:
+                        result = {"ok": False, "output": (
+                            f"{name}: network access is blocked by the Sandbox Security Layer "
+                            '("Block network for agent-run commands" is on in Settings).')}
+                        emit({"type": "tool_result", "id": tc_id, "name": name,
+                              "ok": False, "output": result["output"]})
+                        messages.append({"role": "tool", "tool_call_id": tc_id, "name": name,
+                                         "content": result["output"]})
+                        continue
                     # R05-T04: MCP/connector tools used to run with NO permission
                     # check at all — this is what closes that gap. Same policy,
                     # same gate object as the built-in tools below.

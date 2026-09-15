@@ -327,7 +327,12 @@ def run_code(
             else:
                 emit({"type": "tool_start", "id": tc_id, "name": name})
                 if is_extra and extra_executor is not None:
-                    result = extra_executor(name, args)
+                    if ctx.block_network:
+                        result = {"ok": False, "output": (
+                            f"{name}: network access is blocked by the Sandbox Security Layer "
+                            '("Block network for agent-run commands" is on in Settings).')}
+                    else:
+                        result = extra_executor(name, args)
                 else:
                     def on_output(line: str, _id=tc_id, _name=name) -> None:
                         emit({"type": "tool_output", "id": _id, "name": _name, "delta": line})
