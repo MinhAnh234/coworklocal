@@ -142,10 +142,11 @@ class PageRegistryMixin:
         Vệt sáng trên thanh menu cũng cập nhật ở đây, để nó đi theo NỘI DUNG chứ
         không theo thứ vừa được bấm.
         """
+        was_page = self.pages.currentIndex()
         self._ensure_page(page)                # build lazy page on first visit
         self.pages.setCurrentIndex(page)
-        if page == self._ROW_WORKSPACE:
-            self.workspace.refresh()           # re-list projects + threads on entry
+        if page == self._ROW_WORKSPACE and was_page != page:
+            self.workspace.refresh()           # refresh only when entering Workspace
         widget = self._page_widgets[page]
         if sub is not None and hasattr(widget, "select_subtab"):
             # Enforce the project gate here rather than at each entry point. A
