@@ -52,7 +52,7 @@ class ProjectRow(QWidget):
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
-        lay.setSpacing(0)
+        lay.setSpacing(3)
         self.title_label = QLabel(name)
         self.counts_label = QLabel()
         self.counts_label.setObjectName("hint")
