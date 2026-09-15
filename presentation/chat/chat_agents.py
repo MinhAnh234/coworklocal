@@ -115,10 +115,23 @@ class ChatAgentsMixin:
             if err:
                 self.status_message.emit(tr("chatpanel.agent_list_error", err=err))
 
-        w = AgentWorker(job)
-        w.finished_ok.connect(done)
-        self._agent_worker = w
-        w.start()
+        # Model discovery can involve a provider/network request.  Constructing
+        # the chat panel during startup must not wait for it; schedule it after
+        # the first event-loop turn so the initial shell can paint immediately.
+        from PySide6.QtCore import QTimer
+
+        if getattr(self, "_agent_refresh_pending", False):
+            return
+        self._agent_refresh_pending = True
+
+        def start_worker() -> None:
+            self._agent_refresh_pending = False
+            w = AgentWorker(job)
+            w.finished_ok.connect(done)
+            self._agent_worker = w
+            w.start()
+
+        QTimer.singleShot(0, start_worker)
 
     def _populate_agents(self, models, keep: str) -> None:
         """Đổ danh sách vào bộ chọn Agent.

@@ -202,27 +202,26 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
             cpl.addWidget(self._cowork)
             self._cowork_tab_idx = self.tabs.addTab(cowork_page, tr("workspace.tab_cowork"))
 
-        # Co4E — node-graph workflow studio (built-in flows, agents, skills, a
-        # runner + chat). Always available (not project-gated): its workflows
-        # live globally under ~/.cowork_local/co4e, not inside one project.
-        # Placed BEFORE GraphRAG in the tab order (user request).
-        from .co4e_tab import Co4ETab
-
-        self._co4e = Co4ETab(self.ctx)
-        self._co4e_tab_idx = self.tabs.addTab(self._co4e, tr("workspace.tab_co4e"))
+        # Co4E and Folder are intentionally placeholders at startup. Their
+        # widget trees pull in a large amount of Qt/UI code, but neither is on
+        # the initial Project surface. The real page is created exactly once
+        # when its tab is first selected (see _ensure_heavy_tab).
+        self._co4e = None
+        self._folder = None
+        self._co4e_placeholder = QWidget()
+        self._folder_placeholder = QWidget()
+        self._co4e_tab_idx = self.tabs.addTab(self._co4e_placeholder, tr("workspace.tab_co4e"))
         self.tabs.setTabToolTip(self._co4e_tab_idx, tr("workspace.tab_co4e_tooltip"))
 
         # Folder — a two-pane file explorer (tree + view/edit) placed right below
         # Co4E. Always available (not project-gated); its root follows the
         # selected project's workspace folder when one is chosen.
-        from ..presentation.folder.folder_tab import FolderTab
+        self._folder_tab_idx = self.tabs.addTab(self._folder_placeholder, tr("workspace.tab_folder"))
 
-        self._folder = FolderTab(self.ctx, cowork=self._cowork)
-        self._folder.status_message.connect(self.status_message)
-        self._folder_tab_idx = self.tabs.addTab(self._folder, tr("workspace.tab_folder"))
-
-        if self._structure is not None:
-            self._graphrag_tab_idx = self.tabs.addTab(self._structure, tr("workspace.tab_graphrag"))
+        self._graph_placeholder = QWidget()
+        self._graphrag_tab_idx = self.tabs.addTab(
+            self._structure if self._structure is not None else self._graph_placeholder,
+            tr("workspace.tab_graphrag"))
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
@@ -420,9 +419,49 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
 
         Dựng lười như vậy chính là thứ giữ cho RAM lúc khởi động ở mức thấp.
         """
+        if idx in (self._co4e_tab_idx, self._folder_tab_idx, self._graphrag_tab_idx):
+            self._ensure_heavy_tab(idx)
         if idx == self._graphrag_tab_idx and self._structure is not None:
             self._structure.auto_scan_and_fit()
         self._apply_pane_visibility()
+
+    def _ensure_heavy_tab(self, idx: int):
+        """Build a heavy Workspace child once, replacing its placeholder."""
+        if idx == self._co4e_tab_idx and self._co4e is None:
+            from .co4e_tab import Co4ETab
+            real = Co4ETab(self.ctx)
+            self._co4e = real
+            self.tabs.removeTab(idx)
+            self.tabs.insertTab(idx, real, tr("workspace.tab_co4e"))
+            self.tabs.setCurrentIndex(idx)
+            self.tabs.setTabToolTip(idx, tr("workspace.tab_co4e_tooltip"))
+            self._bind_project(self._current_id)
+            return real
+        if idx == self._folder_tab_idx and self._folder is None:
+            from ..presentation.folder.folder_tab import FolderTab
+            real = FolderTab(self.ctx, cowork=self._cowork)
+            real.status_message.connect(self.status_message)
+            self._folder = real
+            self.tabs.removeTab(idx)
+            self.tabs.insertTab(idx, real, tr("workspace.tab_folder"))
+            self.tabs.setCurrentIndex(idx)
+            self._bind_project(self._current_id)
+            return real
+        if idx == self._graphrag_tab_idx and self._structure is None:
+            from ..presentation.graph.structure_graph_view import StructureGraphView
+            real = StructureGraphView(self.ctx)
+            real.status_message.connect(self.status_message)
+            if self._cowork is not None:
+                self._cowork.output_changed.connect(real.schedule_rescan)
+            self._structure = real
+            self.tabs.removeTab(idx)
+            self.tabs.insertTab(idx, real, tr("workspace.tab_graphrag"))
+            self.tabs.setCurrentIndex(idx)
+            self._bind_project(self._current_id)
+            return real
+        return {self._co4e_tab_idx: self._co4e,
+                self._folder_tab_idx: self._folder,
+                self._graphrag_tab_idx: self._structure}.get(idx)
 
     def _apply_pane_visibility(self) -> None:
         """Which side panes accompany each sub-tab:

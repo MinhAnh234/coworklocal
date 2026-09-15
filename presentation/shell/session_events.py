@@ -42,7 +42,14 @@ class SessionEventsMixin:
             self.sidebar.refresh()
             self._refresh_rail_recents()   # the rail shortcut follows the panel
 
-        QTimer.singleShot(0, _do)
+        # Coalesce bursts from turn/tool/history signals into one sidebar read.
+        timer = getattr(self, "_history_refresh_timer", None)
+        if timer is None:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(_do)
+            self._history_refresh_timer = timer
+        timer.start(0)
     def _on_scheduled_task_done(self, task_id: str, ok: bool) -> None:
         """Desktop notification for a finished scheduled task (toast always,
         tray balloon when the window isn't focused), then refresh History —
@@ -106,4 +113,5 @@ class SessionEventsMixin:
         """Project được tạo/sửa/xoá: gom nhóm lại cột lịch sử và cập nhật nhãn thư mục."""
         self.sidebar.refresh()                 # History regroups by project
         self.cowork._apply_output_folder_label()  # project may have been renamed
-        self.structure._refresh_project_combo()   # GraphRAG's project lock list follows too
+        if getattr(self, "structure", None) is not None:
+            self.structure._refresh_project_combo()   # GraphRAG's project lock list follows too

@@ -51,6 +51,8 @@ class MessageBubble(QFrame):
         super().__init__()
         self.role = role
         self._text = ""
+        self._stream_pending = False
+        self._render_count = 0
         self._collapsible = collapsible
         self._title = title
         self._head = None
@@ -164,12 +166,20 @@ class MessageBubble(QFrame):
     def append_delta(self, delta: str) -> None:
         """Nối thêm một mẩu văn bản đang phát dần từ model rồi vẽ lại dạng markdown."""
         self._text += delta
-        self.set_markdown(self._text)
+        if not self._stream_pending:
+            self._stream_pending = True
+            QTimer.singleShot(40, self.flush_stream)
+
+    def flush_stream(self) -> None:
+        if self._stream_pending:
+            self._stream_pending = False
+            self.set_markdown(self._text)
 
     def set_markdown(self, text: str) -> None:
         """Đặt toàn bộ nội dung, hiển thị dạng markdown, rồi co giãn lại chiều cao."""
         self._text = text
         self.body.setMarkdown(text)
+        self._render_count += 1
         self._autosize()
         if self._collapsible:
             self._update_head()
@@ -393,4 +403,3 @@ class ChatView(QScrollArea):
 ChatHistoryWidget = ChatView
 
 __all__ = ["ChatView", "ChatHistoryWidget", "MessageBubble"]
-

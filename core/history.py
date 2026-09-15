@@ -16,6 +16,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ..performance import span
+
+_LIST_CACHE: dict[tuple[str, str, int], List[Dict[str, Any]]] = {}
+
+
+def _invalidate_history_cache(directory: Path) -> None:
+    prefix = str(Path(directory).resolve())
+    for key in list(_LIST_CACHE):
+        if key[0] == prefix:
+            _LIST_CACHE.pop(key, None)
+
 
 def new_session_id() -> str:
     """Id phiên mới theo mốc thời gian, chính xác tới mili giây."""
@@ -78,6 +89,7 @@ def save_conversation(
     # R06-T02: atomic write - see infrastructure/persistence/json/atomic_write.py.
     from ..infrastructure.persistence.json.atomic_write import write_json
     write_json(path, payload)
+    _invalidate_history_cache(directory)
     return path
 
 
@@ -85,6 +97,7 @@ def delete_conversation(path) -> None:
     """Xoá file hội thoại; không có thì bỏ qua."""
     try:
         Path(path).unlink()
+        _invalidate_history_cache(Path(path).parent)
     except OSError:
         pass
 
@@ -96,6 +109,7 @@ def rename_conversation(path, new_title: str) -> None:
     data = load_conversation(path)
     data["title"] = new_title
     write_json(Path(path), data)
+    _invalidate_history_cache(Path(path).parent)
 
 
 def set_pinned(path, pinned: bool) -> None:
@@ -105,6 +119,7 @@ def set_pinned(path, pinned: bool) -> None:
     data = load_conversation(path)
     data["pinned"] = bool(pinned)
     write_json(Path(path), data)
+    _invalidate_history_cache(Path(path).parent)
 
 
 def load_conversation(path: Path) -> Dict[str, Any]:
@@ -197,8 +212,16 @@ def list_conversations(directory: Optional[Path] = None, query: str = "") -> Lis
     if not directory or not directory.exists():
         return []
     q = (query or "").strip().lower()
+    try:
+        cache_key = (str(directory.resolve()), q, directory.stat().st_mtime_ns)
+    except OSError:
+        return []
+    cached = _LIST_CACHE.get(cache_key)
+    if cached is not None:
+        return [dict(item) for item in cached]
     items: List[Dict[str, Any]] = []
-    for path in directory.glob("*.json"):
+    with span("history.list", query=bool(q)):
+      for path in directory.glob("*.json"):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -221,4 +244,10 @@ def list_conversations(directory: Optional[Path] = None, query: str = "") -> Lis
         })
     # pinned first, then most recent
     items.sort(key=lambda d: (not d["pinned"], -d["mtime"]))
+    _LIST_CACHE[cache_key] = [dict(item) for item in items]
+    # Keep this bounded; old directory signatures become unreachable after a
+    # write and should not grow process memory forever.
+    if len(_LIST_CACHE) > 256:
+        for old in list(_LIST_CACHE)[:64]:
+            _LIST_CACHE.pop(old, None)
     return items

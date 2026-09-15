@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QTabWidget, QVBoxLayout, QWid
 from ...core import audit_log
 from ...i18n import on_language_changed, tr
 from ...state import AppContext
+from ...performance import span
 from .tabs.action_logs_tab import ActionLogsTab
 from .tabs.agent_status_tab import AgentStatusTab
 from .tabs.mcp_tab import McpTab
@@ -282,12 +283,13 @@ class MonitoringTab(QWidget):
         """
         start = date.today() - timedelta(days=_LOG_WINDOW_DAYS)
         shared_dir = self.ctx.config.shared_dir
-        if shared_dir:
-            from ...core import telemetry_shared
-            shared_events = telemetry_shared.load_shared_audit_events(shared_dir, start=start)
-            if shared_events:
-                return shared_events
-        return audit_log.load_events(start=start)
+        with span("monitoring.load_events", window_days=_LOG_WINDOW_DAYS):
+            if shared_dir:
+                from ...core import telemetry_shared
+                shared_events = telemetry_shared.load_shared_audit_events(shared_dir, start=start)
+                if shared_events:
+                    return shared_events
+            return audit_log.load_events(start=start)
 
     def _apply_events_to_event_tabs(self, events: List[dict]) -> None:
         """Filters the ALREADY-LOADED event list (see ``_load_events`` — one

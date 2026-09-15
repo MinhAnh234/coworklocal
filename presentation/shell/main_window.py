@@ -32,9 +32,7 @@ from .rail_metrics import _NAV_MIN_WIDTH
 from .tray_manager import TrayManager
 from ...state import AppContext
 from ...core.task_scheduler import TaskScheduler
-from ...ui.cowork_tab import CoworkTab
 from ...ui.sidebar import HistorySidebar
-from ..graph.structure_graph_view import StructureGraphView
 from ...ui.workspace_tab import WorkspaceTab
 
 
@@ -111,10 +109,9 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
         # Workspace screen (per selected project). GraphRAG's heavy
         # QtWebEngine is still built lazily on first display
         # (StructureGraphView._ensure_web).
+        from ...ui.cowork_tab import CoworkTab
         self.cowork = CoworkTab(ctx)
-        self.structure = StructureGraphView(ctx)
-        self.structure.status_message.connect(self.statusBar().showMessage)
-        self.cowork.output_changed.connect(self.structure.schedule_rescan)
+        self.structure = None
         self.cowork.status_message.connect(self.statusBar().showMessage)
         # Refresh History (list + running markers + current highlight) whenever a
         # conversation is created/updated or a turn finishes.

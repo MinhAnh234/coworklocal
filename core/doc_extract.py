@@ -94,17 +94,28 @@ def find_input_files(folder: Path, exts: set[str] | None = None,
     capped at ``max_files`` (0 = unlimited), ``total_matched`` is the count
     before that cap, so a caller can report how many were skipped."""
     exts = exts or INPUT_EXTS
+    # Do not sort an unbounded recursive tree merely to return a small prefix.
+    # The caller receives a stable lexical order for the bounded result, while
+    # traversal stops as soon as the configured file budget is reached.
+    files: list[Path] = []
+    total = 0
     try:
-        matched = sorted(
-            f for f in folder.rglob("*")
-            if f.is_file()
-            and not any(part.startswith(".") for part in f.relative_to(folder).parts)
-            and f.suffix.lower() in exts
-        )
+        for f in folder.rglob("*"):
+            if not f.is_file():
+                continue
+            try:
+                relative = f.relative_to(folder)
+            except ValueError:
+                continue
+            if any(part.startswith(".") for part in relative.parts) or f.suffix.lower() not in exts:
+                continue
+            total += 1
+            if max_files <= 0 or len(files) < max_files:
+                files.append(f)
     except OSError:
         return [], 0
-    files = matched if max_files <= 0 else matched[:max_files]
-    return files, len(matched)
+    files.sort(key=lambda p: str(p).lower())
+    return files, total
 
 
 def find_soffice() -> str | None:
