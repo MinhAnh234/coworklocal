@@ -237,7 +237,7 @@ class GraphRenderer(QWidget):
     # ---- prewarm / scan lifecycle -------------------------------------------------- #
     def prewarm(self) -> None:
         """Pay for the graph view before it is clicked on, not during."""
-        if not HAS_WEB_ENGINE or self.web is not None:
+        if self.web is not None:
             return
         self._ensure_web()
         if self._graph is None and self.path_edit.text().strip():

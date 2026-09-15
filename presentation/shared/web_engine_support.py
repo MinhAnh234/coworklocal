@@ -27,7 +27,14 @@ def _frozen_onefile() -> bool:
         return True
 
 
+# QtWebEngine is noisy and unreliable on the macOS runtime we support (GPU/
+# helper-process failures leave the stacked view blank). The native Qt graph is
+# already available and avoids that failure path entirely.
+HAS_WEB_ENGINE = False
+
 try:  # WebEngine + WebChannel are optional PySide6 add-ons
+    if sys.platform == "darwin":
+        raise ImportError("use native graph renderer on macOS")
     from PySide6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
     from PySide6.QtWebChannel import QWebChannel  # noqa: F401
     HAS_WEB_ENGINE = not _frozen_onefile()
