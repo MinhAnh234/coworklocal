@@ -306,6 +306,7 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
         cloud_row.addWidget(self._cloud_sync_btn)
         cloud_row.addStretch(1)
         rl.addLayout(cloud_row)
+        self._cloud_pick_btn.hide()
         self._cloud_badge_lbl = QLabel()
         self._cloud_badge_lbl.setWordWrap(True)
         self._cloud_badge_lbl.hide()
