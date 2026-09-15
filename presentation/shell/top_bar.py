@@ -59,11 +59,11 @@ class TopBarMixin:
         # that number. Adding it again here made the row taller than the button
         # (28 wanted, 20 given), which both clipped the icon and pushed the text
         # 8px below an even pitch with Dashboard / Giám sát.
-        srow.setContentsMargins(_NAV_ROW_INSET, 0, 8, 0)
-        srow.setSpacing(_NAV_ROW_GAP)
+        srow.setContentsMargins(_NAV_ROW_INSET + 2, 0, 8, 0)
+        srow.setSpacing(_NAV_ROW_GAP + 4)
         self._nav_settings_icon = QLabel()
-        self._nav_settings_icon.setPixmap(_icon("settings").pixmap(16, 16))
-        self._nav_settings_icon.setFixedSize(16, 16)
+        self._nav_settings_icon.setPixmap(_icon("gear").pixmap(16, 16))
+        self._nav_settings_icon.setFixedSize(22, 16)
         self._nav_settings_text = QLabel(tr("app.settings"))
         srow.addWidget(self._nav_settings_icon)
         srow.addWidget(self._nav_settings_text)
