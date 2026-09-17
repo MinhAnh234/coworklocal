@@ -32,10 +32,10 @@ class TopBarMixin:
         ``_build_account_row`` ngay bên dưới, chỉ khác chỗ đặt trên màn hình.
         """
         from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton
+        from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStyle
         from ...i18n import tr
         from ...ui.icons import icon as _icon
-        from .rail_metrics import _NAV_ROW_GAP, _NAV_ROW_INSET, _NAV_SETTINGS_GAP
+        from .rail_metrics import _NAV_ROW_INSET, _NAV_SETTINGS_GAP
 
         # Bottom-pinned group: the places you visit occasionally, kept out of the
         # way of the ones you live in. A hairline (styled via #navrailBottom in
@@ -60,7 +60,13 @@ class TopBarMixin:
         # (28 wanted, 20 given), which both clipped the icon and pushed the text
         # 8px below an even pitch with Dashboard / Giám sát.
         srow.setContentsMargins(_NAV_ROW_INSET + 2, 0, 8, 0)
-        srow.setSpacing(_NAV_ROW_GAP + 4)
+        # Khe giữa icon và chữ phải là khe của STYLE, không phải nhịp riêng của
+        # rail: delegate của cây vẽ chữ ngay sau hộp icon, cách đúng
+        # ``PM_FocusFrameHMargin + 1``. Đặt ``_NAV_ROW_GAP + 4`` (=10) ở đây cộng
+        # với 10px lề trái và hộp icon 22px thành 42 — trong khi Dashboard /
+        # Giám sát đặt chữ ở 35, nên hàng Cài đặt thụt phải 7px.
+        srow.setSpacing(
+            self.nav_bottom.style().pixelMetric(QStyle.PM_FocusFrameHMargin) + 1)
         self._nav_settings_icon = QLabel()
         self._nav_settings_icon.setPixmap(_icon("gear").pixmap(16, 16))
         self._nav_settings_icon.setFixedSize(22, 16)
