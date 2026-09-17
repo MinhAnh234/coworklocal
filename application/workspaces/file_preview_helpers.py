@@ -21,9 +21,14 @@ def pptx_available() -> bool:
         try:
             from cowork_local.core.deps import ensure_module
 
-            _PPTX_READY = ensure_module("pptx", "python-pptx") is not None
+            ready = ensure_module("pptx", "python-pptx") is not None
         except Exception:  # noqa: BLE001
-            _PPTX_READY = False
+            ready = False
+        from ..network import network_guard
+
+        if ready or not network_guard.is_blocked():
+            _PPTX_READY = ready   # a refusal under "Block network" is retried later
+        return ready
     return _PPTX_READY
 
 

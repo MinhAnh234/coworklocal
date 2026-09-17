@@ -76,11 +76,11 @@ def run_command(ctx: ToolContext, args: Dict[str, Any],
         denial = "Command blocked by security policy: " + "; ".join(risk.reasons)
         return {"ok": False, "output": denial}
 
-    # Every sandbox backend's network block is a proxy-env-var trick (see
-    # core/deps.py::network_blocked_env) — it does nothing against a tool
-    # that reaches the network without an HTTP proxy (ping/ICMP, nslookup/
-    # direct DNS, ssh/ftp/raw TCP...). Deny those BY NAME here instead, so
-    # "Chặn mạng cho lệnh do agent chạy" actually blocks them too.
+    # With the network blocked, SandboxManager runs the command in an OS-level
+    # network-less process (AppContainer on Windows — see
+    # infrastructure/sandbox/network_isolation.py). Tools that exist only to
+    # reach the network (ping, nslookup, ssh...) are still denied BY NAME
+    # first: the model gets a clear reason instead of a cryptic socket error.
     if ctx.block_network:
         bypass_tool = command_bypasses_network_proxy(command)
         if bypass_tool:

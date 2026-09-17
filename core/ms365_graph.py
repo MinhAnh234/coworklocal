@@ -43,6 +43,10 @@ def _request(method: str, url: str, token: str, **kwargs) -> requests.Response:
     """Gọi Graph API, tự ghép ``GRAPH_BASE`` cho đường dẫn tương đối và đổi lỗi HTTP
     thành :class:`Ms365GraphError` kèm thông điệp đọc được.
     """
+    from ..application.network import network_guard
+
+    if network_guard.is_blocked():
+        raise Ms365GraphError(network_guard.refusal("Microsoft 365 (Graph)"))
     if not url.startswith("http"):
         url = f"{GRAPH_BASE}{url}"
     headers = _headers(token, kwargs.pop("headers", None))

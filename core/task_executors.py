@@ -19,7 +19,6 @@ in Waiting Input), so executors here run with an auto gate.
 """
 from __future__ import annotations
 
-import subprocess
 import time
 import uuid
 from datetime import datetime
@@ -30,6 +29,7 @@ from . import agent_roles
 from . import agent_security
 from . import projects
 from .permissions import PermissionGate
+from .task_script import run_script as _run_script
 from .tasks import ARTIFACTS_DIR, resolve_input_text
 from .tools import ToolContext
 
@@ -356,18 +356,6 @@ def _run_agent(ctx, task_type: str, prompt: str, out_dir: Path,
         _save_history_session(ctx, task_type, title, messages, session_id, project_id)
     incomplete = "" if (cancel() or timed_out()) else plan_incomplete_reason(last_plan_steps)
     return _last_assistant_text(messages), timed_out(), incomplete
-
-
-def _run_script(command: str, out_dir: Path, timeout_sec: int) -> str:
-    """Chạy một task kiểu script bằng shell trong thư mục kết quả, có hạn giờ."""
-    if not command.strip():
-        raise RuntimeError("Script task has no command configured.")
-    proc = subprocess.run(command, shell=True, cwd=str(out_dir),
-                          capture_output=True, text=True, timeout=max(1, timeout_sec))
-    output = (proc.stdout or "") + (("\n[stderr]\n" + proc.stderr) if proc.stderr else "")
-    if proc.returncode != 0:
-        raise RuntimeError(f"Script exited with code {proc.returncode}:\n{output[-2000:]}")
-    return output
 
 
 def execute_task(ctx, task: Dict[str, Any], run_id: str,

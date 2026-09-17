@@ -10,22 +10,22 @@ from typing import Dict
 
 STRINGS: Dict[str, Dict[str, str]] = {
     "settings.sandbox_block_network": {
-        "en": "Block network for agent-run commands",
-        "ja": "エージェントが実行するコマンドのネットワークをブロック",
-        "vi": "Chặn mạng cho lệnh do agent chạy"},
+        "en": "Block network (AI provider still allowed)",
+        "ja": "ネットワークをブロック（AIプロバイダーのみ許可）",
+        "vi": "Chặn mạng (vẫn cho gọi nhà cung cấp AI)"},
     "settings.allow_url_fetch": {
         "en": "Allow the agent to fetch URLs (web pages, SharePoint / OneDrive links)",
         "ja": "エージェントによるURL取得を許可（Webページ、SharePoint / OneDriveリンク）",
         "vi": "Cho phép agent lấy dữ liệu từ URL (trang web, link SharePoint / OneDrive)"},
     "settings.allow_url_fetch_tooltip": {
         "en": ("Lets the agent's fetch_url tool read web pages, online documents and "
-               "SharePoint/OneDrive share links to search & process them. Separate from "
-               "'Block network' (which only sandboxes shell commands). Default: on."),
+               "SharePoint/OneDrive share links to search & process them. 'Block network' "
+               "overrides this switch. Default: on."),
         "ja": "エージェントのfetch_urlツールがWebページ・オンライン文書・SharePoint/OneDrive共有リンクを"
-              "読み取れるようにします。「ネットワークをブロック」（シェルコマンド用）とは別です。既定: オン。",
+              "読み取れるようにします。「ネットワークをブロック」がオンの場合はそちらが優先されます。既定: オン。",
         "vi": ("Cho phép tool fetch_url của agent đọc trang web, tài liệu online và link chia sẻ "
-               "SharePoint/OneDrive để tìm kiếm & xử lý. Tách biệt với 'Chặn mạng' (chỉ áp cho lệnh "
-               "shell). Mặc định: bật.")},
+               "SharePoint/OneDrive để tìm kiếm & xử lý. 'Chặn mạng' được ưu tiên hơn công tắc "
+               "này. Mặc định: bật.")},
     "settings.test_internet": {
         "en": "Test Internet", "ja": "インターネット接続テスト", "vi": "Kiểm tra Internet"},
     "settings.test_internet_tooltip": {
@@ -39,12 +39,18 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Testing internet access…", "ja": "インターネット接続をテスト中…",
         "vi": "Đang kiểm tra truy cập internet…"},
     "settings.sandbox_block_network_tooltip": {
-        "en": ("Policy-level control (proxy env vars point at a black hole) — not a kernel "
-               "firewall. Combine with the command whitelist above for defense in depth."),
-        "ja": "ポリシーレベルの制御です（プロキシ環境変数をブラックホールに向ける）— カーネルレベルの"
-              "ファイアウォールではありません。上のコマンドホワイトリストと併用してください。",
-        "vi": "Kiểm soát ở tầng chính sách (trỏ biến môi trường proxy vào hố đen) — không phải "
-              "firewall tầng kernel. Kết hợp với whitelist lệnh ở trên để phòng thủ nhiều lớp."},
+        "en": ("Only the AI provider (chat, model list, model test) may reach the network. "
+               "Agent shell commands and task scripts run in a Windows AppContainer with no "
+               "network access; fetch_url, Jira, connectors/MCP, Microsoft 365, Teams, "
+               "connector tests, pip auto-install and remote content in HTML previews are refused."),
+        "ja": "ネットワークに接続できるのはAIプロバイダー（チャット・モデル一覧・モデルテスト）のみです。"
+              "エージェントのシェルコマンドとタスクスクリプトはネットワークなしのWindows AppContainerで実行され、"
+              "fetch_url・Jira・コネクタ/MCP・Microsoft 365・Teams・接続テスト・pip自動インストール・"
+              "HTMLプレビューの外部リソースは拒否されます。",
+        "vi": "Chỉ nhà cung cấp AI (chat, tải danh sách model, thử model) được ra mạng. Lệnh shell "
+              "của agent và task script chạy trong Windows AppContainer không có mạng; fetch_url, "
+              "Jira, connector/MCP, Microsoft 365, Teams, nút Test, tự cài thư viện và tài nguyên "
+              "web trong xem trước HTML đều bị từ chối."},
     "settings.sandbox_unlimited": {"en": "Unlimited", "ja": "無制限", "vi": "Không giới hạn"},
     "settings.sandbox_cpu_label": {"en": "CPU limit", "ja": "CPU 制限", "vi": "Giới hạn CPU"},
     "settings.sandbox_memory_label": {"en": "Memory limit", "ja": "メモリ制限", "vi": "Giới hạn bộ nhớ"},

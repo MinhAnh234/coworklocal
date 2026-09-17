@@ -234,14 +234,19 @@ class AppContext:
         be slow and wasteful). A server/connector that fails to connect is
         skipped, not a hard failure for the turn."""
         # Sandbox Security Layer blocks agent-owned network connectors before
-        # they can spawn a server or issue a REST request.
-        if self.config.agent_security.get("block_network", False):
-            return [], None
+        # they can spawn a server or issue a REST request — and stops the ones
+        # already running, which could otherwise keep talking to the network.
+        blocked = bool(self.config.agent_security.get("block_network", False))
+        if blocked:
+            self.stop_mcp_connections()
         # Master switch (Monitoring → Tools → Connector): when the admin turns
         # "Connect to external" off, the agent connects to NO external
         # connectors/MCP at all — no subprocesses spawned, no REST calls.
         if not self.config.connect_external:
             return [], None
+        from .core.ms365_local import build_ms365_local_tools
+        if blocked:   # the locally-synced OneDrive folders need no network
+            return build_ms365_local_tools(self.config)
         from .core.ext_connectors import build_ext_connector_tools
         from .core.mcp_client import build_mcp_tools as _merge_mcp_tools
         from .core.tools import combine_tool_sources
@@ -276,7 +281,6 @@ class AppContext:
 
         # Locally-synced OneDrive/SharePoint (no sign-in) — reads/writes the
         # OneDrive-desktop-synced folders directly, gated on ms365.connectors.
-        from .core.ms365_local import build_ms365_local_tools
         local_tools, local_executor = build_ms365_local_tools(self.config)
 
         return combine_tool_sources((mcp_tools, mcp_executor), (ext_tools, ext_executor),

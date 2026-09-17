@@ -327,7 +327,7 @@ def run_code(
             else:
                 emit({"type": "tool_start", "id": tc_id, "name": name})
                 if is_extra and extra_executor is not None:
-                    if ctx.block_network:
+                    if ctx.block_network and not name.startswith("ms365_local__"):
                         result = {"ok": False, "output": (
                             f"{name}: network access is blocked by the Sandbox Security Layer "
                             '("Block network for agent-run commands" is on in Settings).')}

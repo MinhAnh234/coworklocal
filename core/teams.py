@@ -43,6 +43,10 @@ class TeamsNotifier:
         """Post a notification. Returns ``(ok, detail)``."""
         if not self.configured:
             return False, "Teams webhook URL is not configured."
+        from ..application.network import network_guard
+
+        if network_guard.is_blocked():
+            return False, network_guard.refusal("Teams notification")
 
         # Workflows webhooks expect an Adaptive Card; classic connectors expect a
         # MessageCard. Try both, then a plain-text fallback.

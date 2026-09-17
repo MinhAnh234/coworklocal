@@ -100,11 +100,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "resource_limit_cpu_percent": 80,  # 0 = unlimited; caps a run_command/install_package process TREE's total CPU%
         "resource_limit_memory_mb": 2048,  # 0 = unlimited; caps total RSS memory (MB)
         "resource_limit_disk_mb": 512,     # 0 = unlimited; caps total disk read+write (MB)
-        # Cut the agent off the network: proxy env pointed at a black hole for
-        # agent-run shell commands, PLUS a flat refusal from every tool tagged
-        # ToolCapability.NETWORK (fetch_url, jira_*, install_package) — those
-        # reach the net in-process, where the proxy trick has nothing to act on.
-        "block_network": True,
+        # "Block network": every outbound connection except the AI provider is
+        # refused (application/network/network_guard.py), and agent shell
+        # commands / task scripts run in a network-less AppContainer.
+        # OFF on first launch — the user turns it on in Settings.
+        "block_network": False,
         # Allow the agent's fetch_url tool to read web pages / online documents /
         # SharePoint-OneDrive share links. Its own toggle — reading a URL for info
         # is safe and useful, so this defaults ON — but block_network outranks it:

@@ -137,8 +137,34 @@ def _app(tenant_id: str, client_id: str):
     return app, cache
 
 
+def _cached_account_offline() -> Optional[dict]:
+    """First account in the saved token cache, read without any MSAL network setup."""
+    try:
+        import msal
+
+        accounts = _load_cache().find(msal.TokenCache.CredentialType.ACCOUNT)
+    except Exception:  # noqa: BLE001 - no msal / unreadable cache = not signed in
+        return None
+    return accounts[0] if accounts else None
+
+
+def _ensure_network(action: str) -> None:
+    """Turn a "Block network" refusal into the error type callers already handle."""
+    from ..application.network import network_guard
+
+    if network_guard.is_blocked():
+        raise Ms365AuthError(network_guard.refusal(action))
+
+
 def signed_in_account(tenant_id: str, client_id: str) -> Optional[dict]:
     """The cached account, if any — a local cache lookup, no network call."""
+    from ..application.network import network_guard
+
+    if network_guard.is_blocked():
+        # Building the MSAL app fetches the tenant's OpenID configuration, so
+        # read the token cache directly instead: the UI still sees who is
+        # signed in without the app reaching login.microsoftonline.com.
+        return _cached_account_offline()
     try:
         app, _cache = _app(tenant_id, client_id)
     except Ms365AuthError:
@@ -156,6 +182,7 @@ def sign_in_device_code(tenant_id: str, client_id: str, on_code: Callable[[dict]
     ``verification_uri_complete`` (URL with the code pre-filled, when the tenant
     returns it) and ``message`` (the full human-readable instruction). Returns
     the MSAL token result dict; raises Ms365AuthError on failure/timeout."""
+    _ensure_network("Microsoft 365 sign-in")
     app, cache = _app(tenant_id, client_id)
     flow = app.initiate_device_flow(scopes=SCOPES)
     if "user_code" not in flow:
@@ -183,6 +210,7 @@ def get_access_token(tenant_id: str, client_id: str) -> str:
     """Silently reuse the cached sign-in. Raises Ms365AuthError when there is
     no valid session — the caller (a Graph call) should surface that as a
     normal tool failure telling the user to sign in again from Settings."""
+    _ensure_network("Microsoft 365")
     app, cache = _app(tenant_id, client_id)
     accounts = app.get_accounts()
     if not accounts:
@@ -228,6 +256,7 @@ def sign_out_default(config=None) -> None:
 def sign_out(tenant_id: str, client_id: str) -> None:
     """Đăng xuất và xoá token của một tenant/client khỏi kho."""
     try:
+        _ensure_network("Microsoft 365 sign-out")   # chặn mạng: chỉ xoá kho token bên dưới
         app, cache = _app(tenant_id, client_id)
         for acc in app.get_accounts():
             app.remove_account(acc)

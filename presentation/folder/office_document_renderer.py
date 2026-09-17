@@ -110,7 +110,10 @@ class OfficeDocumentRenderer:
         if self._engine is None:
             try:
                 from PySide6.QtWebEngineWidgets import QWebEngineView
+
+                from .offline_web_page import install_offline_page
                 self._engine = QWebEngineView()
+                install_offline_page(self._engine)
                 self._owner.stack.addWidget(self._engine)
             except Exception:  # noqa: BLE001
                 self._engine = None

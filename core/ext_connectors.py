@@ -132,8 +132,11 @@ class RestApiConnector:
 
     def call(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Gọi API theo tham số model đưa ra, đi qua lớp TLS có ghim chứng chỉ nội bộ."""
+        from ..application.network import network_guard
         from .tls_trust import request_any_method as tls_request
 
+        if network_guard.is_blocked():
+            return {"ok": False, "output": network_guard.refusal(self.display_name)}
         method = str(args.get("method", "GET")).upper()
         path = str(args.get("path", "")).lstrip("/")
         url = urljoin(self.base_url, path)
@@ -164,10 +167,13 @@ class RestApiConnector:
 
     def test_connection(self) -> Tuple[bool, str]:
         """Thử kết nối tới endpoint; trả về (thành công, thông điệp)."""
+        from ..application.network import network_guard
         from .tls_trust import request as tls_request
 
         if not self.base_url.strip("/"):
             return False, "No base URL configured."
+        if network_guard.is_blocked():
+            return False, network_guard.refusal(self.display_name)
         headers = {}
         if self.api_key:
             headers[self.auth_header] = (

@@ -42,5 +42,14 @@ def build_config(path: Path | None = None) -> JsonConfigRepository:
 
 
 def build_context(path: Path | None = None) -> AppContext:
-    """Dựng AppContext hoàn chỉnh — điểm vào cho ``app.run()`` và cho checker."""
-    return AppContext(build_config(path))
+    """Dựng AppContext hoàn chỉnh — điểm vào cho ``app.run()`` và cho checker.
+
+    Nối luôn cổng mạng chung vào cấu hình SỐNG của context: đổi công tắc
+    "Chặn mạng" trong Settings là có hiệu lực ngay ở lời gọi mạng kế tiếp.
+    """
+    from ...application.network import network_guard
+    from ...core.agent_security import sandbox_settings
+
+    ctx = AppContext(build_config(path))
+    network_guard.bind(lambda: sandbox_settings(ctx.config)[1])
+    return ctx

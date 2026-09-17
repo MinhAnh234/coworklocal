@@ -85,8 +85,10 @@ def get_issue_by_url(config: Dict[str, Any] | None, url: str) -> str:
 
 def _get(config: Dict[str, Any], path: str, params: dict = None):
     """Gọi Jira REST API bằng xác thực cơ bản, qua lớp TLS có ghim chứng chỉ nội bộ."""
+    from ..application.network import network_guard
     from . import tls_trust
 
+    network_guard.ensure_allowed("Jira")
     c = _conf(config)
     url = c["base_url"].rstrip("/") + path
     # Same TLS auto-recovery the LLM provider calls get (core/tls_trust.py) —

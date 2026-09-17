@@ -527,7 +527,7 @@ def run_cowork(
                     preview = {"kind": "info", "title": name, "text": str(args)}
                     emit({"type": "tool_proposed", "id": tc_id, "name": name, "args": args,
                           "preview": preview})
-                    if ctx.block_network:
+                    if ctx.block_network and not name.startswith("ms365_local__"):
                         result = {"ok": False, "output": (
                             f"{name}: network access is blocked by the Sandbox Security Layer "
                             '("Block network for agent-run commands" is on in Settings).')}

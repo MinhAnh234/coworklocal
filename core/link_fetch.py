@@ -147,6 +147,12 @@ def fetch_link_preview(url: str) -> str:
         return ""
     if not re.match(r"^https?://", url, re.IGNORECASE):
         return f"[Link: {url}] (not a fetchable http(s) URL — referenced by address only)"
+    # Every caller (fetch_url, task link attachments, ...) passes through here,
+    # so this one check covers the paths that never saw a ToolContext.
+    from ..application.network import network_guard
+
+    if network_guard.is_blocked():
+        return f"[Link: {url}] (not fetched — {network_guard.refusal('link fetch')})"
     # SharePoint / OneDrive share links are rewritten to their direct-download
     # form so the shared FILE itself is fetched and parsed (like an attachment),
     # not the share page's HTML shell.

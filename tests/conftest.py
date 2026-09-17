@@ -73,3 +73,17 @@ def _bind_checkout_as_package() -> None:
 
 
 _bind_checkout_as_package()
+
+
+import pytest  # noqa: E402 - after the package binding above
+
+
+@pytest.fixture(autouse=True)
+def _reset_network_guard():
+    """``build_context()`` binds the process-wide "Block network" gate to that
+    context's config (default: blocked). Unbind after every test so one test
+    that built a real context cannot silently block the network for the rest."""
+    yield
+    from cowork_local.application.network import network_guard
+
+    network_guard.bind(None)

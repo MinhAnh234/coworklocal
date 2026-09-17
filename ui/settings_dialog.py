@@ -96,7 +96,7 @@ class SettingsDialog(QDialog):
         sbl.addWidget(self.sandbox_confirm)
 
         self.sandbox_block_network = ToggleSwitch(tr("settings.sandbox_block_network"))
-        self.sandbox_block_network.setChecked(bool(sec.get("block_network", True)))
+        self.sandbox_block_network.setChecked(bool(sec.get("block_network", False)))
         self.sandbox_block_network.setToolTip(tr("settings.sandbox_block_network_tooltip"))
         sbl.addWidget(self.sandbox_block_network)
 
@@ -276,5 +276,12 @@ class SettingsDialog(QDialog):
         # Force-reload config so all parts of the app pick up the new settings immediately
         self.ctx.config._data = None  # invalidate cache
         self.ctx.config._agent_security = None
+
+        stop_mcp = getattr(self.ctx, "stop_mcp_connections", None)
+        if self.sandbox_block_network.isChecked() and stop_mcp is not None:
+            # A running MCP server is its own process and may keep using the
+            # network — stop them now, off the UI thread (each stop may wait).
+            import threading
+            threading.Thread(target=stop_mcp, daemon=True).start()
 
         self.accept()

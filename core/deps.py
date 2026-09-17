@@ -91,6 +91,7 @@ def run_cancellable(
     on_output: Optional[Callable[[str], None]] = None,
     env: Optional[Dict[str, str]] = None,
     limits: Optional[Dict[str, float]] = None,
+    isolate_network: bool = False,
 ) -> Tuple[Optional[int], str, bool, bool, bool]:
     """Run a subprocess so the Stop button can actually interrupt it.
 
@@ -117,17 +118,27 @@ def run_cancellable(
     a failure to create/assign the job just means the existing taskkill
     fallback is used, same as before this was added.
 
+    ``isolate_network`` runs ``args`` as a shell command that the OS keeps
+    off the network (see ``infrastructure/sandbox/network_isolation.py``);
+    if that isolation cannot be set up the command is NOT run.
+
     Returns ``(returncode, combined_output, cancelled, timed_out,
     resource_exceeded)``; on a failure to even launch the process,
     ``returncode`` is ``None`` and the output holds the launch error."""
     cancel = cancel or (lambda: False)
     popen_kwargs = {} if sys.platform == "win32" else {"start_new_session": True}
     try:
-        proc = subprocess.Popen(
-            args, shell=shell, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, bufsize=1, env=env, **popen_kwargs,
-        )
-    except OSError as exc:
+        if isolate_network:
+            from ..infrastructure.sandbox.network_isolation import spawn_without_network
+
+            command = args if isinstance(args, str) else subprocess.list2cmdline(args)
+            proc = spawn_without_network(command, cwd, env)
+        else:
+            proc = subprocess.Popen(
+                args, shell=shell, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, bufsize=1, env=env, **popen_kwargs,
+            )
+    except (OSError, RuntimeError) as exc:   # RuntimeError: NetworkIsolationUnavailable
         return None, str(exc), False, False, False
 
     with _active_pids_lock:
@@ -266,6 +277,10 @@ def ensure_module(module: str, package: str | None = None):
     pkg = package or module
     if pkg in _FAILED or not _can_pip():
         return None
+    from ..application.network import network_guard
+
+    if network_guard.is_blocked():
+        return None  # not cached in _FAILED: retried once the network is back
     ok, _ = pip_install(pkg)
     if not ok:
         _FAILED.add(pkg)
@@ -339,6 +354,10 @@ def pip_install(package: str, cancel: Optional[CancelFn] = None,
     name) is NOT retried, since repeating it would just waste time."""
     if not _can_pip():
         return False, "This packaged build can't install packages at runtime."
+    from ..application.network import network_guard
+
+    if network_guard.is_blocked():
+        return False, network_guard.refusal(f"pip install {package}")
     exe = python or sys.executable
     attempt = 0
     while True:

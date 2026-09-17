@@ -88,7 +88,14 @@ class McpServerConnection:
     def start(self, timeout: float = 15.0) -> None:
         """Spawn the server subprocess and complete the MCP handshake.
         Raises :class:`McpServerError` on failure (bad command, the server
-        crashed on startup, the handshake timed out, ...)."""
+        crashed on startup, the handshake timed out, ...).
+
+        Refused while "Block network" is on: a server process is free to open
+        any socket it likes, so the only safe server is one never started."""
+        from ..application.network import network_guard
+
+        if network_guard.is_blocked():
+            raise McpServerError(network_guard.refusal(f"MCP server '{self.name}'"))
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
         if not self._ready.wait(timeout):
@@ -174,6 +181,10 @@ class McpServerConnection:
 
     def call_tool(self, qualified_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """``extra_executor``-shaped result: ``{"ok": bool, "output": str}``."""
+        from ..application.network import network_guard
+
+        if network_guard.is_blocked():
+            return {"ok": False, "output": network_guard.refusal(f"MCP server '{self.name}'")}
         tool_name = qualified_name.split(_SEP, 1)[1] if _SEP in qualified_name else qualified_name
         try:
             result = self._run_coro(self._session.call_tool(tool_name, args or {}))

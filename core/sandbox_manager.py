@@ -218,8 +218,13 @@ class SandboxManager:
         timeout_sec: int,
         cancel: Optional[Callable[[], bool]] = None,
     ) -> Dict[str, Any]:
-        """Dispatch execution to the selected backend."""
-        if backend == "direct":
+        """Dispatch execution to the selected backend.
+
+        With the network blocked every backend is replaced by the same OS-level
+        isolation: the backends below only ever set proxy env vars, which
+        anything that ignores proxies (raw sockets, ping, .NET WebClient...)
+        walked straight past."""
+        if block_network or backend == "direct":
             return self._run_direct(command, workdir, block_network, timeout_sec, cancel)
 
         if backend == "integrity_job_wfp":
@@ -274,7 +279,8 @@ class SandboxManager:
         env = os.environ.copy()
         if block_network:
             from .deps import network_blocked_env
-            env = network_blocked_env(env)
+            env = network_blocked_env(env)   # belt and braces on top of the OS block
+            return self._run_network_isolated(command, workdir, env, timeout_sec, cancel)
 
         if cancel is not None:
             from .deps import run_cancellable
@@ -335,3 +341,41 @@ class SandboxManager:
                 "returncode": -1,
                 "sandbox": "direct",
             }
+
+    @staticmethod
+    def _run_network_isolated(
+        command: str,
+        workdir: str,
+        env: Dict[str, str],
+        timeout_sec: int,
+        cancel: Optional[Callable[[], bool]] = None,
+    ) -> Dict[str, Any]:
+        """Run ``command`` in a process the OS keeps off the network.
+
+        Fail-closed: when the isolation cannot be set up the command is
+        refused (``sandbox == "blocked"``), never run with the network open."""
+        from .deps import run_cancellable
+
+        rc, output, cancelled, timed_out, exceeded = run_cancellable(
+            command, cwd=workdir or None, timeout=timeout_sec, cancel=cancel,
+            shell=True, env=env, isolate_network=True,
+        )
+        if rc is None and not (cancelled or timed_out or exceeded):
+            return {"ok": False, "stdout": "", "returncode": -1, "sandbox": "blocked",
+                    "stderr": ("Command refused: network is blocked and the command could "
+                               f"not be isolated from the network ({output.strip()}).")}
+        if cancelled:
+            stderr = "Cancelled by user."
+        elif timed_out:
+            stderr = f"Timeout after {timeout_sec}s"
+        elif exceeded:
+            stderr = "Resource limit exceeded."
+        else:
+            stderr = ""
+        return {
+            "ok": rc == 0 and not (cancelled or timed_out or exceeded),
+            "stdout": output,
+            "stderr": stderr,
+            "returncode": rc if rc is not None else -1,
+            "sandbox": "network_isolated",
+        }
