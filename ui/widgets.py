@@ -490,8 +490,9 @@ def section_panels(sections, width: int = 260):
     index.currentRowChanged.connect(stack.setCurrentIndex)
     index.setCurrentRow(0)
 
-    natural = max(index.fontMetrics().horizontalAdvance(lab) for lab, _w in sections) + 36
-    index.setFixedWidth(max(120, min(width, natural)))
+    # Sized for the SELECTED look (bold + padding), or the picked label is cut.
+    from ..presentation.shared.list_sizing import selected_label_width
+    index.setFixedWidth(max(120, min(width, selected_label_width(index, [lab for lab, _w in sections]))))
     return index, stack
 
 

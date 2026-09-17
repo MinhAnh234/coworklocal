@@ -10,9 +10,9 @@ from typing import Dict
 
 STRINGS: Dict[str, Dict[str, str]] = {
     "settings.sandbox_block_network": {
-        "en": "Block network (AI provider still allowed)",
-        "ja": "ネットワークをブロック（AIプロバイダーのみ許可）",
-        "vi": "Chặn mạng (vẫn cho gọi nhà cung cấp AI)"},
+        "en": "Block network for agent-run commands",
+        "ja": "エージェントが実行するコマンドのネットワークをブロック",
+        "vi": "Chặn mạng cho lệnh do agent chạy"},
     "settings.allow_url_fetch": {
         "en": "Allow the agent to fetch URLs (web pages, SharePoint / OneDrive links)",
         "ja": "エージェントによるURL取得を許可（Webページ、SharePoint / OneDriveリンク）",
