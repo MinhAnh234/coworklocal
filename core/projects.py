@@ -24,6 +24,7 @@ project — nothing about it is special-cased in the UI.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -80,6 +81,53 @@ class Project:
         if self.output_dir.strip():
             return Path(self.output_dir).expanduser()
         return (base or WORKSPACES_DIR) / self.project_id
+
+
+def _norm_dir(path) -> str:
+    """Đường dẫn đã chuẩn hoá để đem ra so sánh.
+
+    Bung ``~``, đưa về tuyệt đối, rồi ``normcase`` — trên Windows thì
+    ``D:/Work`` và ``d:/work`` là cùng một thư mục, nên so chuỗi thô sẽ
+    cho hai project chiếm chung một chỗ mà không ai biết.
+    """
+    return os.path.normcase(os.path.abspath(os.path.expanduser(str(path))))
+
+
+def _cham_nhau(a: str, b: str) -> bool:
+    """Hai thư mục đã chuẩn hoá có chạm nhau không: trùng, hoặc lồng nhau.
+
+    Lồng nhau cũng tính, vì lý do tồn tại của sandbox là "agent của project này
+    không bao giờ chạm được file của project kia" (xem docstring đầu module).
+    Đứng ở thư mục cha thì đọc/ghi được toàn bộ thư mục con, nên cha-con vẫn là
+    chạm nhau dù hai đường dẫn không giống nhau.
+    """
+    return a == b or a.startswith(b + os.sep) or b.startswith(a + os.sep)
+
+
+def folder_conflict(path, *, ignore_id: str = "",
+                    directory: Path = None) -> Optional[Project]:
+    """Project khác đang chiếm ``path``, hoặc ``None`` nếu chưa ai chiếm.
+
+    Mỗi thư mục chỉ được thuộc về một project: thư mục làm việc vừa là sandbox
+    vừa là kho kiến thức dùng chung của project, nên hai project dùng chung một
+    thư mục là đọc lẫn dữ liệu của nhau.
+
+    So theo thư mục THỰC SỰ đang dùng (``workspace_dir()``), không phải theo
+    ``output_dir``: project chưa đặt thư mục riêng vẫn đang chiếm thư mục quản
+    lý sẵn của nó, và chính thư mục đó là thứ hay bị chọn nhầm.
+
+    ``ignore_id`` là project đang sửa — giữ nguyên thư mục của chính nó thì
+    không phải là trùng.
+    """
+    if not str(path).strip():
+        return None
+    muon = _norm_dir(path)
+    for project in list_projects(directory):
+        if project.project_id == ignore_id:
+            continue
+        if _cham_nhau(muon, _norm_dir(project.workspace_dir())):
+            return project
+    return None
 
 
 def _starter_project() -> Project:

@@ -27,13 +27,14 @@ from PySide6.QtWidgets import (
 
 from ..i18n import on_language_changed, tr
 from ..presentation.workspace.project_editing import ProjectEditingMixin, ProjectRow
+from ..presentation.workspace.project_folder_rules import ProjectFolderRuleMixin, folder_taken_blocked
 from ..state import AppContext
 from .icons import collapse_left_icon, icon
 from .osutil import open_folder
 from .widgets import CollapseStrip
 
 
-class WorkspaceTab(ProjectEditingMixin, QWidget):
+class WorkspaceTab(ProjectEditingMixin, ProjectFolderRuleMixin, QWidget):
     """Trang chủ Workspace: cột project, cột lịch sử, và 5 sub-tab
     (Dự án · Cowork · Co4E · Thư mục · GraphRAG).
 
@@ -941,6 +942,8 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
             self, tr("workspace.browse_tooltip"), str(project.workspace_dir()))
         if not chosen:
             return
+        if folder_taken_blocked(self, chosen, pid):
+            return
         project.output_dir = chosen
         save_project(project)
         self.folder_lbl.setText(chosen)
@@ -984,6 +987,8 @@ class WorkspaceTab(ProjectEditingMixin, QWidget):
         if not cloud_source:
             return
         local_dir = WORKSPACES_DIR / project.project_id / "_cloud_mirror"
+        if folder_taken_blocked(self, str(local_dir), pid):
+            return
         self._cloud_pick_btn.setEnabled(False)
         try:
             token = self._cloud_token()

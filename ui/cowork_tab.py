@@ -123,9 +123,12 @@ class CoworkTab(ChatPanel):
             # workspace (its sandbox + shared-knowledge root) — not the
             # global default-output setting.
             from ..core.projects import save_project
+            from ..presentation.workspace.project_folder_rules import folder_taken_blocked
 
             project = self._project()
             if project is not None:
+                if folder_taken_blocked(self, chosen, self.project_id):
+                    return
                 project.output_dir = chosen
                 save_project(project)
         else:

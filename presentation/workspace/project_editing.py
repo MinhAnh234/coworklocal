@@ -141,6 +141,10 @@ class ProjectEditingMixin:
         self.project_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.project_list.customContextMenuRequested.connect(self._show_project_menu)
 
+        # Luật "mỗi thư mục một project" sống ở module riêng — xem
+        # ``project_folder_rules.py`` về lý do nó không nằm trong file này.
+        self.install_project_folder_rule()
+
         self.set_project_editable(False)
 
     # ---- chế độ chỉ-xem / sửa -------------------------------------------

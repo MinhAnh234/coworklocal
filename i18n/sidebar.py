@@ -57,6 +57,17 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "en": "Another project is already called \"{name}\". Project names must be unique — the list shows nothing but the name, so two of them cannot be told apart.",
         "ja": "「{name}」という名前のプロジェクトが既にあります。一覧には名前しか出ないため、同じ名前が二つあると区別できません。",
         "vi": "Đã có project khác tên \"{name}\". Tên project phải khác nhau — danh sách chỉ hiện tên, trùng tên là không phân biệt được."},
+    "workspace.folder_taken_title": {
+        "en": "Folder already used", "ja": "フォルダーが重複しています",
+        "vi": "Thư mục đã được dùng"},
+    "workspace.folder_taken_body": {
+        "en": "Project \"{name}\" already works in {folder}. One folder belongs to one project only — the folder is that project's sandbox and shared knowledge, so sharing it lets two projects read and overwrite each other's files. Pick another folder.",
+        "ja": "プロジェクト「{name}」が既に {folder} を使用しています。フォルダーは 1 つのプロジェクト専用です — フォルダーはそのプロジェクトのサンドボックス兼共有ナレッジなので、共有すると互いのファイルを読み書きしてしまいます。別のフォルダーを選んでください。",
+        "vi": "Project \"{name}\" đang làm việc trong {folder}. Mỗi thư mục chỉ thuộc về một project — thư mục vừa là sandbox vừa là kho kiến thức chung của project đó, dùng chung là hai project đọc và ghi đè file của nhau. Hãy chọn thư mục khác."},
+    "workspace.folder_shared_warning": {
+        "en": "⚠ This folder is also used by project \"{name}\". One folder belongs to one project only — pick another folder for one of them.",
+        "ja": "⚠ このフォルダーはプロジェクト「{name}」でも使われています。フォルダーは 1 つのプロジェクト専用です — どちらかに別のフォルダーを指定してください。",
+        "vi": "⚠ Thư mục này đang được project \"{name}\" dùng chung. Mỗi thư mục chỉ thuộc về một project — hãy đổi thư mục cho một trong hai."},
     "workspace.instructions_placeholder": {
         "en": "e.g. \"All answers in Vietnamese. We are building the X reporting tool; always follow the naming rules …\"",
         "ja": "例:「回答はすべて日本語で。X レポートツールを開発中。命名規則に従うこと …」",
