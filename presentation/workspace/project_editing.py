@@ -90,6 +90,7 @@ def _row_layout_of(widget: QWidget) -> QLayout | None:
     return None
 
 
+
 class ProjectEditingMixin:
     """Danh sách project + CRUD + chế độ sửa. Trộn vào ``WorkspaceTab``.
 
@@ -133,6 +134,9 @@ class ProjectEditingMixin:
         # dung luat ma _new_btn da theo (_new_btn.setVisible(on_project) trong
         # WorkspaceTab._apply_pane_visibility) — hai nut nay phai theo y nhu vay.
         self.tabs.currentChanged.connect(self._sync_project_buttons)
+        # Đổi project cũng phải đồng bộ lại: ``_load_current`` nạp form và đặt
+        # ``_current_id`` rồi phát tín hiệu này, nhưng không đụng tới ba nút.
+        self.project_selected.connect(self._sync_project_buttons)
 
         self.project_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.project_list.customContextMenuRequested.connect(self._show_project_menu)
@@ -153,15 +157,14 @@ class ProjectEditingMixin:
         Bật: ngược lại, và nút Lưu chuyển sang màu xác nhận (token ``success``).
         """
         self._project_editable = on
-        has_project = bool(getattr(self, "_current_id", ""))
 
         for field in self._editable_fields():
             # setReadOnly thay vì setEnabled: ô mờ đi thì không bôi đen copy
             # được nữa, mà đọc và copy chính là việc của chế độ chỉ-xem.
             field.setReadOnly(not on)
-        self._browse_btn.setEnabled(on and has_project)
-        self._save_btn.setEnabled(on and has_project)
-        self._edit_btn.setEnabled(not on and has_project)
+        # Ba nút không tự bật/tắt ở đây: ``_sync_project_buttons`` mới là nơi
+        # duy nhất tính trạng thái của chúng, vì nó còn chạy cả khi người dùng
+        # đổi project — lúc đó ``set_project_editable`` không được gọi.
         self._sync_project_buttons()
 
         # Nút Lưu xanh lá khi đang sửa (hành động xác nhận), về màu nhấn mặc
@@ -171,15 +174,25 @@ class ProjectEditingMixin:
         self._repolish(self._edit_btn)
 
     def _sync_project_buttons(self, *_a) -> None:
-        """Ẩn "Sửa project" và "Lưu project" ngoài sub-tab Project.
+        """Đồng bộ CẢ hiện/ẩn LẪN bật/mờ của ba nút theo trạng thái hiện tại.
 
-        Chúng nằm trên hàng tiêu đề dùng chung, nên không tự ẩn là chúng hiện
-        cả ở Cowork — nơi không có biểu mẫu project nào để sửa hay lưu.
+        Ẩn ngoài sub-tab Project: chúng nằm trên hàng tiêu đề dùng chung, nên
+        không tự ẩn là chúng hiện cả ở Cowork — nơi không có biểu mẫu project
+        nào để sửa hay lưu.
+
+        Bật/mờ cũng tính ở đây chứ không ở ``set_project_editable``: đổi
+        project KHÔNG đi qua hàm đó (``_load_current`` chỉ nạp lại form), nên
+        để ở đó thì "Sửa project" giữ nguyên trạng thái tính từ lúc dựng —
+        lúc chưa project nào được chọn — và cứ mờ mãi dù project đã mở.
         """
         on_project = self.tabs.currentIndex() == self._project_tab_idx
         has_project = bool(getattr(self, "_current_id", ""))
+        dang_sua = bool(getattr(self, "_project_editable", False))
         self._edit_btn.setVisible(on_project and has_project)
         self._save_btn.setVisible(on_project and has_project)
+        self._edit_btn.setEnabled(not dang_sua and has_project)
+        self._save_btn.setEnabled(dang_sua and has_project)
+        self._browse_btn.setEnabled(dang_sua and has_project)
 
     @staticmethod
     def _repolish(widget: QWidget) -> None:
