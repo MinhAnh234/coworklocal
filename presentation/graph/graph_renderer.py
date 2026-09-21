@@ -27,6 +27,7 @@ from cowork_local.core.worker import AgentWorker
 from cowork_local.i18n import on_language_changed, tr
 from cowork_local.presentation.graph import graph_export
 from cowork_local.presentation.graph.graph_messages_view import GraphMessagesView
+from cowork_local.presentation.graph.graph_project_lock import GraphProjectLockMixin
 from cowork_local.presentation.graph.graph_scene_builder import build_scene
 from cowork_local.presentation.graph.graph_scene_items import _Bridge, _Edge, _GraphView, _Node
 from cowork_local.presentation.shared import HAS_WEB_ENGINE
@@ -35,7 +36,7 @@ from cowork_local.theme import current_palette
 from cowork_local.ui.icons import icon
 
 
-class GraphRenderer(QWidget):
+class GraphRenderer(GraphProjectLockMixin, QWidget):
     """Nửa "đồ thị" của màn GraphRAG: thanh công cụ, khung xem và vòng đời quét."""
     status_message = Signal(str)
     node_selected = Signal(object)   # a node's .data, whenever the scene selection changes
@@ -60,6 +61,8 @@ class GraphRenderer(QWidget):
         self._needs_scan = False
         self._scan_seq = 0   # only the latest scan's result is rendered (no stale overwrite)
         self._active_project_id = ""  # "" = free path; set = scan locked to that project's sandbox
+        # The folder last scanned — see graph_project_lock.py.
+        self._active_path = ""
 
         self._rescan_timer = QTimer(self)
         self._rescan_timer.setSingleShot(True)
@@ -153,63 +156,6 @@ class GraphRenderer(QWidget):
         để biết người dùng đang hỏi về cái gì.
         """
         return [item.data for item in self.scene.selectedItems() if isinstance(item, _Node)]
-
-    # ---- project sandbox lock ------------------------------------------------- #
-    def _refresh_project_combo(self) -> None:
-        """Nạp lại danh sách project vào bộ chọn, giữ nguyên project đang chọn."""
-        from cowork_local.core.projects import list_projects
-
-        keep = self._active_project_id
-        self.project_combo.blockSignals(True)
-        self.project_combo.clear()
-        self.project_combo.addItem(tr("structure.project_none"), "")
-        row_to_select = 0
-        for i, p in enumerate(list_projects(), start=1):
-            self.project_combo.addItem(p.name, p.project_id)
-            if p.project_id == keep:
-                row_to_select = i
-        self.project_combo.setCurrentIndex(row_to_select)
-        self.project_combo.blockSignals(False)
-
-    def set_project(self, project_id: str) -> None:
-        """Khoá phạm vi quét vào một project (chuỗi rỗng là bỏ khoá)."""
-        pid = project_id or ""
-        self._refresh_project_combo()
-        target = self.project_combo.findData(pid)
-        if target < 0:
-            target = 0
-        if self.project_combo.currentIndex() == target:
-            self._on_project_changed(target)
-        else:
-            self.project_combo.setCurrentIndex(target)
-
-    def _on_project_changed(self, _idx: int) -> None:
-        """Áp trạng thái khoá: đường dẫn chuyển sang chỉ đọc và trỏ vào thư mục"""
-        from cowork_local.core.projects import load_project
-
-        pid = self.project_combo.currentData() or ""
-        project_changed = pid != self._active_project_id
-        self._active_project_id = pid
-        locked = bool(pid)
-        self.path_edit.setReadOnly(locked)
-        self._pick_btn.setEnabled(not locked)
-        if locked:
-            project = load_project(pid)
-            if project is not None:
-                self.path_edit.setText(str(project.workspace_dir()))
-        if project_changed:
-            self.project_changed.emit()   # GraphQaWidget drops its temp extraction cache
-            # Mark it and scan on the next visit rather than now — see
-            # auto_scan_and_fit()'s docstring for why.
-            self._needs_scan = True
-            # ...except when this screen is the one on show. The picker lives HERE,
-            # so a user changing project is already looking at the graph: there is
-            # no "next visit" to defer to, and they had to press Scan by hand.
-            # Deferring still applies when the change came from the Workspace
-            # screen while this one is hidden, which is what it was for.
-            if self.isVisible() and self.path_edit.text().strip():
-                self._needs_scan = False
-                self._scan()
 
     # ---- helpers ---------------------------------------------------------------- #
     def _pick(self) -> None:
