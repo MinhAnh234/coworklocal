@@ -12,6 +12,7 @@ sort by recency. History can live locally or in a OneDrive folder (resolved by
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -33,6 +34,45 @@ def new_session_id() -> str:
     return datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
 
+#: Độ dài mong muốn của một tiêu đề hội thoại, tính bằng ký tự.
+TITLE_MAX_CHARS = 60
+#: Số ký tự được phép vượt ``TITLE_MAX_CHARS`` để viết nốt từ đang bị cắt dở.
+#: Cỡ một từ tiếng Việt — đủ để cứu chữ cuối, không đủ để kéo dài tiêu đề.
+_TITLE_SLACK = 12
+
+_KHOANG_TRANG = re.compile(r"\s")
+
+
+def shorten_title(text: str, limit: int = TITLE_MAX_CHARS) -> str:
+    """Rút gọn tiêu đề mà KHÔNG cắt vào giữa một từ.
+
+    Cắt cứng ở ký tự thứ ``limit`` đọc rất khó chịu khi mốc đó rơi vào giữa từ:
+    "…tóm tắt từng tệp" thành "…tóm tắt từng tệ…" — trông như lỗi gõ chứ không
+    như một câu bị rút gọn. Nên khi mốc cắt rơi vào giữa từ thì viết nốt từ đó.
+
+    Ba lối ra, theo thứ tự ưu tiên:
+
+    * Viết nốt từ đang dở, nếu chỉ phải vượt thêm tối đa ``_TITLE_SLACK`` ký tự.
+      Viết nốt mà vừa hết chuỗi thì **không** thêm dấu ba chấm — không còn chữ
+      nào bị bỏ thì dấu ba chấm là nói dối.
+    * Từ dài bất thường (đường dẫn, URL) thì lùi về ranh giới từ ngay trước mốc,
+      để một token dài không kéo tiêu đề dài ra tuỳ ý.
+    * Cả tiêu đề chỉ là một từ dài thì đành cắt cứng — không còn ranh giới nào.
+    """
+    if len(text) <= limit:
+        return text
+    if text[limit].isspace():          # mốc cắt vốn đã nằm giữa hai từ
+        return text[:limit].rstrip() + "…"
+    sau = _KHOANG_TRANG.search(text, limit)
+    het_tu = sau.start() if sau is not None else len(text)
+    if het_tu - limit <= _TITLE_SLACK:
+        return text if het_tu == len(text) else text[:het_tu] + "…"
+    truoc = [m.start() for m in _KHOANG_TRANG.finditer(text, 0, limit)]
+    if truoc:
+        return text[:truoc[-1]] + "…"
+    return text[:limit] + "…"
+
+
 def derive_title(messages: List[Dict[str, Any]]) -> str:
     """Suy tiêu đề hội thoại từ tin nhắn đầu tiên của người dùng.
 
@@ -40,8 +80,7 @@ def derive_title(messages: List[Dict[str, Any]]) -> str:
     """
     for m in messages:
         if m.get("role") == "user" and m.get("content"):
-            text = " ".join(m["content"].split())
-            return text[:60] + ("…" if len(text) > 60 else "")
+            return shorten_title(" ".join(m["content"].split()))
     return "(empty)"
 
 

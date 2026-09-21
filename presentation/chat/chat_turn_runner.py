@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import Qt, Signal
+from ...core.history import shorten_title
 from ...core.worker import AgentWorker
 from ...i18n import tr
 from ...state import AppContext
@@ -88,7 +89,11 @@ class ChatTurnRunnerMixin:
             prefix = f"{prefix}\n\n{agent_prefix}" if prefix else agent_prefix
         if not self.title:
             base = text or (Path(attachments[0]).name if attachments else "(attachment)")
-            self.title = (base[:60] + "…") if len(base) > 60 else base
+            # Rút gọn mà không cắt vào giữa từ: xem shorten_title trong
+            # core/history.py. Dùng chung với derive_title để tiêu đề trên
+            # thanh tiêu đề và tiêu đề lưu vào lịch sử không rút gọn theo
+            # hai kiểu khác nhau.
+            self.title = shorten_title(base)
             self._notify_title()
 
         # Reset the Plan panel so each message starts from a clean checklist (the
