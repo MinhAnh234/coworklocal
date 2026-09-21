@@ -40,6 +40,9 @@ class StructureGraphView(QWidget):
         # Project ma man Workspace da ap xuong lan gan nhat. None = chua ap lan
         # nao, de lan goi dau tien khong bi bo qua ke ca khi pid la chuoi rong.
         self._workspace_project = None
+        # Thư mục của project đó lúc áp gần nhất. Chốt theo CẢ đường dẫn chứ
+        # không chỉ theo id — xem set_workspace_project.
+        self._workspace_dir = None
 
         root = QVBoxLayout(self)
         self.renderer = GraphRenderer(ctx)
@@ -208,12 +211,28 @@ class StructureGraphView(QWidget):
 
         Đổi sang project khác ở màn Workspace thì vẫn áp — cùng luật với tab Thư
         mục (``FolderTab.set_project_root``). Chỉ lần refresh trong CÙNG một
-        project là không được đụng.
+        project VÀ cùng một thư mục là không được đụng.
+
+        Chốt theo cả đường dẫn chứ không chỉ theo id: đổi thư mục làm việc ở
+        màn Project không làm id đổi, nên chốt theo mỗi id thì màn này giữ
+        nguyên đường dẫn cũ và quét nhầm thư mục. Tab Thư mục vốn đã chốt theo
+        đường dẫn — đây là đưa hai nơi về đúng cùng một luật như comment này
+        vẫn nói.
         """
-        if project_id == self._workspace_project:
+        thu_muc = self._thu_muc_cua(project_id)
+        if project_id == self._workspace_project and thu_muc == self._workspace_dir:
             return
         self._workspace_project = project_id
+        self._workspace_dir = thu_muc
         self.set_project(project_id)
+
+    @staticmethod
+    def _thu_muc_cua(project_id: str) -> str:
+        """Thư mục làm việc hiện tại của project, chuỗi rỗng nếu không có."""
+        from cowork_local.core.projects import load_project
+
+        project = load_project(project_id) if project_id else None
+        return str(project.workspace_dir()) if project is not None else ""
 
     def prewarm(self) -> None:
         """Dựng sẵn khung đồ thị trước khi người dùng bấm vào, để lần mở đầu không giật."""

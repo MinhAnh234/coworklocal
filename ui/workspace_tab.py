@@ -947,6 +947,7 @@ class WorkspaceTab(ProjectEditingMixin, ProjectFolderRuleMixin, QWidget):
         project.output_dir = chosen
         save_project(project)
         self.folder_lbl.setText(chosen)
+        self.rebind_workspace_folder()
         self.status_message.emit(tr("workspace.saved", name=project.name))
 
     def _open_workspace(self) -> None:
@@ -1002,6 +1003,7 @@ class WorkspaceTab(ProjectEditingMixin, ProjectFolderRuleMixin, QWidget):
         project.cloud_source = cloud_source
         save_project(project)
         self.folder_lbl.setText(str(local_dir))
+        self.rebind_workspace_folder()
         self._refresh_cloud_badge(project)
         self.projects_changed.emit()
         if report.errors:

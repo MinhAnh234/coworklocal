@@ -31,6 +31,7 @@ def view(qapp, monkeypatch):
 
     v = StructureGraphView.__new__(StructureGraphView)
     v._workspace_project = None
+    v._workspace_dir = None       # chốt còn theo cả đường dẫn, không chỉ id
     v.renderer = _Ghi()
     return v
 

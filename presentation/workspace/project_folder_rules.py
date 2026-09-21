@@ -79,6 +79,32 @@ class ProjectFolderRuleMixin:
         self._gan_nhan_canh_bao_thu_muc()
         self.project_selected.connect(self._sync_folder_warning)
 
+    def rebind_workspace_folder(self) -> None:
+        """Thư mục làm việc vừa đổi — trỏ lại những màn đang bám vào nó.
+
+        Đổi thư mục KHÔNG làm project id đổi, nên không có gì trong luồng
+        chọn project chạy lại: ``_pick_folder`` ghi ``output_dir`` rồi dừng.
+        Tab Thư mục và màn GraphRAG vì thế giữ nguyên đường dẫn cũ — tên
+        project vẫn đúng nên nhìn qua tưởng ổn, nhưng GraphRAG quét nhầm
+        thư mục.
+
+        Cố ý KHÔNG gọi ``_load_current``: hàm đó nạp lại cả biểu mẫu từ đĩa,
+        nên gọi nó lúc người dùng đang sửa dở Tên/Mô tả là xoá mất phần chưa
+        lưu.
+        """
+        from ...core.projects import load_project
+
+        pid = getattr(self, "_current_id", "")
+        project = load_project(pid) if pid else None
+        if project is None:
+            return
+        if getattr(self, "_folder", None) is not None:
+            self._folder.set_project_root(str(project.workspace_dir()))
+        if getattr(self, "_structure", None) is not None:
+            self._structure.set_workspace_project(pid)
+        # Thư mục mới có thể vừa gỡ bỏ (hoặc tạo ra) một cảnh báo dùng chung.
+        self._sync_folder_warning()
+
     def _gan_nhan_canh_bao_thu_muc(self) -> None:
         """Chèn nhãn cảnh báo ngay DƯỚI hàng chứa ô Thư mục làm việc.
 
