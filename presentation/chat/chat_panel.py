@@ -99,6 +99,9 @@ class ChatPanel(ChatLiveTurnsMixin, ChatPanelLayoutMixin, ChatEventStreamMixin, 
         # can run concurrently. Each value is a turn-context dict — see _start_turn.
         self.worker: AgentWorker | None = None
         self._active: Dict[AgentWorker, Dict[str, Any]] = {}
+        # Người dùng đã bấm Dừng cho lượt đang chạy chưa. Cờ này chỉ đổi thứ
+        # MÀN HÌNH nói, không đổi việc huỷ: huỷ vẫn là cờ trên worker.
+        self._stop_requested = False
         self._turn_seq: int = 0
         # session_id -> its live messages list, for every conversation that still has
         # a turn running. Lets you start a new chat / reopen an old one WHILE work
@@ -337,7 +340,10 @@ class ChatPanel(ChatLiveTurnsMixin, ChatPanelLayoutMixin, ChatEventStreamMixin, 
         Switching chats, or hitting History → Refresh, shows whether THIS chat is
         still processing (a background turn) or idle."""
         if self._view_busy():
-            self.thinking.start("chat.running")   # this conversation is still working
+            # Đã bấm Dừng mà lượt chưa kết thúc: giữ nhãn "đang dừng", đừng kéo
+            # ngược về "đang chạy" — người dùng vừa bấm xong mà thấy chữ cũ thì
+            # đọc ra là nút không ăn.
+            self.thinking.start("chat.stopping" if self._stop_requested else "chat.running")
         else:
             self.thinking.stop()
         self.composer.set_running(bool(self._active))   # Stop shows while anything runs

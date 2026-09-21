@@ -278,10 +278,17 @@ class AnthropicProvider(Provider):
                             raise ProviderError(f"Anthropic: {evt.get('error', {}).get('message', 'error')}")
                 resp.close()
                 break   # stream finished normally (or cancelled)
-            except requests.RequestException as exc:
+            except Exception as exc:   # noqa: BLE001 — lọc lại ngay bên dưới
                 resp.close()
+                # Huỷ giữa chừng đóng socket, và urllib3 ném AttributeError
+                # ("'NoneType' object has no attribute 'read'") chứ KHÔNG phải
+                # RequestException — bắt hẹp là lỗi đó lọt ra ngoài và người dùng
+                # thấy một lỗi Python đỏ thay vì "đã dừng". Chỉ nuốt khi thật sự
+                # đang huỷ; lỗi khác vẫn ném tiếp nguyên vẹn.
                 if self._is_cancelled(cancel):
                     break
+                if not isinstance(exc, requests.RequestException):
+                    raise
                 if text_parts or blocks:
                     if on_text:
                         on_text("\n⚠ Kết nối bị ngắt giữa chừng — hiển thị phần đã nhận được.\n")

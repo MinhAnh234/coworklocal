@@ -114,6 +114,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "chatpanel.working": {"en": "{name}: working…", "ja": "{name}: 処理中…", "vi": "{name}: đang xử lý…"},
     "chatpanel.done": {"en": "{name}: done.", "ja": "{name}: 完了。", "vi": "{name}: xong."},
     "chatpanel.failed": {"en": "{name}: error.", "ja": "{name}: エラー。", "vi": "{name}: lỗi."},
+    "chatpanel.stopped": {"en": "{name}: stopped.", "ja": "{name}: 停止しました。",
+                          "vi": "{name}: đã dừng."},
     "chatpanel.stopping": {"en": "{name}: stopping…", "ja": "{name}: 停止中…", "vi": "{name}: đang dừng…"},
     "chatpanel.attach_limit": {
         "en": "Max {n} attachments — extra files were skipped.",

@@ -217,6 +217,7 @@ class ChatTurnRunnerMixin:
         if self._view_busy() or len(self._active) >= self._max_parallel():
             self.composer.set_busy(True)
         self.status_message.emit(tr("chatpanel.working", name=tr(f"app.tab.{self.kind}")))
+        self._stop_requested = False   # lượt mới: xoá dấu vết lần Dừng trước
         self.thinking.start("chat.running")
         worker.start()
 
@@ -259,7 +260,7 @@ class ChatTurnRunnerMixin:
                 self._show_usage(ctx)                      # per-turn + conversation token/cost
             except Exception:  # noqa: BLE001 — usage display must never break a turn
                 pass
-            done = self.chat_view.add_success(tr("chat.done_marker"))   # green done marker in the chat box
+            done = self._dau_ket_thuc()
             folder = self.workspace_dir()
             if folder:
                 done.add_folder_link(str(folder), tr("chat.open_output_folder"))
@@ -273,12 +274,32 @@ class ChatTurnRunnerMixin:
             self._maybe_notify_teams(result)
         self._drain_queue()
 
+    def _dau_ket_thuc(self):
+        """Dấu kết thúc đặt vào khung chat khi một lượt vừa xong.
+
+        Dừng theo yêu cầu KHÔNG phải là hoàn thành: dấu xanh "Đã hoàn thành" ở
+        đó nói ngược hẳn với thứ người dùng vừa làm, và là lý do người dùng báo
+        "bấm Dừng mà không biết nó đã dừng hay chưa".
+
+        Tách khỏi ``_on_finished`` để nhánh này kiểm được bằng test mà không
+        phải dựng cả một ``ChatPanel``.
+        """
+        if self._stop_requested:
+            return self.chat_view.add_status(tr("chat.stopped_marker"))
+        return self.chat_view.add_success(tr("chat.done_marker"))
+
     def _on_failed(self, ctx: Dict[str, Any], err: str) -> None:
         """Lượt chạy lỗi: huỷ thư mục kết quả tạm và hiện lỗi (nếu hội thoại còn đang mở)."""
         live = self._turn_is_live(ctx)
         self._end_turn(ctx)
         self._cleanup_turn(ctx, False)   # discard this turn's output sandbox
-        if live:
+        if live and self._stop_requested:
+            # Người dùng vừa bấm Dừng: mọi lỗi phát sinh trong lúc huỷ là hệ quả
+            # của chính việc huỷ (đóng socket giữa stream, tool bị cắt ngang).
+            # Dội một traceback đỏ vào mặt họ là trả lời sai câu hỏi "nó dừng
+            # chưa?" — thứ họ cần là một dòng nói rõ là đã dừng.
+            self._dau_ket_thuc()
+        elif live:
             self.chat_view.add_error(err)
             self.graph_event.emit(self.session_name, {"type": "error", "content": err})
             from ...providers.base import is_model_not_found_error
@@ -291,7 +312,10 @@ class ChatTurnRunnerMixin:
                 self.composer.set_text(ctx["display_text"])
         else:
             self._persist_session(ctx)
-        self.status_message.emit(tr("chatpanel.failed", name=tr(f"app.tab.{self.kind}")))
+        # Thanh trạng thái phải nói cùng một chuyện với khung chat: dừng theo
+        # yêu cầu thì không phải "lỗi".
+        key = "chatpanel.stopped" if self._stop_requested else "chatpanel.failed"
+        self.status_message.emit(tr(key, name=tr(f"app.tab.{self.kind}")))
         self.turn_finished.emit({"error": err})
         self._drain_queue()
 
@@ -316,6 +340,11 @@ class ChatTurnRunnerMixin:
         """Dừng mọi lượt đang chạy của hội thoại này và xoá sạch hàng đợi."""
         if not self._active:
             return
+        # Báo NGAY trên màn: huỷ thật có thể mất vài giây (đang chờ gateway trả
+        # lời, đang chạy dở một tool), mà trong lúc đó chỉ báo vẫn đếm "Đang
+        # chạy · 160s" — người dùng đọc ra là nút Dừng không ăn.
+        self._stop_requested = True
+        self.thinking.set_label("chat.stopping")
         for w in list(self._active):
             if w.isRunning():
                 w.request_stop()

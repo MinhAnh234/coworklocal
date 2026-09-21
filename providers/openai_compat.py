@@ -254,13 +254,19 @@ class OpenAICompatProvider(Provider):
                                 slot["args"] += fn["arguments"]
                 resp.close()
                 break   # stream finished normally (or cancelled)
-            except requests.RequestException as exc:
+            except Exception as exc:   # noqa: BLE001 — lọc lại ngay bên dưới
                 resp.close()
-                # If cancel was requested, close cleanly without retry
+                # Huỷ giữa chừng đóng socket, và urllib3 ném AttributeError
+                # ("'NoneType' object has no attribute 'read'") chứ KHÔNG phải
+                # RequestException — bắt hẹp là lỗi đó lọt ra ngoài và người dùng
+                # thấy một lỗi Python đỏ thay vì "đã dừng". Chỉ nuốt khi thật sự
+                # đang huỷ; lỗi khác vẫn ném tiếp nguyên vẹn.
                 if cancel_event is not None and cancel_event.is_set():
                     break
                 if self._is_cancelled(cancel):
                     break
+                if not isinstance(exc, requests.RequestException):
+                    raise
                 if text_parts or tool_acc:
                     # Partial answer already on screen — keep it, note the cut.
                     if on_text:

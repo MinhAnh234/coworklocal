@@ -229,6 +229,11 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "chat.open_folder": {"en": "Open folder", "ja": "フォルダを開く", "vi": "Mở thư mục"},
     "chat.open_output_folder": {"en": "Open output folder", "ja": "出力フォルダを開く", "vi": "Mở thư mục output"},
     "chat.done_marker": {"en": "Done", "ja": "完了しました", "vi": "Đã hoàn thành"},
+    "chat.stopping": {"en": "Stopping", "ja": "停止中", "vi": "Đang dừng"},
+    "chat.stopped_marker": {
+        "en": "⏹ Stopped at your request",
+        "ja": "⏹ リクエストにより停止しました",
+        "vi": "⏹ Đã dừng theo yêu cầu"},
     "chat.session_folder_marker": {
         "en": "This conversation's output folder", "ja": "この会話の出力フォルダ",
         "vi": "Thư mục output của hội thoại này"},
