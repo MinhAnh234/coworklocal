@@ -224,6 +224,23 @@ class ChatSessionMixin:
         if getattr(self, "_usage_total_lbl", None) is not None:
             self.refresh_usage()
 
+    def set_title_label(self, lbl, fallback: str) -> None:
+        """Đặt tiêu đề hội thoại lên nhãn: tối đa 10 ký tự, bản đầy đủ ở tooltip."""
+        from .chat_helpers import clip_chars
+
+        full = self.title or fallback
+        lbl.setText(clip_chars(full))
+        lbl.setToolTip(full)
+
+    def apply_renamed_title(self, session_id: str, title: str) -> None:
+        """Hội thoại đang mở vừa được đổi tên ở cột lịch sử: đổi luôn ``self.title``.
+
+        Không chỉ để thanh tiêu đề cập nhật ngay — lượt chat kế tiếp lưu bằng
+        ``self.title``, giữ tên cũ sẽ ghi đè mất tên người dùng vừa đặt."""
+        if session_id and session_id == self.session_id:
+            self.title = title
+            self._notify_title()
+
     def load_conversation(self, conv: Dict[str, Any]) -> None:
         """Switch the view to a stored conversation. Allowed while work is running —
         the current turns keep going in the background."""

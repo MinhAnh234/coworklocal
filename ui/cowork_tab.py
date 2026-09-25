@@ -95,7 +95,7 @@ class CoworkTab(ChatPanel):
         lbl = getattr(self, "_title_lbl", None)
         if lbl is None:
             return          # ChatPanel.__init__ sets self.title before we exist
-        lbl.setText(getattr(self, "title", "") or tr("cowork.title"))
+        self.set_title_label(lbl, tr("cowork.title"))
 
     def _retranslate(self) -> None:
         """Áp lại chữ theo ngôn ngữ đang chọn cho tiêu đề và các nút trên thanh công cụ."""

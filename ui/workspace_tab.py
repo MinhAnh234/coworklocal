@@ -339,6 +339,8 @@ class WorkspaceTab(ProjectEditingMixin, ProjectFolderRuleMixin, QWidget):
         sb.expand_requested.connect(lambda: self._on_history_fold(False))
         sb.refresh_requested.connect(self._on_sidebar_refresh)
         sb.history_changed.connect(self._reload_threads)
+        if self._cowork is not None:
+            sb.conversation_renamed.connect(self._cowork.apply_renamed_title)
 
     def _on_history_fold(self, collapsed: bool) -> None:
         """Its chevron closes the panel away, back to the drawn layout."""

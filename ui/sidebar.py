@@ -14,6 +14,7 @@ from ..core.history import (
     rename_conversation, set_pinned,
 )
 from ..i18n import on_language_changed, tr
+from ..presentation.chat.chat_helpers import clip_chars
 from .dialog_buttons import ask_text, confirm
 from .icons import collapse_left_icon, dot_icon, DOT_BLUE, icon
 from .widgets import CollapseStrip
@@ -81,6 +82,7 @@ class HistorySidebar(QWidget):
     expand_requested = Signal()     # strip clicked: re-expand
     refresh_requested = Signal()    # Refresh button: re-list + re-sync agent status
     history_changed = Signal()      # a conversation was deleted — other views (Project tab) should re-sync
+    conversation_renamed = Signal(str, str)  # session_id, new title — the open chat retitles itself
 
     def __init__(self, ctx: AppContext):
         """Cột lịch sử hội thoại.
@@ -273,7 +275,9 @@ class HistorySidebar(QWidget):
             is_current = bool(sid) and sid == self.current_session_id
             is_running = sid in self.running_ids
             suffix = tr("sidebar.running_suffix") if is_running else ""
-            item = QTreeWidgetItem([f"{title}{suffix}\n{created}"])
+            # Tối đa 10 ký tự như tiêu đề khung chat; tên đầy đủ ở tooltip.
+            item = QTreeWidgetItem([f"{clip_chars(title)}{suffix}\n{created}"])
+            item.setToolTip(0, title)
             # A running turn (blue LED) takes visual priority over the pin icon.
             if is_running:
                 item.setIcon(0, dot_icon(DOT_BLUE))
@@ -352,6 +356,8 @@ class HistorySidebar(QWidget):
             if ok and new.strip():
                 rename_conversation(path, new.strip())
                 self.refresh()
+                sid = load_conversation(path).get("session_id", "")
+                self.conversation_renamed.emit(sid, new.strip())
         elif chosen == del_act:
             if confirm(self, tr("sidebar.delete.title"),
                        tr("sidebar.delete.confirm", title=title)):
