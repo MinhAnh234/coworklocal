@@ -234,16 +234,16 @@ def test_mode_comes_from_the_workspace_when_not_pinned(ctx, app_service) -> None
     assert outcome.switched is True
 
 
-def test_fallback_mode_survives_a_round_trip_through_config(ctx) -> None:
-    """The new mode must be persistable, or the toggle could never select it."""
-    ctx.config.set_routing_mode_for("cowork", "fallback")
+def test_removed_modes_resolve_to_auto(ctx) -> None:
+    """Off/Fallback were removed from the UI: a stored value resolves to Auto."""
+    for legacy in ("off", "fallback"):
+        ctx.config.set_routing_mode_for("cowork", legacy)
+        assert ctx.config.routing_mode_for("cowork") == "auto"
+        assert ctx.project_routing_mode("cowork") == "auto"
 
-    assert ctx.config.routing_mode_for("cowork") == "fallback"
-    assert ctx.project_routing_mode("cowork") == "fallback"
 
-
-def test_unknown_persisted_mode_degrades_to_off(ctx) -> None:
-    """A hand-edited config must not enable routing by accident."""
+def test_unknown_persisted_mode_degrades_to_auto(ctx) -> None:
+    """A hand-edited config resolves to the default mode (Auto)."""
     ctx.config.routing["surface_modes"]["cowork"] = "turbo"
 
-    assert ctx.config.routing_mode_for("cowork") == "off"
+    assert ctx.config.routing_mode_for("cowork") == "auto"

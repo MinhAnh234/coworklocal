@@ -258,6 +258,14 @@ class JsonConfigRepository(ConfigSectionsMixin):
     #: là bản chính; ``tests/test_config_repository.py`` có bài đối chiếu với
     #: ``config.py`` để hai bên lệch nhau là đỏ ngay.
     ROUTING_MODES = ("off", "auto", "manual", "fallback")
+    #: Chế độ người dùng còn chọn được. "off"/"fallback" đã bỏ khỏi giao diện;
+    #: giá trị cũ còn lưu trong config/project (hoặc giá trị lạ) đều hiểu là "auto".
+    USER_ROUTING_MODES = ("auto", "manual")
+
+    @classmethod
+    def user_routing_mode(cls, mode: str) -> str:
+        """Quy một giá trị đã lưu về chế độ người dùng chọn được (mặc định "auto")."""
+        return mode if mode in cls.USER_ROUTING_MODES else "auto"
 
     @classmethod
     def load(cls, path: Path | None = None, *, secrets: SecretStore | None = None):
@@ -313,16 +321,14 @@ class JsonConfigRepository(ConfigSectionsMixin):
         """Chế độ có hiệu lực cho một bề mặt chat.
 
         Đặt riêng cho bề mặt thì thắng; để trống thì lấy ``switch_mode`` chung.
-        Giá trị lạ rơi về "off" — định tuyến luôn là thứ phải bật, kể cả khi
-        có người sửa tay file cấu hình."""
+        Chỉ còn Auto/Manual: "off", "fallback" cũ hay giá trị lạ đều hiểu là "auto"."""
         routing = self.routing
         override = (routing.get("surface_modes", {}) or {}).get(surface, "")
-        mode = override or routing.get("switch_mode", "off")
-        return mode if mode in self.ROUTING_MODES else "off"
+        return self.user_routing_mode(override or routing.get("switch_mode", ""))
 
     def set_routing_mode_for(self, surface: str, mode: str) -> None:
         """Đặt chế độ định tuyến riêng cho một bề mặt chat, ghi đĩa ngay."""
-        mode = mode if mode in self.ROUTING_MODES else "off"
+        mode = self.user_routing_mode(mode)
         self.routing.setdefault("surface_modes", {})[surface] = mode
         self.save()
 

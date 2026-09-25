@@ -90,7 +90,7 @@ class AppContext:
         return load_project(pid)
 
     def project_routing_mode(self, surface: str) -> str:
-        """Effective Off/Auto/Manual/Fallback routing mode for a chat ``surface``
+        """Effective Auto/Manual routing mode for a chat ``surface``
         in the ACTIVE workspace: the workspace's own override wins; otherwise the
         global default (``config.routing_mode_for``). This is what makes each
         workspace keep its own routing mode.
@@ -101,15 +101,15 @@ class AppContext:
         project = self._current_project()
         if project is not None:
             mode = (project.routing_modes or {}).get(surface, "")
-            if mode in self.config.ROUTING_MODES:
-                return mode
+            if mode in self.config.ROUTING_MODES:   # old off/fallback → auto
+                return self.config.user_routing_mode(mode)
         return self.config.routing_mode_for(surface)
 
     def set_project_routing_mode(self, surface: str, mode: str) -> None:
         """Persist a surface's routing mode for the ACTIVE workspace. With no
         workspace selected, falls back to the global setting so behaviour
         outside a project stays global."""
-        mode = mode if mode in self.config.ROUTING_MODES else "off"
+        mode = self.config.user_routing_mode(mode)
         project = self._current_project()
         if project is None:
             self.config.set_routing_mode_for(surface, mode)

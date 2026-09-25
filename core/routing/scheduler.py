@@ -75,26 +75,16 @@ class RoutingScheduler(QObject):
             return None
 
     def _routing_enabled_anywhere(self) -> bool:
-        """Is routing actually in use? True if the global mode is auto/manual OR
-        any chat surface overrides to auto/manual. When everything is Off, the
-        assessment scores would never be consulted — so we don't spend tokens
-        probing for them (no surprise cost on a fresh install)."""
-        try:
-            routing = self.ctx.config.routing
-            if (routing.get("switch_mode") or "off") in ("auto", "manual"):
-                return True
-            for m in (routing.get("surface_modes") or {}).values():
-                if m in ("auto", "manual"):
-                    return True
-        except Exception:  # noqa: BLE001
-            pass
-        return False
+        """Is routing actually in use? Always, now: the Off mode was removed and
+        every stored value resolves to Auto or Manual (see
+        ``config.user_routing_mode``). Paid probing is switched off through
+        ``reassess_interval_hours = 0`` instead."""
+        return True
 
     def is_due(self) -> bool:
         """Đã đến lúc chấm điểm lại chưa.
 
-        Tắt định tuyến ở mọi bề mặt thì KHÔNG dò — dò model là lượt gọi có tính phí,
-        không được tiêu tiền cho một tính năng người dùng đã tắt.
+        Dò model là lượt gọi có tính phí: đặt chu kỳ chấm lại = 0 thì không dò.
         """
         if not self._routing_enabled_anywhere():
             return False  # routing off everywhere → don't probe (would be wasted cost)

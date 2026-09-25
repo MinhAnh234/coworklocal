@@ -236,7 +236,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # file (~/.cowork_local/assessments.json + assessments_history/), not here —
     # this section is only the behaviour config the user edits.
     "routing": {
-        "switch_mode": "off",          # global default: "off" | "auto" | "manual"
+        "switch_mode": "auto",         # global default: "auto" | "manual"
         "policy": "balanced",          # "quality" | "cost" | "latency" | "balanced"
         "min_score_gain": 0.05,        # only switch if the new model beats current by ≥ this
         "confirm_timeout_sec": 60,     # (manual) auto-keep current if the user doesn't confirm in time
@@ -246,7 +246,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "judge_model": "",             # fixed cheap judge model ("" → a per-provider default)
         "candidates": [],              # explicit [{provider, model_id, tier}]; empty → discover from providers
         "auto_reassess_on_add": True,  # reassess a newly-added model as soon as it's added
-        # Per-surface Off/Auto/Manual toggle state (the chat-screen toggle). An
+        # Per-surface Auto/Manual toggle state (the chat-screen toggle). An
         # empty string means "follow the global switch_mode above".
         "surface_modes": {
             "cowork": "",

@@ -32,16 +32,29 @@ def _mk(ctx, name):
 def test_defaults_follow_global_when_no_override(ctx):
     a = _mk(ctx, "Alpha")
     ctx.active_project_id = a.project_id
-    # Global default switch_mode is "off".
-    assert ctx.project_routing_mode("cowork") == "off"
+    # Global default switch_mode is "auto" (Off was removed).
+    assert ctx.project_routing_mode("cowork") == "auto"
     # Change the GLOBAL default → project with no override follows it.
-    ctx.config.data["routing"]["switch_mode"] = "auto"
+    ctx.config.data["routing"]["switch_mode"] = "manual"
+    assert ctx.project_routing_mode("cowork") == "manual"
+
+
+def test_legacy_off_and_fallback_resolve_to_auto(ctx):
+    a = _mk(ctx, "Alpha")
+    ctx.active_project_id = a.project_id
+    ctx.config.data["routing"]["switch_mode"] = "manual"
+    for legacy in ("off", "fallback"):
+        a.routing_modes = {"cowork": legacy}
+        save_project(a)
+        assert ctx.project_routing_mode("cowork") == "auto"
+    ctx.set_project_routing_mode("cowork", "off")
     assert ctx.project_routing_mode("cowork") == "auto"
 
 
 def test_per_workspace_routing_is_isolated(ctx):
     a = _mk(ctx, "Alpha")
     b = _mk(ctx, "Beta")
+    ctx.config.data["routing"]["switch_mode"] = "manual"
 
     ctx.active_project_id = a.project_id
     ctx.set_project_routing_mode("cowork", "auto")
@@ -49,15 +62,18 @@ def test_per_workspace_routing_is_isolated(ctx):
 
     # Switching to workspace B must NOT see A's override (falls back to global).
     ctx.active_project_id = b.project_id
-    assert ctx.project_routing_mode("cowork") == "off"
-
-    # B sets its own, independently.
-    ctx.set_project_routing_mode("cowork", "manual")
     assert ctx.project_routing_mode("cowork") == "manual"
 
-    # A is unchanged.
+    # B sets its own, independently.
+    ctx.set_project_routing_mode("cowork", "auto")
     ctx.active_project_id = a.project_id
+    ctx.set_project_routing_mode("cowork", "manual")
+    ctx.active_project_id = b.project_id
     assert ctx.project_routing_mode("cowork") == "auto"
+
+    # A keeps its own.
+    ctx.active_project_id = a.project_id
+    assert ctx.project_routing_mode("cowork") == "manual"
 
 
 def test_per_surface_isolated_within_a_workspace(ctx):
@@ -68,7 +84,8 @@ def test_per_surface_isolated_within_a_workspace(ctx):
     # co4e untouched → global default.
     assert ctx.project_routing_mode("cowork") == "auto"
     assert ctx.project_routing_mode("ai_edit") == "manual"
-    assert ctx.project_routing_mode("co4e") == "off"
+    ctx.config.data["routing"]["switch_mode"] = "manual"
+    assert ctx.project_routing_mode("co4e") == "manual"
 
 
 def test_routing_mode_persists_to_disk(ctx):

@@ -40,7 +40,7 @@ class RoutingToggle(QWidget):
     Emits :attr:`mode_changed`; call :meth:`refresh` after the workspace switches.
     """
 
-    mode_changed = Signal(str)  # "off" | "auto" | "manual" | "fallback"
+    mode_changed = Signal(str)  # "auto" | "manual"
 
     def __init__(
         self,
@@ -76,14 +76,11 @@ class RoutingToggle(QWidget):
         # it the width stays frozen at the language the widget was built in and
         # the longer translation is cut off.
         self._combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        # (data value, i18n key) — data is the persisted mode string. Order is
-        # least-to-most autonomous, with Fallback (R03-T03) last because it is
-        # the "only when something breaks" mode rather than a stronger Auto.
+        # (data value, i18n key) — data is the persisted mode string. Off and
+        # Fallback were dropped: only Auto and Manual remain selectable.
         self._modes = [
-            ("off", "routing.mode_off"),
             ("auto", "routing.mode_auto"),
             ("manual", "routing.mode_manual"),
-            ("fallback", "routing.mode_fallback"),
         ]
         for value, key in self._modes:
             self._combo.addItem(tr(key), value)
@@ -100,16 +97,16 @@ class RoutingToggle(QWidget):
         on_language_changed(self.retranslate)
 
     def current_mode(self) -> str:
-        """Chế độ định tuyến đang chọn; 'off' nếu chưa đặt."""
-        return self._combo.currentData() or "off"
+        """Chế độ định tuyến đang chọn; 'auto' nếu chưa đặt."""
+        return self._combo.currentData() or "auto"
 
     def refresh(self) -> None:
         """Re-read the backing mode (e.g. after switching workspace) and show it
         without emitting a spurious change."""
         try:
-            mode = self._get_mode() or "off"
+            mode = self._get_mode() or "auto"
         except Exception:  # noqa: BLE001
-            mode = "off"
+            mode = "auto"
         idx = self._combo.findData(mode)
         if idx < 0:
             idx = 0

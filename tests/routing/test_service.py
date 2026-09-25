@@ -88,12 +88,21 @@ def test_best_for_returns_strong(service):
     assert ranking.best.assessment.metadata.model_id == "strong-model"
 
 
-def test_route_off_never_switches(service):
+def test_route_off_explicit_override_never_switches(service):
+    # "off" is no longer user-selectable, but the engine still honours it
+    # when passed explicitly.
+    service.reassess()
+    r = service.route("cowork", "Write a Python function", "anthropic", "weak-model",
+                      mode_override="off")
+    assert r.mode == SwitchMode.OFF
+    assert r.should_switch is False
+
+
+def test_legacy_off_in_config_routes_as_auto(service):
     service.reassess()
     service.ctx.config.data["routing"]["switch_mode"] = "off"
     r = service.route("cowork", "Write a Python function", "anthropic", "weak-model")
-    assert r.mode == SwitchMode.OFF
-    assert r.should_switch is False
+    assert r.mode == SwitchMode.AUTO
 
 
 def test_route_auto_switches_to_strong(service):
@@ -147,12 +156,12 @@ def test_route_never_raises_on_broken_store(ctx, tmp_path):
 
 def test_per_surface_mode_override(service):
     service.reassess()
-    service.ctx.config.data["routing"]["switch_mode"] = "off"
+    service.ctx.config.data["routing"]["switch_mode"] = "manual"
     service.ctx.config.data["routing"]["surface_modes"]["co4e"] = "auto"
-    # cowork follows global (off); co4e overridden to auto
+    # cowork follows global (manual); co4e overridden to auto
     r_cowork = service.route("cowork", "Write a Python function", "anthropic", "weak-model")
     r_co4e = service.route("co4e", "Write a Python function", "anthropic", "weak-model")
-    assert r_cowork.mode == SwitchMode.OFF
+    assert r_cowork.mode == SwitchMode.MANUAL
     assert r_co4e.mode == SwitchMode.AUTO
     assert r_co4e.should_switch is True
 

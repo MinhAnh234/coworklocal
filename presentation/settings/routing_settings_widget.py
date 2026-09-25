@@ -12,11 +12,9 @@ from PySide6.QtWidgets import (
 
 from ...i18n import tr
 
-#: Các chế độ định tuyến. Danh sách này phải khớp ``config.py::AppConfig
-#: .ROUTING_MODES`` — Delta thêm "fallback" ở R03-T03 và nếu quên đồng bộ
-#: chỗ này thì người dùng không chọn được chế độ đó, mà không có lỗi nào báo.
-MODE_KEYS = (("off", "routing.mode_off"), ("auto", "routing.mode_auto"),
-             ("manual", "routing.mode_manual"))
+#: Các chế độ người dùng chọn được — khớp ``AppConfig.USER_ROUTING_MODES``.
+#: Off/Fallback đã bỏ; giá trị cũ còn lưu được hiểu là Auto.
+MODE_KEYS = (("auto", "routing.mode_auto"), ("manual", "routing.mode_manual"))
 
 POLICY_KEYS = (("quality", "routing.policy_quality"), ("cost", "routing.policy_cost"),
                ("latency", "routing.policy_latency"),
@@ -37,7 +35,7 @@ class RoutingSettingsWidget(QGroupBox):
         self.mode = QComboBox()
         for value, key in MODE_KEYS:
             self.mode.addItem(tr(key), value)
-        _select(self.mode, routing.get("switch_mode", "off"))
+        _select(self.mode, routing.get("switch_mode", "auto"))  # off/fallback cũ → mục đầu (Auto)
         form.addRow(tr("routing.settings_mode"), self.mode)
 
         self.policy = QComboBox()
