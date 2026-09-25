@@ -155,6 +155,12 @@ STRINGS: Dict[str, Dict[str, str]] = {
     "app.lang.switching": {
         "en": "Switching language…", "ja": "言語を切り替えています…",
         "vi": "Đang đổi ngôn ngữ…"},
+    # Popup do luồng canh treo mở khi giao diện đứng quá vài giây
+    # (presentation/shell/crash_guard.py).
+    "app.hang.message": {
+        "en": "Processing, please wait…\n\nThis window closes by itself once the app responds again.",
+        "ja": "処理中です。しばらくお待ちください…\n\nアプリが応答を再開すると、このウィンドウは自動的に閉じます。",
+        "vi": "Đang xử lý, vui lòng đợi…\n\nCửa sổ này tự đóng khi app phản hồi lại."},
     "app.tab.dashboard": {"en": "Dashboard", "ja": "ダッシュボード", "vi": "Dashboard"},
     "app.tab.schedule": {"en": "Schedule Task", "ja": "タスクスケジュール", "vi": "Schedule Task"},
     "app.tab.cowork": {"en": "Cowork", "ja": "Cowork", "vi": "Cowork"},

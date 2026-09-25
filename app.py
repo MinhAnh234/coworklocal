@@ -72,6 +72,12 @@ def run(argv: List[str] | None = None) -> int:
     app = QApplication.instance() or QApplication(argv)
     app.setApplicationName(APP_NAME)
     app.setWindowIcon(app_icon())
+    try:
+        from .config import CONFIG_DIR
+        from .presentation.shell import crash_guard
+        crash_guard.install(Path(CONFIG_DIR) / "logs")
+    except Exception:  # noqa: BLE001 - crash logging must never block startup
+        crash_guard = None
     # Composition Root: presentation/shell/bootstrap.py quyết định app chạy
     # bằng mảnh nào. Từ R02, đó là JsonConfigRepository + kho bí mật của hệ
     # điều hành, không còn config.py::AppConfig.
@@ -132,4 +138,10 @@ def run(argv: List[str] | None = None) -> int:
         pass
 
     win.show()
+    if crash_guard is not None:
+        try:
+            watchdog = crash_guard.HangWatchdog(DISPLAY_NAME, win)
+            app.aboutToQuit.connect(watchdog.stop)
+        except Exception:  # noqa: BLE001
+            pass
     return app.exec()
