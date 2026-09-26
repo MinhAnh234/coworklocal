@@ -73,7 +73,7 @@ LEGACY_ALLOWANCE = {
     "core/tasks.py": 339,
     "core/co4e.py": 330,
     "core/task_executors.py": 347,
-    "ui/help_agent_widget.py": 313,
+    "ui/help_agent_widget.py": 310,
     "core/structure_graph.py": 346,
     "ui/cowork_tab.py": 248,
     "providers/base.py": 224,

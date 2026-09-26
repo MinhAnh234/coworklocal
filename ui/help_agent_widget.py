@@ -248,6 +248,9 @@ class HelpAgentWidget(QWidget):
         self.launcher.setToolTip(
             f'{tr("help_agent.open_tooltip")} · {tr("help_agent.dot_hint")}')
         self.launcher.clicked.connect(self._expand)
+        # Kéo nút đi đâu cũng được; bấm (không kéo) vẫn mở chat như cũ.
+        from ..presentation.shell.help_dock_drag import DockDragger
+        self._drag = DockDragger(self, self.launcher, margin=_MARGIN)
 
     def _build_panel(self) -> None:
         """Dựng panel chat: dòng thời gian, ô nhập, nút gửi và menu ⋯."""
@@ -400,13 +403,9 @@ class HelpAgentWidget(QWidget):
             self.reposition()
 
     def reposition(self) -> None:
-        """Pin to the parent's bottom-right corner (called on parent resize)."""
-        p = self.parentWidget()
-        if p is None:
-            return
-        x = max(0, p.width() - self.width() - _MARGIN)
-        y = max(0, p.height() - self.height() - _MARGIN - self._bottom_guard)
-        self.move(x, y)
+        """Đặt lại chỗ khi cửa sổ đổi cỡ: chỗ người dùng đã kéo tới, mặc định là
+        góc dưới-phải (xem presentation/shell/help_dock_drag.py)."""
+        self._drag.place()
 
     # ---- rendering --------------------------------------------------------
     def _bubble_html(self, who: str, content: str) -> str:
