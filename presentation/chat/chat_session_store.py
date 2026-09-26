@@ -225,11 +225,11 @@ class ChatSessionMixin:
             self.refresh_usage()
 
     def set_title_label(self, lbl, fallback: str) -> None:
-        """Đặt tiêu đề hội thoại lên nhãn: tối đa 10 ký tự, bản đầy đủ ở tooltip."""
-        from .chat_helpers import clip_chars
+        """Đặt tiêu đề hội thoại lên nhãn: tối đa 10 từ, bản đầy đủ ở tooltip."""
+        from .chat_helpers import clip_words
 
         full = self.title or fallback
-        lbl.setText(clip_chars(full))
+        lbl.setText(clip_words(full))
         lbl.setToolTip(full)
 
     def apply_renamed_title(self, session_id: str, title: str) -> None:

@@ -9,12 +9,13 @@ from typing import Any, Dict, List, Optional
 
 _PLAN_ICONS = {"pending": "○", "running": "▶", "done": "✓", "error": "✗"}
 
-HEADER_TITLE_MAX_CHARS = 10  # thanh tiêu đề khung chat chỉ hiện tối đa ngần này ký tự
+TITLE_MAX_WORDS = 10  # tiêu đề hội thoại chỉ hiện tối đa ngần này từ
 
 
-def clip_chars(text: str, limit: int = HEADER_TITLE_MAX_CHARS) -> str:
-    """Giữ tối đa ``limit`` ký tự, dư thì cắt và thêm "…"."""
-    return text if len(text) <= limit else text[:limit].rstrip() + "…"
+def clip_words(text: str, limit: int = TITLE_MAX_WORDS) -> str:
+    """Giữ tối đa ``limit`` từ (tách theo khoảng trắng), dư thì thêm "…"."""
+    words = text.split()
+    return text if len(words) <= limit else " ".join(words[:limit]) + "…"
 
 
 

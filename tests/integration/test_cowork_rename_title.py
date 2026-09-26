@@ -13,7 +13,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from cowork_local.config import AppConfig               # noqa: E402
-from cowork_local.presentation.chat.chat_helpers import clip_chars  # noqa: E402
+from cowork_local.presentation.chat.chat_helpers import clip_words  # noqa: E402
 from cowork_local.state import AppContext               # noqa: E402
 
 pytest.importorskip("PySide6", reason="Qt is required for the integration suite")
@@ -35,11 +35,11 @@ def cowork(qt_app, tmp_path: Path):
     tab.deleteLater()
 
 
-def test_clip_chars_keeps_ten_characters():
-    assert clip_chars("Tên ngắn") == "Tên ngắn"
-    assert clip_chars("0123456789") == "0123456789"
-    assert clip_chars("0123456789AB") == "0123456789…"
-    assert clip_chars("Dự án mới toanh") == "Dự án mới…"   # không để khoảng trắng trước "…"
+def test_clip_words_keeps_ten_words():
+    assert clip_words("Tên ngắn") == "Tên ngắn"
+    ten = "một hai ba bốn năm sáu bảy tám chín mười"
+    assert clip_words(ten) == ten
+    assert clip_words(ten + " mười một") == ten + "…"
 
 
 def test_rename_of_open_conversation_updates_header(cowork):
@@ -59,10 +59,10 @@ def test_rename_of_other_conversation_is_ignored(cowork):
 
 
 def test_long_title_is_clipped_with_full_tooltip(cowork):
-    long_title = "Báo cáo doanh thu quý 3"
+    long_title = "Báo cáo doanh thu quý 3 năm 2026 của chi nhánh Hà Nội"
     cowork.load_conversation({"session_id": "s1", "title": "x", "messages": []})
     cowork.apply_renamed_title("s1", long_title)
-    assert cowork._title_lbl.text() == "Báo cáo do…"
+    assert cowork._title_lbl.text() == "Báo cáo doanh thu quý 3 năm 2026 của chi…"
     assert cowork._title_lbl.toolTip() == long_title
 
 
@@ -75,7 +75,7 @@ def test_history_list_clips_title_to_ten_chars(qt_app, tmp_path):
     ctx = AppContext(AppConfig.load(tmp_path / "config.json"))
     ctx.config.data.setdefault("history", {})["custom_dir"] = str(tmp_path / "history")
     assert ctx.config.history_dir() == tmp_path / "history"   # không đọc lịch sử thật
-    title = "Báo cáo doanh thu quý 3"
+    title = "Báo cáo doanh thu quý 3 năm 2026 của chi nhánh Hà Nội"
     save_conversation(tmp_path / "history", "cowork", "s1",
                       [{"role": "user", "content": "hi"}], title, project_id="p-test")
     sb = HistorySidebar(ctx)
@@ -89,7 +89,7 @@ def test_history_list_clips_title_to_ten_chars(qt_app, tmp_path):
             items.append(it)
         stack.extend(it.child(i) for i in range(it.childCount()))
     assert len(items) == 1
-    assert items[0].text(0).splitlines()[0] == "Báo cáo do…"
+    assert items[0].text(0).splitlines()[0] == "Báo cáo doanh thu quý 3 năm 2026 của chi…"
     assert items[0].toolTip(0) == title
     assert items[0].data(0, Qt.UserRole + 3) == title   # đổi tên vẫn điền tên đầy đủ
     sb.deleteLater()

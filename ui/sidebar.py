@@ -14,7 +14,7 @@ from ..core.history import (
     rename_conversation, set_pinned,
 )
 from ..i18n import on_language_changed, tr
-from ..presentation.chat.chat_helpers import clip_chars
+from ..presentation.chat.chat_helpers import clip_words
 from .dialog_buttons import ask_text, confirm
 from .icons import collapse_left_icon, dot_icon, DOT_BLUE, icon
 from .widgets import CollapseStrip
@@ -275,8 +275,8 @@ class HistorySidebar(QWidget):
             is_current = bool(sid) and sid == self.current_session_id
             is_running = sid in self.running_ids
             suffix = tr("sidebar.running_suffix") if is_running else ""
-            # Tối đa 10 ký tự như tiêu đề khung chat; tên đầy đủ ở tooltip.
-            item = QTreeWidgetItem([f"{clip_chars(title)}{suffix}\n{created}"])
+            # Tối đa 10 từ như tiêu đề khung chat; tên đầy đủ ở tooltip.
+            item = QTreeWidgetItem([f"{clip_words(title)}{suffix}\n{created}"])
             item.setToolTip(0, title)
             # A running turn (blue LED) takes visual priority over the pin icon.
             if is_running:
