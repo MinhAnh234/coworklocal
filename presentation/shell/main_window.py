@@ -229,6 +229,8 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
             self._update_dock_guard()
             self.help_agent.reposition()
             self.help_agent.raise_()
+            # Layouts settle after the first show; measure the composer again then.
+            QTimer.singleShot(0, self._update_dock_guard)
         # Build GraphRAG's browser view and first graph once the window is up
         # and idle, so clicking GraphRAG does not sit on an empty view while
         # both happen. 3s is after the first paint and any startup refresh.
@@ -346,16 +348,12 @@ class MainWindow(NavRailMixin, RailProjectMixin, TopBarMixin,
                 # Measured from the composer's TOP edge in window coordinates:
                 # its own height misses the extra row of controls laid out under
                 # it, which left the dot still overlapping by ~25px.
+                # Always lifted on Cowork, whatever the screen size: it used to
+                # lift only when the composer was right under the dot, a test
+                # that failed on 27"+ screens (a centred window, a wide chat
+                # column) and dropped the dot into the corner there.
                 origin = comp.mapTo(self, comp.rect().topLeft())
-                # ...but only lift the dot if the composer is actually beneath
-                # it. The composer stops at the chat column's right edge, well
-                # short of the dot, so lifting it there raised the dot 156px for
-                # nothing — on Cowork alone it sat off the corner every other
-                # screen keeps it in.
-                dock_left = dock.x() - self.mapToGlobal(self.rect().topLeft()).x()
-                dock_right = dock_left + dock.width()
-                if dock_right > origin.x() and dock_left < origin.x() + comp.width():
-                    guard = max(0, self.height() - origin.y() + 8)
+                guard = max(0, self.height() - origin.y() + 8)
         dock.set_bottom_guard(guard)
 
 
