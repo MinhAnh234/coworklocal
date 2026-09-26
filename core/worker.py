@@ -9,7 +9,7 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable, Dict, Optional
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Qt, Signal
 
 from .permissions import PermissionGate
 
@@ -39,6 +39,30 @@ class AgentWorker(QThread):
         self._job = job
         self.stop_event = threading.Event()  # public for provider Event.wait() — immediate Stop
         self.gate: Optional[PermissionGate] = None
+
+    # A running worker must never be garbage-collected: Qt treats "QThread:
+    # Destroyed while thread is still running" as FATAL and kills the whole app
+    # on the spot. Callers routinely keep only the latest one (``self._worker =
+    # w``), so switching tabs quickly (GraphRAG starting scan after scan) dropped
+    # the previous, still-running worker and crashed. Every started worker is
+    # held here until its thread has really ended.
+    _running: "set[AgentWorker]" = set()
+
+    def start(self, *args, **kwargs) -> None:  # noqa: D401 - Qt override
+        """Khởi động luồng và giữ tham chiếu tới khi nó chạy xong hẳn."""
+        AgentWorker._running.add(self)
+        # Queued: runs on the GUI thread once the thread has left run(), never
+        # inside the finishing thread itself.
+        self.finished.connect(self._release, Qt.QueuedConnection)
+        super().start(*args, **kwargs)
+
+    def _release(self) -> None:
+        """Thả tham chiếu khi luồng đã kết thúc."""
+        if self.isRunning() and not self.wait(200):   # run() returned; OS thread still exiting
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(50, self._release)
+            return
+        AgentWorker._running.discard(self)
 
     # -- helpers used from inside the job (worker thread) --------------
     def is_cancelled(self) -> bool:
